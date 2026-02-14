@@ -8,6 +8,14 @@ curl -fsSL https://mine.rwolfe.io/install | bash
 
 This downloads the latest release binary for your OS/arch and installs it to `~/.local/bin/`.
 
+To inspect the script before running:
+
+```bash
+curl -fsSL https://mine.rwolfe.io/install -o install.sh
+less install.sh
+bash install.sh
+```
+
 ## Build from Source
 
 Requires Go 1.25+.
@@ -60,7 +68,7 @@ Follow the printed instructions to source them.
 ## Uninstall
 
 ```bash
-rm $(which mine)
+rm -f "$(command -v mine)"
 rm -rf ~/.config/mine
 rm -rf ~/.local/share/mine
 rm -rf ~/.cache/mine

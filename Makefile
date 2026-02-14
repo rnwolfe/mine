@@ -22,7 +22,11 @@ clean:
 	rm -rf bin/
 
 test:
-	go test ./... -v -count=1
+	go test ./... -v -count=1 -race
+
+cover:
+	go test ./... -coverprofile=coverage.out -covermode=atomic
+	go tool cover -func=coverage.out
 
 lint:
 	go vet ./...

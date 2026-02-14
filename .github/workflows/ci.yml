@@ -30,7 +30,7 @@ jobs:
           echo "Total coverage: ${COVERAGE}%"
           # Ratchet: increase as we add tests. Current floor based on internal/ coverage.
           THRESHOLD=14
-          if [ "$(echo "$COVERAGE < $THRESHOLD" | bc -l)" -eq 1 ]; then
+          if awk "BEGIN {exit !($COVERAGE < $THRESHOLD)}"; then
             echo "::error::Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
             exit 1
           fi
@@ -45,8 +45,8 @@ jobs:
 
       - name: Check binary size
         run: |
-          SIZE=$(stat -f%z bin/mine 2>/dev/null || stat -c%s bin/mine)
-          SIZE_MB=$(echo "scale=1; $SIZE / 1048576" | bc)
+          SIZE=$(stat -c%s bin/mine)
+          SIZE_MB=$(awk -v size="$SIZE" 'BEGIN { printf "%.1f", size/1048576 }')
           echo "Binary size: ${SIZE_MB} MB"
           if [ "$SIZE" -gt 20971520 ]; then
             echo "::warning::Binary size ${SIZE_MB}MB exceeds 20MB target"

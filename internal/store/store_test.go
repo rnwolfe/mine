@@ -6,13 +6,19 @@ import (
 	"testing"
 )
 
-func TestOpenAndClose(t *testing.T) {
-	// Use a temp directory for the test
+// setupTestXDG sets XDG env vars to a temp directory for isolated testing.
+func setupTestXDG(t *testing.T) string {
+	t.Helper()
 	tmpDir := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmpDir)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, "config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(tmpDir, "cache"))
 	t.Setenv("XDG_STATE_HOME", filepath.Join(tmpDir, "state"))
+	return tmpDir
+}
+
+func TestOpenAndClose(t *testing.T) {
+	tmpDir := setupTestXDG(t)
 
 	db, err := Open()
 	if err != nil {
@@ -32,11 +38,7 @@ func TestOpenAndClose(t *testing.T) {
 }
 
 func TestMigrationsCreateTables(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", tmpDir)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, "config"))
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(tmpDir, "cache"))
-	t.Setenv("XDG_STATE_HOME", filepath.Join(tmpDir, "state"))
+	setupTestXDG(t)
 
 	db, err := Open()
 	if err != nil {
@@ -58,11 +60,7 @@ func TestMigrationsCreateTables(t *testing.T) {
 }
 
 func TestWALMode(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", tmpDir)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, "config"))
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(tmpDir, "cache"))
-	t.Setenv("XDG_STATE_HOME", filepath.Join(tmpDir, "state"))
+	setupTestXDG(t)
 
 	db, err := Open()
 	if err != nil {
@@ -71,18 +69,17 @@ func TestWALMode(t *testing.T) {
 	defer db.Close()
 
 	var journalMode string
-	db.Conn().QueryRow("PRAGMA journal_mode").Scan(&journalMode)
+	err = db.Conn().QueryRow("PRAGMA journal_mode").Scan(&journalMode)
+	if err != nil {
+		t.Fatalf("Querying journal_mode failed: %v", err)
+	}
 	if journalMode != "wal" {
 		t.Errorf("Expected WAL mode, got %q", journalMode)
 	}
 }
 
 func TestDoubleOpen(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", tmpDir)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpDir, "config"))
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(tmpDir, "cache"))
-	t.Setenv("XDG_STATE_HOME", filepath.Join(tmpDir, "state"))
+	setupTestXDG(t)
 
 	db1, err := Open()
 	if err != nil {

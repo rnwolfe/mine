@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mine — your personal developer supercharger</title>
+  <meta name="description" content="A single CLI tool that turbocharges dev velocity, tames environment chaos, and brings joy to the terminal.">
+  <meta property="og:title" content="mine — your personal developer supercharger">
+  <meta property="og:description" content="Everything you need. Nothing you don't. Radically yours.">
+  <meta property="og:type" content="website">
+  <style>
+    :root {
+      --gold: #FFD700;
+      --amber: #FFBF00;
+      --copper: #B87333;
+      --stone: #8B8680;
+      --deep: #1a1a2e;
+      --deeper: #0f0f1a;
+      --emerald: #50C878;
+      --ruby: #E0115F;
+      --sapphire: #0F52BA;
+      --text: #e0e0e0;
+      --muted: #888;
+      --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--deeper);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 70vh;
+      padding: 4rem 2rem;
+      text-align: center;
+      background: linear-gradient(180deg, var(--deep) 0%, var(--deeper) 100%);
+    }
+
+    .logo {
+      font-size: 4rem;
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--gold), var(--amber), var(--copper));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .tagline {
+      font-size: 1.25rem;
+      color: var(--muted);
+      max-width: 500px;
+      margin-bottom: 2.5rem;
+    }
+
+    .install-box {
+      background: rgba(255, 215, 0, 0.05);
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      color: var(--gold);
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .install-box:hover {
+      border-color: var(--gold);
+      background: rgba(255, 215, 0, 0.08);
+    }
+
+    .install-box .hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 4rem 2rem;
+    }
+
+    .feature {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 1.5rem;
+      transition: border-color 0.2s;
+    }
+
+    .feature:hover {
+      border-color: rgba(255, 215, 0, 0.3);
+    }
+
+    .feature .icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature h3 {
+      color: var(--gold);
+      font-size: 1rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .feature p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .feature code {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--amber);
+      background: rgba(255, 215, 0, 0.08);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+    }
+
+    .terminal {
+      max-width: 650px;
+      margin: 0 auto;
+      padding: 0 2rem 4rem;
+    }
+
+    .terminal-window {
+      background: #1e1e2e;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    .terminal-bar {
+      background: #2a2a3e;
+      padding: 0.5rem 1rem;
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.red { background: #ff5f57; }
+    .terminal-dot.yellow { background: #febc2e; }
+    .terminal-dot.green { background: #28c840; }
+
+    .terminal-body {
+      padding: 1rem 1.2rem;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      line-height: 1.7;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    .t-prompt { color: var(--emerald); }
+    .t-cmd { color: var(--text); }
+    .t-gold { color: var(--gold); }
+    .t-muted { color: var(--muted); }
+    .t-green { color: var(--emerald); }
+    .t-red { color: var(--ruby); }
+    .t-blue { color: var(--sapphire); }
+
+    footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    footer a {
+      color: var(--gold);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 2rem; }
+      .tagline { font-size: 1rem; }
+      .features { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <div class="logo">&#x26CF;&#xFE0F;</div>
+    <h1>mine</h1>
+    <p class="tagline">Everything you need. Nothing you don't. Radically yours.</p>
+    <div class="install-box" onclick="navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/rnwolfe/mine/main/scripts/install.sh | bash')">
+      <span>curl -fsSL https://mine.dev/install | bash</span>
+      <div class="hint">click to copy</div>
+    </div>
+  </section>
+
+  <section class="terminal">
+    <div class="terminal-window">
+      <div class="terminal-bar">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+      </div>
+      <div class="terminal-body"><span class="t-prompt">$</span> <span class="t-cmd">mine</span>
+<span class="t-gold">&#x26CF; Hey Ryan!</span>
+
+  <span class="t-muted">&#x1F4CB;</span> <span class="t-gold">Todos</span>        3 open <span class="t-red">(1 overdue!)</span>
+  <span class="t-muted">&#x1F4C5;</span> <span class="t-gold">Today</span>        Friday, February 14
+  <span class="t-muted">&#x2699;&#xFE0F;</span>  <span class="t-gold">Mine</span>         0.1.0
+
+  <span class="t-muted">tip: `mine todo` to tackle that overdue task.</span>
+
+<span class="t-prompt">$</span> <span class="t-cmd">mine todo add "ship v0.2" -p high -d tomorrow</span>
+  <span class="t-green">&#x2713;</span> Added &#x1F7E0; <span class="t-gold">#4</span>
+    ship v0.2
+    Due: Sat, Feb 15
+
+<span class="t-prompt">$</span> <span class="t-cmd">mine dig 25m</span>
+  &#x26CF; Deep work session: <span class="t-gold">25m</span>
+  <span class="t-muted">Focus. You've got this. Ctrl+C to end early.</span>
+
+  &#x26CF; <span class="t-green">&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;</span><span class="t-muted">&#x2591;&#x2591;&#x2591;&#x2591;&#x2591;&#x2591;&#x2591;&#x2591;&#x2591;&#x2591;&#x2591;&#x2591;&#x2591;&#x2591;&#x2591;</span> 12:30 remaining</div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <div class="icon">&#x1F4CB;</div>
+      <h3>Tasks</h3>
+      <p>Fast task management with priorities, due dates, and tags. <code>mine todo</code></p>
+    </div>
+    <div class="feature">
+      <div class="icon">&#x26CF;&#xFE0F;</div>
+      <h3>Focus</h3>
+      <p>Pomodoro timer with streak tracking and deep work stats. <code>mine dig</code></p>
+    </div>
+    <div class="feature">
+      <div class="icon">&#x1F4E6;</div>
+      <h3>Scaffold</h3>
+      <p>Bootstrap Go, Node, Python projects in seconds. <code>mine craft</code></p>
+    </div>
+    <div class="feature">
+      <div class="icon">&#x1F4C1;</div>
+      <h3>Dotfiles</h3>
+      <p>Track, diff, and sync your config files. <code>mine stash</code></p>
+    </div>
+    <div class="feature">
+      <div class="icon">&#x1F41A;</div>
+      <h3>Shell</h3>
+      <p>Completions for bash/zsh/fish plus handy aliases. <code>mine shell</code></p>
+    </div>
+    <div class="feature">
+      <div class="icon">&#x26A1;</div>
+      <h3>Fast</h3>
+      <p>Single binary. Zero deps. Every command responds in under 50ms.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      <a href="https://github.com/rnwolfe/mine">GitHub</a> &middot;
+      <a href="https://github.com/rnwolfe/mine/blob/main/CHANGELOG.md">Changelog</a> &middot;
+      <a href="https://github.com/rnwolfe/mine/blob/main/docs/VISION.md">Vision</a>
+    </p>
+    <p style="margin-top: 0.5rem;">Built with &#x26CF;&#xFE0F; by <a href="https://github.com/rnwolfe">Ryan Wolfe</a></p>
+  </footer>
+</body>
+</html>

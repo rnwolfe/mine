@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    { "source": "/install", "destination": "https://raw.githubusercontent.com/rnwolfe/mine/main/scripts/install.sh" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    }
+  ]
+}

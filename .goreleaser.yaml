@@ -1,0 +1,50 @@
+version: 2
+
+project_name: mine
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - main: .
+    binary: mine
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/rnwolfe/mine/internal/version.Version={{.Version}}
+      - -X github.com/rnwolfe/mine/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/rnwolfe/mine/internal/version.Date={{.Date}}
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github-native
+
+release:
+  github:
+    owner: rnwolfe
+    name: mine
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+  header: |
+    ## mine v{{.Version}}
+
+    Your personal developer supercharger. [Changelog](https://github.com/rnwolfe/mine/blob/main/CHANGELOG.md)
+  footer: |
+    ---
+    **Install**: `curl -fsSL https://raw.githubusercontent.com/rnwolfe/mine/main/scripts/install.sh | bash`

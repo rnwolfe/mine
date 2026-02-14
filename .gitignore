@@ -1,0 +1,43 @@
+# Build output
+bin/
+dist/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Mine data (user-specific)
+*.db
+
+# Environment
+.env
+.env.*
+
+# Claude Code / MCP (user-specific, not project code)
+.claude/
+.claude-flow/
+.swarm/
+.mcp.json
+
+# Vercel
+site/.vercel/
+.vercel/
+
+# Node (site deps if any)
+node_modules/

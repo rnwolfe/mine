@@ -1,0 +1,321 @@
+package cmd
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/rnwolfe/mine/internal/store"
+	"github.com/rnwolfe/mine/internal/todo"
+	"github.com/rnwolfe/mine/internal/ui"
+	"github.com/spf13/cobra"
+)
+
+var todoCmd = &cobra.Command{
+	Use:     "todo",
+	Aliases: []string{"t"},
+	Short:   "Manage your tasks",
+	Long:    `Fast, no-nonsense task management. Add, complete, and track todos.`,
+	RunE:    runTodoList,
+}
+
+var (
+	todoPriority string
+	todoDue      string
+	todoTags     string
+	todoShowDone bool
+)
+
+func init() {
+	// Subcommands
+	todoCmd.AddCommand(todoAddCmd)
+	todoCmd.AddCommand(todoDoneCmd)
+	todoCmd.AddCommand(todoRmCmd)
+	todoCmd.AddCommand(todoEditCmd)
+
+	// Flags
+	todoCmd.Flags().BoolVarP(&todoShowDone, "all", "a", false, "Show completed todos too")
+	todoAddCmd.Flags().StringVarP(&todoPriority, "priority", "p", "med", "Priority: low, med, high, crit")
+	todoAddCmd.Flags().StringVarP(&todoDue, "due", "d", "", "Due date (YYYY-MM-DD, tomorrow, next-week)")
+	todoAddCmd.Flags().StringVarP(&todoTags, "tags", "t", "", "Comma-separated tags")
+}
+
+var todoAddCmd = &cobra.Command{
+	Use:   "add <title>",
+	Short: "Add a new todo",
+	Args:  cobra.MinimumNArgs(1),
+	RunE:  runTodoAdd,
+}
+
+var todoDoneCmd = &cobra.Command{
+	Use:     "done <id>",
+	Aliases: []string{"do", "complete", "x"},
+	Short:   "Mark a todo as complete",
+	Args:    cobra.ExactArgs(1),
+	RunE:    runTodoDone,
+}
+
+var todoRmCmd = &cobra.Command{
+	Use:     "rm <id>",
+	Aliases: []string{"remove", "delete"},
+	Short:   "Delete a todo",
+	Args:    cobra.ExactArgs(1),
+	RunE:    runTodoRm,
+}
+
+var todoEditCmd = &cobra.Command{
+	Use:   "edit <id> <new title>",
+	Short: "Edit a todo's title",
+	Args:  cobra.MinimumNArgs(2),
+	RunE:  runTodoEdit,
+}
+
+func runTodoList(_ *cobra.Command, _ []string) error {
+	db, err := store.Open()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+	todos, err := ts.List(todoShowDone)
+	if err != nil {
+		return err
+	}
+
+	if len(todos) == 0 {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  No todos yet. Life is good?"))
+		fmt.Println()
+		fmt.Printf("  Add one: %s\n", ui.Accent.Render(`mine todo add "something important"`))
+		fmt.Println()
+		return nil
+	}
+
+	fmt.Println()
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	for _, t := range todos {
+		marker := " "
+		if t.Done {
+			marker = ui.Success.Render("✓")
+		}
+
+		id := ui.Muted.Render(fmt.Sprintf("#%-3d", t.ID))
+		prio := todo.PriorityIcon(t.Priority)
+		title := t.Title
+		if t.Done {
+			title = ui.Muted.Render(title)
+		}
+
+		line := fmt.Sprintf("  %s %s %s %s", marker, id, prio, title)
+
+		// Due date annotation
+		if t.DueDate != nil && !t.Done {
+			due := *t.DueDate
+			dueDay := time.Date(due.Year(), due.Month(), due.Day(), 0, 0, 0, 0, due.Location())
+			switch {
+			case dueDay.Before(today):
+				line += ui.Error.Render(fmt.Sprintf(" (overdue: %s)", due.Format("Jan 2")))
+			case dueDay.Equal(today):
+				line += ui.Warning.Render(" (due today!)")
+			case dueDay.Before(today.AddDate(0, 0, 7)):
+				line += ui.Muted.Render(fmt.Sprintf(" (due %s)", due.Format("Mon")))
+			default:
+				line += ui.Muted.Render(fmt.Sprintf(" (due %s)", due.Format("Jan 2")))
+			}
+		}
+
+		// Tags
+		if len(t.Tags) > 0 {
+			tags := ui.Muted.Render(" [" + strings.Join(t.Tags, ", ") + "]")
+			line += tags
+		}
+
+		fmt.Println(line)
+	}
+
+	open, _, overdue, _ := ts.Count()
+	fmt.Println()
+	summary := ui.Muted.Render(fmt.Sprintf("  %d open", open))
+	if overdue > 0 {
+		summary += ui.Error.Render(fmt.Sprintf(" · %d overdue", overdue))
+	}
+	fmt.Println(summary)
+	fmt.Println()
+
+	return nil
+}
+
+func runTodoAdd(_ *cobra.Command, args []string) error {
+	title := strings.Join(args, " ")
+
+	prio := parsePriority(todoPriority)
+	due := parseDueDate(todoDue)
+
+	var tags []string
+	if todoTags != "" {
+		tags = strings.Split(todoTags, ",")
+		for i := range tags {
+			tags[i] = strings.TrimSpace(tags[i])
+		}
+	}
+
+	db, err := store.Open()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+	id, err := ts.Add(title, prio, tags, due)
+	if err != nil {
+		return err
+	}
+
+	icon := todo.PriorityIcon(prio)
+	fmt.Printf("  %s Added %s %s\n", ui.Success.Render("✓"), icon, ui.Accent.Render(fmt.Sprintf("#%d", id)))
+	fmt.Printf("    %s\n", title)
+
+	if due != nil {
+		fmt.Printf("    Due: %s\n", ui.Muted.Render(due.Format("Mon, Jan 2")))
+	}
+	fmt.Println()
+
+	return nil
+}
+
+func runTodoDone(_ *cobra.Command, args []string) error {
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return fmt.Errorf("invalid todo ID: %s", args[0])
+	}
+
+	db, err := store.Open()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+
+	// Get the todo first for display
+	t, err := ts.Get(id)
+	if err != nil {
+		return err
+	}
+
+	if err := ts.Complete(id); err != nil {
+		return err
+	}
+
+	fmt.Printf("  %s Done! %s\n", ui.Success.Render("✓"), ui.Muted.Render(t.Title))
+
+	// Check remaining
+	open, _, _, _ := ts.Count()
+	if open == 0 {
+		fmt.Println(ui.Success.Render("  🎉 All clear! Nothing left to do."))
+	} else {
+		fmt.Printf("  %s\n", ui.Muted.Render(fmt.Sprintf("  %d remaining", open)))
+	}
+	fmt.Println()
+
+	return nil
+}
+
+func runTodoRm(_ *cobra.Command, args []string) error {
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return fmt.Errorf("invalid todo ID: %s", args[0])
+	}
+
+	db, err := store.Open()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+	if err := ts.Delete(id); err != nil {
+		return err
+	}
+
+	fmt.Printf("  %s Removed #%d\n", ui.Success.Render("✓"), id)
+	fmt.Println()
+	return nil
+}
+
+func runTodoEdit(_ *cobra.Command, args []string) error {
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return fmt.Errorf("invalid todo ID: %s", args[0])
+	}
+	newTitle := strings.Join(args[1:], " ")
+
+	db, err := store.Open()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+	if err := ts.Edit(id, &newTitle, nil); err != nil {
+		return err
+	}
+
+	fmt.Printf("  %s Updated #%d → %s\n", ui.Success.Render("✓"), id, newTitle)
+	fmt.Println()
+	return nil
+}
+
+func parsePriority(s string) int {
+	switch strings.ToLower(s) {
+	case "low", "l", "1":
+		return todo.PrioLow
+	case "high", "h", "3":
+		return todo.PrioHigh
+	case "crit", "critical", "c", "4", "!":
+		return todo.PrioCrit
+	default:
+		return todo.PrioMedium
+	}
+}
+
+func parseDueDate(s string) *time.Time {
+	if s == "" {
+		return nil
+	}
+
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	switch strings.ToLower(s) {
+	case "today":
+		return &today
+	case "tomorrow", "tom":
+		t := today.AddDate(0, 0, 1)
+		return &t
+	case "next-week", "nextweek", "nw":
+		t := today.AddDate(0, 0, 7)
+		return &t
+	case "next-month", "nm":
+		t := today.AddDate(0, 1, 0)
+		return &t
+	}
+
+	// Try parsing as date
+	formats := []string{"2006-01-02", "01/02/2006", "Jan 2", "January 2"}
+	for _, f := range formats {
+		if t, err := time.Parse(f, s); err == nil {
+			// If no year in format, use current year
+			if t.Year() == 0 {
+				t = time.Date(now.Year(), t.Month(), t.Day(), 0, 0, 0, 0, now.Location())
+			}
+			return &t
+		}
+	}
+
+	return nil
+}

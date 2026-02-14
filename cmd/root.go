@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/rnwolfe/mine/internal/config"
+	"github.com/rnwolfe/mine/internal/hook"
+	"github.com/rnwolfe/mine/internal/plugin"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/todo"
 	"github.com/rnwolfe/mine/internal/ui"
@@ -17,7 +19,7 @@ var rootCmd = &cobra.Command{
 	Use:   "mine",
 	Short: "Your personal developer supercharger",
 	Long:  `mine — everything you need, nothing you don't. Radically yours.`,
-	RunE:  runDashboard,
+	RunE:  hook.Wrap("mine", runDashboard),
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true,
 	},
@@ -26,6 +28,11 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	// Register user-local hooks and plugin hooks at startup.
+	// Errors are non-fatal — the CLI should work without hooks.
+	hook.RegisterUserHooks()
+	plugin.RegisterPluginHooks()
+
 	if err := rootCmd.Execute(); err != nil {
 		ui.Err(err.Error())
 		os.Exit(1)

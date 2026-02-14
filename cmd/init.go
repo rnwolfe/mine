@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/rnwolfe/mine/internal/config"
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
@@ -16,7 +17,7 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Set up mine for the first time",
 	Long:  `Initialize mine with your preferences. Creates config and data directories.`,
-	RunE:  runInit,
+	RunE:  hook.Wrap("init", runInit),
 }
 
 func runInit(_ *cobra.Command, _ []string) error {

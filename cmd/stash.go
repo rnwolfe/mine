@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/rnwolfe/mine/internal/config"
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -15,7 +16,7 @@ var stashCmd = &cobra.Command{
 	Use:   "stash",
 	Short: "Manage your dotfiles and environment",
 	Long:  `Track, backup, and sync your dotfiles. Your environment, version controlled.`,
-	RunE:  runStashStatus,
+	RunE:  hook.Wrap("stash", runStashStatus),
 }
 
 func init() {
@@ -29,26 +30,26 @@ func init() {
 var stashInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize dotfile tracking",
-	RunE:  runStashInit,
+	RunE:  hook.Wrap("stash.init", runStashInit),
 }
 
 var stashTrackCmd = &cobra.Command{
 	Use:   "track <file>",
 	Short: "Start tracking a dotfile",
 	Args:  cobra.ExactArgs(1),
-	RunE:  runStashTrack,
+	RunE:  hook.Wrap("stash.track", runStashTrack),
 }
 
 var stashListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List tracked dotfiles",
-	RunE:  runStashList,
+	RunE:  hook.Wrap("stash.list", runStashList),
 }
 
 var stashDiffCmd = &cobra.Command{
 	Use:   "diff",
 	Short: "Show changes in tracked dotfiles",
-	RunE:  runStashDiff,
+	RunE:  hook.Wrap("stash.diff", runStashDiff),
 }
 
 func stashDir() string {

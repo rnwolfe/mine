@@ -136,6 +136,13 @@ When pushing PRs via `gh` under your own token, you can't approve your own PRs.
 Branch protection requiring approvals blocks the author. Solution: use CI checks
 as the gate and Copilot for automated review, human merges manually.
 
+### L-007: Third-party scaffolding cleanup
+The claude-flow CLI scaffolded 355 files (.claude/agents/, .claude-flow/, .swarm/,
+.mcp.json, hooks in settings.json) as part of initial setup. These were generic
+templates unrelated to the Go project. Lesson: audit scaffolding tools before
+committing. Remove attribution settings (`settings.json.attribution`) immediately
+to prevent unwanted co-author credits in git history.
+
 ## Key Files
 
 | File | Purpose |

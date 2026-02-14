@@ -106,6 +106,15 @@ when parsing gitconfig values. Fixed in `cmd/init.go:gitUserName()`.
 If a value already contains quotes, TOML encoder will double-escape them.
 Always clean input before saving to config.
 
+### L-003: Working directory drift
+When using `cd` in Bash tool calls (e.g., `cd site && vercel deploy`), the CWD
+persists across subsequent calls. Always use absolute paths or explicitly `cd`
+back to project root for subsequent commands.
+
+### L-004: Vercel project naming
+When deploying from a subdirectory (`site/`), Vercel uses the directory name
+as the project name. Deploy from project root or use `--name` flag to control.
+
 ## Key Files
 
 | File | Purpose |

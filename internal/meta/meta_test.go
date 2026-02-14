@@ -2,6 +2,8 @@ package meta
 
 import (
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -52,39 +54,40 @@ func TestValidateRequired(t *testing.T) {
 func TestFormatFeatureRequest(t *testing.T) {
 	body := FormatFeatureRequest("Add export to CSV", "I need to share todos with my team")
 
-	if got := body; got == "" {
+	if body == "" {
 		t.Fatal("FormatFeatureRequest returned empty string")
 	}
-	assertContains(t, body, "## Description")
-	assertContains(t, body, "Add export to CSV")
-	assertContains(t, body, "## Use Case")
-	assertContains(t, body, "share todos with my team")
-	assertContains(t, body, "mine meta fr")
+	for _, want := range []string{"## Description", "Add export to CSV", "## Use Case", "share todos with my team", "mine meta fr"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("expected body to contain %q, got:\n%s", want, body)
+		}
+	}
 }
 
 func TestFormatBugReport(t *testing.T) {
 	info := SystemInfo{Version: "v0.2.0", OS: "linux", Arch: "amd64"}
 	body := FormatBugReport("Run mine todo add", "Todo gets added", "Crash on empty title", info)
 
-	assertContains(t, body, "## Steps to Reproduce")
-	assertContains(t, body, "Run mine todo add")
-	assertContains(t, body, "## Expected Behavior")
-	assertContains(t, body, "Todo gets added")
-	assertContains(t, body, "## Actual Behavior")
-	assertContains(t, body, "Crash on empty title")
-	assertContains(t, body, "v0.2.0")
-	assertContains(t, body, "linux/amd64")
-	assertContains(t, body, "mine meta bug")
+	for _, want := range []string{
+		"## Steps to Reproduce", "Run mine todo add",
+		"## Expected Behavior", "Todo gets added",
+		"## Actual Behavior", "Crash on empty title",
+		"v0.2.0", "linux/amd64", "mine meta bug",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("expected body to contain %q, got:\n%s", want, body)
+		}
+	}
 }
 
 func TestRedactPII(t *testing.T) {
 	home, _ := os.UserHomeDir()
 
 	tests := []struct {
-		name     string
-		input    string
-		notWant  string
-		wantHas  string
+		name    string
+		input   string
+		notWant string
+		wantHas string
 	}{
 		{
 			name:    "redacts home dir",
@@ -93,16 +96,22 @@ func TestRedactPII(t *testing.T) {
 			wantHas: "~/projects/mine",
 		},
 		{
-			name:    "redacts API key pattern",
+			name:    "redacts Stripe-style key",
 			input:   "my key is sk-abc123def456ghi789jklmnop",
 			notWant: "sk-abc123def456ghi789jklmnop",
 			wantHas: "[REDACTED]",
 		},
 		{
-			name:    "redacts secret pattern",
-			input:   "secret_abcdefghijklmnopqr",
-			notWant: "secret_abcdefghijklmnopqr",
+			name:    "redacts GitHub token",
+			input:   "token ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij",
+			notWant: "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij",
 			wantHas: "[REDACTED]",
+		},
+		{
+			name:    "does not redact generic identifiers",
+			input:   "secret_configuration_value is fine",
+			notWant: "",
+			wantHas: "secret_configuration_value",
 		},
 		{
 			name:    "leaves clean text alone",
@@ -114,10 +123,10 @@ func TestRedactPII(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := RedactPII(tt.input)
-			if tt.notWant != "" && containsStr(got, tt.notWant) {
+			if tt.notWant != "" && strings.Contains(got, tt.notWant) {
 				t.Errorf("RedactPII(%q) still contains %q", tt.input, tt.notWant)
 			}
-			if !containsStr(got, tt.wantHas) {
+			if !strings.Contains(got, tt.wantHas) {
 				t.Errorf("RedactPII(%q) = %q, want it to contain %q", tt.input, got, tt.wantHas)
 			}
 		})
@@ -137,22 +146,64 @@ func TestCollectSystemInfo(t *testing.T) {
 	}
 }
 
-func assertContains(t *testing.T, s, substr string) {
-	t.Helper()
-	if !containsStr(s, substr) {
-		t.Errorf("expected string to contain %q, got:\n%s", substr, s)
+func TestIssueArgs(t *testing.T) {
+	args := IssueArgs("My Title", "Body text", "bug")
+
+	expected := []string{
+		"issue", "create",
+		"--repo", "rnwolfe/mine",
+		"--title", "My Title",
+		"--body", "Body text",
+		"--label", "bug",
 	}
-}
-
-func containsStr(s, substr string) bool {
-	return len(s) >= len(substr) && (substr == "" || findSubstr(s, substr))
-}
-
-func findSubstr(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
+	if len(args) != len(expected) {
+		t.Fatalf("IssueArgs returned %d args, want %d", len(args), len(expected))
+	}
+	for i, want := range expected {
+		if args[i] != want {
+			t.Errorf("IssueArgs[%d] = %q, want %q", i, args[i], want)
 		}
 	}
-	return false
+}
+
+func TestCheckGH_NotInstalled(t *testing.T) {
+	origLookPath := lookPath
+	defer func() { lookPath = origLookPath }()
+
+	lookPath = func(file string) (string, error) {
+		return "", exec.ErrNotFound
+	}
+
+	err := CheckGH()
+	if err == nil {
+		t.Fatal("expected error when gh not found")
+	}
+	if !strings.Contains(err.Error(), "gh CLI not found") {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestCheckGH_NotAuthenticated(t *testing.T) {
+	origLookPath := lookPath
+	origExecCommand := execCommand
+	defer func() {
+		lookPath = origLookPath
+		execCommand = origExecCommand
+	}()
+
+	lookPath = func(file string) (string, error) {
+		return "/usr/bin/gh", nil
+	}
+	execCommand = func(name string, args ...string) *exec.Cmd {
+		// Return a command that will fail (exit 1).
+		return exec.Command("false")
+	}
+
+	err := CheckGH()
+	if err == nil {
+		t.Fatal("expected error when gh not authenticated")
+	}
+	if !strings.Contains(err.Error(), "not authenticated") {
+		t.Errorf("unexpected error message: %v", err)
+	}
 }

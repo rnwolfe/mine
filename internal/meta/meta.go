@@ -75,8 +75,15 @@ func FormatBugReport(steps, expected, actual string, info SystemInfo) string {
 	return b.String()
 }
 
-// apiKeyPattern matches common API key/secret patterns.
-var apiKeyPattern = regexp.MustCompile(`(?i)(sk-[a-zA-Z0-9]{20,}|key[_-]?[a-zA-Z0-9]{16,}|secret[_-]?[a-zA-Z0-9]{16,}|token[_-]?[a-zA-Z0-9]{16,})`)
+// apiKeyPattern matches well-known API key formats to avoid false positives
+// from generic identifiers like "secret_configuration_value".
+var apiKeyPattern = regexp.MustCompile(`(?i)\b(?:` +
+	`sk-[a-zA-Z0-9]{20,}|` + // Stripe / OpenAI keys
+	`gh[pousr]_[a-zA-Z0-9]{36,}|` + // GitHub tokens
+	`xox[abprs]-[a-zA-Z0-9-]{10,48}|` + // Slack tokens
+	`ya29\.[0-9A-Za-z_-]{20,}|` + // Google OAuth tokens
+	`AIza[0-9A-Za-z_-]{20,}` + // Google API keys
+	`)\b`)
 
 // RedactPII strips sensitive data from text.
 func RedactPII(s string) string {
@@ -89,26 +96,39 @@ func RedactPII(s string) string {
 	return s
 }
 
+// execCommand is a variable so tests can replace exec.Command with a stub.
+var execCommand = exec.Command
+
+// lookPath is a variable so tests can replace exec.LookPath with a stub.
+var lookPath = exec.LookPath
+
 // CheckGH verifies that the gh CLI is installed and authenticated.
 func CheckGH() error {
-	if _, err := exec.LookPath("gh"); err != nil {
+	if _, err := lookPath("gh"); err != nil {
 		return errors.New("gh CLI not found — install it from https://cli.github.com")
 	}
-	cmd := exec.Command("gh", "auth", "status")
+	cmd := execCommand("gh", "auth", "status")
 	if err := cmd.Run(); err != nil {
 		return errors.New("gh is not authenticated — run `gh auth login` first")
 	}
 	return nil
 }
 
-// CreateIssue submits a GitHub issue via gh CLI and returns the issue URL.
-func CreateIssue(title, body, label string) (string, error) {
-	cmd := exec.Command("gh", "issue", "create",
+// IssueArgs returns the gh CLI arguments for creating an issue.
+func IssueArgs(title, body, label string) []string {
+	return []string{
+		"issue", "create",
 		"--repo", "rnwolfe/mine",
 		"--title", title,
 		"--body", body,
 		"--label", label,
-	)
+	}
+}
+
+// CreateIssue submits a GitHub issue via gh CLI and returns the issue URL.
+func CreateIssue(title, body, label string) (string, error) {
+	args := IssueArgs(title, body, label)
+	cmd := execCommand("gh", args...)
 	out, err := cmd.Output()
 	if err != nil {
 		var exitErr *exec.ExitError

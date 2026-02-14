@@ -114,6 +114,6 @@ The database uses performance-optimized pragmas:
 ## Build System
 
 - `make build` — builds with ldflags for version injection
-- `make test` — runs tests with race detector
+- `make test` — runs the Go test suite
 - GoReleaser handles cross-compilation for releases
 - CI runs vet, test (with coverage), build, and smoke test

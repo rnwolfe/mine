@@ -1,7 +1,5 @@
 package shell
 
-import "fmt"
-
 // PromptScript generates the prompt integration script for the given shell.
 // It defines a __mine_prompt helper that calls `mine status --json` and
 // formats a prompt segment showing todo count and active dig sessions.
@@ -56,14 +54,14 @@ __mine_prompt() {
   fi
 
   if [ -n "$seg" ]; then
-    printf "[%s]" "$seg"
+    printf "[%s] " "$seg"
   fi
 }
 
 # Append mine segment to PS1 if not already present.
 if [[ "$PROMPT_COMMAND" != *"__mine_prompt"* ]]; then
   __mine_orig_ps1="$PS1"
-  PROMPT_COMMAND='PS1="$(__mine_prompt) ${__mine_orig_ps1}"'
+  PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}"'PS1="$(__mine_prompt)${__mine_orig_ps1}"'
 fi
 `
 }
@@ -102,7 +100,7 @@ __mine_prompt() {
 
 # Add mine segment to prompt via precmd hook.
 if (( ! ${+functions[__mine_precmd]} )); then
-  __mine_precmd() { PROMPT="$(__mine_prompt)${PROMPT#\[*\] }" ; }
+  __mine_precmd() { PROMPT="$(__mine_prompt)${PROMPT#\[[0-9tdTD|]*\] }" ; }
   autoload -Uz add-zsh-hook
   add-zsh-hook precmd __mine_precmd
 fi
@@ -128,13 +126,13 @@ function __mine_prompt
 
   set -l seg ""
   if test -n "$todos" -a "$todos" != "0"
-    set seg {$seg}{$todos}t
+    set seg "$seg""$todos"t
   end
   if test -n "$streak" -a "$streak" != "0"
     if test -n "$seg"
-      set seg {$seg}"|"
+      set seg "$seg""|"
     end
-    set seg {$seg}{$streak}d
+    set seg "$seg""$streak"d
   end
 
   if test -n "$seg"

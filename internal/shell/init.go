@@ -18,10 +18,12 @@ func InitScript(shellName string) (string, error) {
 	out += aliasesScript(shellName)
 
 	// Section 2: Utility functions
+	// Safe to ignore error: shellName already validated above.
 	funcs, _ := FunctionsScript(shellName)
 	out += funcs
 
 	// Section 3: Prompt integration
+	// Safe to ignore error: shellName already validated above.
 	prompt, _ := PromptScript(shellName)
 	out += prompt
 

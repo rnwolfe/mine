@@ -73,6 +73,10 @@ func runShellCompletions(_ *cobra.Command, args []string) error {
 		sh = args[0]
 	}
 
+	if !shell.ValidShell(sh) {
+		return shell.ShellError(sh)
+	}
+
 	completionDir := filepath.Join(config.GetPaths().ConfigDir, "completions")
 	os.MkdirAll(completionDir, 0o755)
 
@@ -117,8 +121,6 @@ func runShellCompletions(_ *cobra.Command, args []string) error {
 		fmt.Println(ui.Muted.Render("  Add to your fish config:"))
 		fmt.Printf("    %s\n", ui.Accent.Render(fmt.Sprintf("source %s", file)))
 
-	default:
-		return fmt.Errorf("unknown shell %q — try: bash, zsh, fish", sh)
 	}
 
 	fmt.Println()

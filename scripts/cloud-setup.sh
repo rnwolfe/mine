@@ -49,7 +49,7 @@ install_go() {
     return 0
   fi
   echo "Installing Go ${GO_VERSION} (${GO_OS}/${GO_ARCH})..."
-  curl -sSL "${GO_URL}" -o "/tmp/${GO_TARBALL}"
+  curl -fsSL "${GO_URL}" -o "/tmp/${GO_TARBALL}"
   _sudo rm -rf /usr/local/go
   _sudo tar -C /usr/local -xzf "/tmp/${GO_TARBALL}"
   rm -f "/tmp/${GO_TARBALL}"

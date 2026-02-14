@@ -9,7 +9,28 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
 fi
 
 GO_VERSION="1.25.5"
-GO_TARBALL="go${GO_VERSION}.linux-amd64.tar.gz"
+
+# Derive OS/arch for Go tarball (defaulting to linux/amd64 for unknown cases).
+GO_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+if command -v dpkg >/dev/null 2>&1; then
+  _arch="$(dpkg --print-architecture)"
+else
+  _arch="$(uname -m)"
+fi
+case "${_arch}" in
+  x86_64|amd64)
+    GO_ARCH="amd64"
+    ;;
+  aarch64|arm64)
+    GO_ARCH="arm64"
+    ;;
+  *)
+    # Fallback to amd64 to preserve previous behavior on unexpected architectures.
+    GO_ARCH="amd64"
+    ;;
+esac
+
+GO_TARBALL="go${GO_VERSION}.${GO_OS}-${GO_ARCH}.tar.gz"
 GO_URL="https://go.dev/dl/${GO_TARBALL}"
 
 export PATH="/usr/local/go/bin:${HOME}/go/bin:${PATH}"

@@ -214,8 +214,8 @@
     <div class="logo">&#x26CF;&#xFE0F;</div>
     <h1>mine</h1>
     <p class="tagline">Everything you need. Nothing you don't. Radically yours.</p>
-    <div class="install-box" onclick="navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/rnwolfe/mine/main/scripts/install.sh | bash')">
-      <span>curl -fsSL https://mine.dev/install | bash</span>
+    <div class="install-box" role="button" tabindex="0" onclick="navigator.clipboard.writeText('curl -fsSL https://mine.rwolfe.io/install | bash')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { navigator.clipboard.writeText('curl -fsSL https://mine.rwolfe.io/install | bash'); event.preventDefault(); }">
+      <span>curl -fsSL https://mine.rwolfe.io/install | bash</span>
       <div class="hint">click to copy</div>
     </div>
   </section>

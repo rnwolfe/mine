@@ -8,7 +8,7 @@ A single CLI tool that turbocharges dev velocity, tames environment chaos, and b
 
 ```bash
 # Quick install
-curl -fsSL https://raw.githubusercontent.com/rnwolfe/mine/main/scripts/install.sh | bash
+curl -fsSL https://mine.rwolfe.io/install | bash
 
 # Or build from source
 go install github.com/rnwolfe/mine@latest

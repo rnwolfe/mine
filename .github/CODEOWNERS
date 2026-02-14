@@ -1,0 +1,3 @@
+# mine CODEOWNERS
+# All changes will automatically request review from the owner (enforced via branch protection/rulesets if configured).
+* @rnwolfe

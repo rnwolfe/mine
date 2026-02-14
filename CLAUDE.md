@@ -89,6 +89,17 @@ Rules:
 - Sanitize file paths (prevent directory traversal)
 - SQLite uses WAL mode with busy timeout (safe for concurrent reads)
 
+## Development Workflow
+
+- **main is sacred.** All changes go through PRs. No direct pushes.
+- Branch naming: `feat/`, `fix/`, `chore/`, `docs/` prefixes
+- PRs require: 1 human approval + CI passing (test job)
+- Stale reviews dismissed on new pushes
+- Review threads must be resolved before merge
+- CODEOWNERS: `@rnwolfe` reviews everything
+- Site: https://mine.rwolfe.io (Vercel)
+- Repo: https://github.com/rnwolfe/mine
+
 ## Release Process
 
 - Tags trigger releases via GoReleaser (GitHub Actions)
@@ -114,6 +125,13 @@ back to project root for subsequent commands.
 ### L-004: Vercel project naming
 When deploying from a subdirectory (`site/`), Vercel uses the directory name
 as the project name. Deploy from project root or use `--name` flag to control.
+
+### L-005: GitHub Rulesets API schema sensitivity
+The rulesets API (`POST /repos/{owner}/{repo}/rulesets`) is very picky about
+the `rules[].parameters` shape. The `pull_request` type requires ALL five boolean
+params to be present. The `required_status_checks` `context` field must not have
+`integration_id: null`. When in doubt, create the ruleset in UI first, export it,
+and use that JSON as the template.
 
 ## Key Files
 

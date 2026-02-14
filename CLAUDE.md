@@ -1,8 +1,8 @@
 # mine — Operating Manual
 
-> This is the knowledge base for the `mine` CLI tool. It captures architecture decisions,
-> patterns, lessons learned, and development practices. It is the source of truth for how
-> to work on this project.
+> This is the agentic knowledge base for the `mine` CLI tool. It captures architecture
+> decisions, patterns, lessons learned, and development practices. It is the source of
+> truth for how to work on this project. Not user-facing documentation.
 
 ## Project Overview
 
@@ -20,7 +20,8 @@ productivity tools with one fast, delightful, opinionated companion.
 
 ```bash
 make build        # Build to bin/mine
-make test         # Run all tests
+make test         # Run all tests (with race detector)
+make cover        # Coverage report
 make lint         # go vet ./...
 make dev ARGS="todo"  # Quick dev cycle
 make install      # Install to PATH
@@ -34,19 +35,24 @@ make install      # Install to PATH
 
 ```
 mine/
-├── cmd/           # Cobra command definitions (thin orchestration layer)
-├── internal/      # Core domain logic (NOT exported)
-│   ├── config/    # XDG config management
-│   ├── store/     # SQLite data layer
-│   ├── ui/        # Theme, styles, print helpers
-│   ├── todo/      # Todo domain
-│   ├── version/   # Build-time version info
-│   └── ...        # New domains go here
-├── docs/          # Vision, decisions, status, guides
-├── scripts/       # Install, release, CI helpers
-├── config/        # Default/example configurations
-├── site/          # Landing page (Vercel)
-└── .github/       # CI/CD workflows
+├── CONTRIBUTING.md  # How to contribute (root-level, standard OSS)
+├── CHANGELOG.md     # Release history (root-level, standard OSS)
+├── LICENSE          # MIT license
+├── README.md        # Project overview and quick start
+├── CLAUDE.md        # THIS FILE — agentic knowledge base
+├── cmd/             # Cobra command definitions (thin orchestration layer)
+├── internal/        # Core domain logic (NOT exported)
+│   ├── config/      # XDG config management
+│   ├── store/       # SQLite data layer
+│   ├── ui/          # Theme, styles, print helpers
+│   ├── todo/        # Todo domain
+│   ├── version/     # Build-time version info
+│   └── ...          # New domains go here
+├── docs/            # User-facing documentation (install, commands, architecture)
+│   └── internal/    # Agentic docs (vision, decisions, status — NOT user-facing)
+├── scripts/         # Install, release, CI helpers
+├── site/            # Landing page (Vercel, auto-deploys)
+└── .github/         # CI/CD workflows, CODEOWNERS, PR template
 ```
 
 Rules:
@@ -54,6 +60,9 @@ Rules:
 - `internal/` packages own their domain — they don't import each other unnecessarily
 - Keep files under 500 lines
 - Tests live next to the code they test (`_test.go` suffix)
+- Core OSS docs (README, CONTRIBUTING, CHANGELOG, LICENSE) live at repo root
+- User-facing docs live in `docs/`
+- Agentic/internal docs live in `docs/internal/`
 
 ## Architecture Patterns
 
@@ -106,6 +115,21 @@ Rules:
 - CHANGELOG.md updated before tagging
 - Binaries: linux/darwin x amd64/arm64
 
+## Backlog Management
+
+Feature backlog is tracked via GitHub Issues with labels:
+- `feature` — new feature requests
+- `enhancement` — improvements to existing features
+- `phase/1`, `phase/2`, `phase/3` — roadmap phase
+- `good-first-issue` — approachable for new contributors
+- `spec` — has a spec document in `docs/internal/specs/`
+
+Workflow:
+1. Features start as GitHub Issues with clear acceptance criteria
+2. Complex features get a spec doc in `docs/internal/specs/`
+3. When ready to implement, create a branch from the issue
+4. Issues reference the spec; PRs reference the issue
+
 ## Lessons Learned
 
 ### L-001: Git config name parsing
@@ -135,6 +159,18 @@ and use that JSON as the template.
 When pushing PRs via `gh` under your own token, you can't approve your own PRs.
 Branch protection requiring approvals blocks the author. Solution: use CI checks
 as the gate and Copilot for automated review, human merges manually.
+
+### L-007: Third-party scaffolding cleanup
+The claude-flow CLI scaffolded 355 files (.claude/agents/, .claude-flow/, .swarm/,
+.mcp.json, hooks in settings.json) as part of initial setup. These were generic
+templates unrelated to the Go project. Lesson: audit scaffolding tools before
+committing. Remove attribution settings (`settings.json.attribution`) immediately
+to prevent unwanted co-author credits in git history.
+
+### L-008: Copilot review catches real issues
+Copilot code review found 7 legitimate issues on first PR: bc dependency in CI,
+unchecked errors in tests, duplicated test setup, unsafe `rm $(which ...)`,
+missing curl safety note, and doc/code mismatch. Treat it as a real reviewer.
 
 ## Key Files
 

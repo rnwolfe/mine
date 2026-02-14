@@ -29,10 +29,8 @@ Thumbs.db
 .env
 .env.*
 
-# Claude Code / MCP (user-specific, not project code)
+# Claude Code (user-local settings)
 .claude/
-.claude-flow/
-.swarm/
 .mcp.json
 
 # Vercel
@@ -41,3 +39,4 @@ site/.vercel/
 
 # Node (site deps if any)
 node_modules/
+.vercel

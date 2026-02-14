@@ -47,4 +47,4 @@ release:
     Your personal developer supercharger. [Changelog](https://github.com/rnwolfe/mine/blob/main/CHANGELOG.md)
   footer: |
     ---
-    **Install**: `curl -fsSL https://raw.githubusercontent.com/rnwolfe/mine/main/scripts/install.sh | bash`
+    **Install**: `curl -fsSL https://mine.rwolfe.io/install | bash`

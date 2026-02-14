@@ -20,7 +20,10 @@ fi
 case "${_arch}" in
   x86_64|amd64)  GO_ARCH="amd64" ;;
   aarch64|arm64)  GO_ARCH="arm64" ;;
-  *)              GO_ARCH="amd64" ;;
+  *)
+    echo "cloud-setup: unsupported architecture '${_arch}' for Go installation" >&2
+    exit 1
+    ;;
 esac
 
 GO_TARBALL="go${GO_VERSION}.${GO_OS}-${GO_ARCH}.tar.gz"
@@ -58,9 +61,20 @@ install_gh() {
   if command -v gh &>/dev/null; then
     return 0
   fi
+  if ! command -v apt-get &>/dev/null; then
+    echo "cloud-setup: apt-get not found — gh CLI install requires a Debian/Ubuntu base" >&2
+    return 1
+  fi
   echo "Installing gh CLI..."
-  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-    | _sudo gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
+  local gpg_err="/tmp/cloud-setup-gpg-$$.log"
+  if ! curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    | _sudo gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg 2>"${gpg_err}"; then
+    echo "cloud-setup: failed to import GitHub CLI archive key" >&2
+    [ -s "${gpg_err}" ] && cat "${gpg_err}" >&2
+    rm -f "${gpg_err}"
+    return 1
+  fi
+  rm -f "${gpg_err}"
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
     | _sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
   _sudo apt-get update -qq && _sudo apt-get install -y -qq gh >/dev/null

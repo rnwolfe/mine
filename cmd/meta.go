@@ -28,18 +28,16 @@ var metaCmd = &cobra.Command{
 }
 
 var metaFrCmd = &cobra.Command{
-	Use:   "fr <title>",
+	Use:   "fr [title]",
 	Short: "Submit a feature request",
 	Long:  `Submit a feature request as a GitHub issue on the mine repo.`,
-	Args:  cobra.MinimumNArgs(1),
 	RunE:  runMetaFr,
 }
 
 var metaBugCmd = &cobra.Command{
-	Use:   "bug <title>",
+	Use:   "bug [title]",
 	Short: "Report a bug",
 	Long:  `Report a bug as a GitHub issue on the mine repo with auto-detected system info.`,
-	Args:  cobra.MinimumNArgs(1),
 	RunE:  runMetaBug,
 }
 
@@ -79,12 +77,16 @@ func runMetaFr(_ *cobra.Command, args []string) error {
 		}
 	}
 
+	reader := bufio.NewReader(os.Stdin)
+
 	title := strings.Join(args, " ")
+	if strings.TrimSpace(title) == "" {
+		title = promptField(reader, "Title (short summary of the feature)")
+	}
 	if err := meta.ValidateTitle(title); err != nil {
 		return fmt.Errorf("invalid title: %w", err)
 	}
-
-	reader := bufio.NewReader(os.Stdin)
+	title = meta.RedactPII(title)
 
 	description := metaFrDesc
 	if description == "" {
@@ -110,6 +112,13 @@ func runMetaFr(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
+	printDryRun(title, "feature-request", body)
+	if !confirmSubmit(reader) {
+		fmt.Println()
+		ui.Warn("Cancelled.")
+		return nil
+	}
+
 	url, err := meta.CreateIssue(title, body, "feature-request")
 	if err != nil {
 		return err
@@ -129,12 +138,16 @@ func runMetaBug(_ *cobra.Command, args []string) error {
 		}
 	}
 
+	reader := bufio.NewReader(os.Stdin)
+
 	title := strings.Join(args, " ")
+	if strings.TrimSpace(title) == "" {
+		title = promptField(reader, "Title (short summary of the bug)")
+	}
 	if err := meta.ValidateTitle(title); err != nil {
 		return fmt.Errorf("invalid title: %w", err)
 	}
-
-	reader := bufio.NewReader(os.Stdin)
+	title = meta.RedactPII(title)
 
 	steps := metaBugSteps
 	if steps == "" {
@@ -169,6 +182,13 @@ func runMetaBug(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
+	printDryRun(title, "bug", body)
+	if !confirmSubmit(reader) {
+		fmt.Println()
+		ui.Warn("Cancelled.")
+		return nil
+	}
+
 	url, err := meta.CreateIssue(title, body, "bug")
 	if err != nil {
 		return err
@@ -188,9 +208,17 @@ func promptField(reader *bufio.Reader, question string) string {
 	return strings.TrimSpace(line)
 }
 
+// confirmSubmit asks the user to confirm before creating the issue.
+func confirmSubmit(reader *bufio.Reader) bool {
+	fmt.Printf("\n  %s ", ui.Accent.Render("Submit this issue? [y/N]"))
+	line, _ := reader.ReadString('\n')
+	ans := strings.TrimSpace(strings.ToLower(line))
+	return ans == "y" || ans == "yes"
+}
+
 func printDryRun(title, label, body string) {
 	fmt.Println()
-	ui.Header("Dry Run Preview")
+	ui.Header("Preview")
 	fmt.Println()
 	ui.Kv("Title", title)
 	ui.Kv("Label", label)

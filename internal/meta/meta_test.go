@@ -81,19 +81,21 @@ func TestFormatBugReport(t *testing.T) {
 }
 
 func TestRedactPII(t *testing.T) {
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
 
 	tests := []struct {
 		name    string
 		input   string
 		notWant string
 		wantHas string
+		skip    bool
 	}{
 		{
 			name:    "redacts home dir",
 			input:   home + "/projects/mine",
 			notWant: home,
 			wantHas: "~/projects/mine",
+			skip:    err != nil || home == "",
 		},
 		{
 			name:    "redacts Stripe-style key",
@@ -122,6 +124,9 @@ func TestRedactPII(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.skip {
+				t.Skip("home directory not available in this environment")
+			}
 			got := RedactPII(tt.input)
 			if tt.notWant != "" && strings.Contains(got, tt.notWant) {
 				t.Errorf("RedactPII(%q) still contains %q", tt.input, tt.notWant)
@@ -194,9 +199,11 @@ func TestCheckGH_NotAuthenticated(t *testing.T) {
 	lookPath = func(file string) (string, error) {
 		return "/usr/bin/gh", nil
 	}
+	// Use Go's own test binary with a nonexistent flag to guarantee a
+	// cross-platform non-zero exit without relying on platform-specific
+	// commands like "false".
 	execCommand = func(name string, args ...string) *exec.Cmd {
-		// Return a command that will fail (exit 1).
-		return exec.Command("false")
+		return exec.Command(os.Args[0], "-test.run=^$", "-test.nonexistent-flag")
 	}
 
 	err := CheckGH()

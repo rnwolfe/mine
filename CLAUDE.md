@@ -116,6 +116,92 @@ Rules:
 - Site: https://mine.rwolfe.io (Vercel)
 - Repo: https://github.com/rnwolfe/mine
 
+## GitHub Issue Workflow
+
+When creating a PR that implements a GitHub issue, follow this workflow to ensure acceptance criteria are verified and issues auto-close on merge.
+
+### Before Creating the PR
+
+1. **Read the original issue**
+   ```bash
+   gh issue view N --json body,title
+   ```
+   Extract acceptance criteria (look for checkbox lists in the issue body).
+
+2. **Verify each acceptance criterion**
+   - Review your code changes against each criterion
+   - Confirm each one is satisfied by the implementation
+   - Note any criteria that are NOT met (incomplete scope is OK, document it)
+
+### Creating the PR
+
+1. **Document acceptance criteria in PR body**
+
+   Add an "## Acceptance Criteria" section in your PR body:
+
+   ```markdown
+   ## Acceptance Criteria
+
+   Verified against issue #N:
+   - [x] Criterion 1 — Met by [specific implementation detail]
+   - [x] Criterion 2 — Met by [specific implementation detail]
+   - [ ] Criterion 3 — Out of scope for this PR, will address in #M
+   ```
+
+2. **Update the original issue checkboxes**
+
+   For completed criteria, check them off in the issue itself:
+   ```bash
+   # Read current issue body
+   gh issue view N --json body -q .body > /tmp/issue-body.txt
+
+   # Edit the file to check boxes (change [ ] to [x])
+   # Then update the issue
+   gh issue edit N --body "$(cat /tmp/issue-body.txt)"
+   ```
+
+   This makes completion status visible directly in the issue.
+
+3. **Use closing keywords**
+
+   Include one of these in your PR title or body:
+   - `Fixes #N`
+   - `Closes #N`
+   - `Resolves #N`
+
+   This triggers GitHub's auto-close behavior when the PR merges.
+
+### What If Issue Has No Acceptance Criteria?
+
+If the issue doesn't have clear acceptance criteria:
+- Note this in your PR body: "Issue #N has no formal acceptance criteria"
+- List what you implemented anyway for reviewer clarity
+- Consider adding a comment to the issue suggesting criteria for future similar issues
+
+### Manual Verification Fallback
+
+If a human asks you to verify acceptance criteria for an already-merged PR:
+
+**Command:** Comment tag like `@claude please verify acceptance criteria against PR #N`
+
+**Your response:**
+1. Read the merged PR: `gh pr view N --json files,additions,deletions`
+2. Read the issue: `gh issue view M --json body`
+3. Verify each criterion against the code changes
+4. Update the issue checkboxes if not already done
+5. Add a comment to the issue summarizing verification results
+
+**Example verification comment:**
+```markdown
+Verified acceptance criteria against PR #22:
+
+- [x] Criterion 1 — ✅ Met (implemented in commit abc123)
+- [x] Criterion 2 — ✅ Met (tests added in commit def456)
+- [ ] Criterion 3 — ⚠️ Not addressed in this PR
+
+Overall: 2/3 criteria met. Criterion 3 should be tracked separately.
+```
+
 ## Release Process
 
 - Tags trigger releases via GoReleaser (GitHub Actions)
@@ -196,6 +282,13 @@ polling/deadline logic instead of synchronous assertions.
 Plugin binaries can be 10-50MB. Reading them entirely into memory via
 `os.ReadFile` wastes memory. Use `io.Copy` between file handles to stream
 the copy. Same pattern applies anywhere large files are moved on disk.
+
+### L-012: Acceptance criteria must be explicitly verified
+Issue #8 was implemented in PR #22, but the acceptance criteria were never verified
+and the issue didn't auto-close because the PR didn't use closing keywords. Agents
+must read the issue, verify each criterion, update issue checkboxes, and use
+`Fixes #N` / `Closes #N` / `Resolves #N` in the PR body. See "GitHub Issue Workflow"
+section for the full workflow.
 
 ## Key Files
 

@@ -336,14 +336,12 @@ func runStashRestore(cmd *cobra.Command, args []string) error {
 	file := args[0]
 	version, _ := cmd.Flags().GetString("version")
 
-	if err := stash.RestoreToSource(file, version); err != nil {
-		return err
-	}
-
-	entry, err := stash.FindEntry(file)
+	// RestoreToSource returns the Entry, avoiding duplicate FindEntry calls
+	entry, err := stash.RestoreToSource(file, version)
 	if err != nil {
 		return err
 	}
+
 	home, _ := os.UserHomeDir()
 	display := strings.Replace(entry.Source, home, "~", 1)
 

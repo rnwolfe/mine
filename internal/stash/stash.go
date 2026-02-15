@@ -290,15 +290,16 @@ func Restore(file string, version string) ([]byte, error) {
 }
 
 // RestoreToSource restores a file to its original source location.
-func RestoreToSource(file string, version string) error {
+// Returns the Entry for the restored file to avoid duplicate FindEntry calls.
+func RestoreToSource(file string, version string) (*Entry, error) {
 	entry, err := FindEntry(file)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	content, err := Restore(file, version)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Determine permissions for the source file: preserve existing mode when present,
@@ -307,11 +308,11 @@ func RestoreToSource(file string, version string) error {
 	if info, err := os.Stat(entry.Source); err == nil {
 		srcPerm = info.Mode().Perm()
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("stat source %s: %w", entry.Source, err)
+		return nil, fmt.Errorf("stat source %s: %w", entry.Source, err)
 	}
 
 	if err := os.WriteFile(entry.Source, content, srcPerm); err != nil {
-		return fmt.Errorf("writing to %s: %w", entry.Source, err)
+		return nil, fmt.Errorf("writing to %s: %w", entry.Source, err)
 	}
 
 	// Also update the stash copy.
@@ -321,14 +322,14 @@ func RestoreToSource(file string, version string) error {
 	if info, err := os.Stat(stashPath); err == nil {
 		stashPerm = info.Mode().Perm()
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("stat stash copy %s: %w", stashPath, err)
+		return nil, fmt.Errorf("stat stash copy %s: %w", stashPath, err)
 	}
 
 	if err := os.WriteFile(stashPath, content, stashPerm); err != nil {
-		return fmt.Errorf("updating stash copy: %w", err)
+		return nil, fmt.Errorf("updating stash copy: %w", err)
 	}
 
-	return nil
+	return entry, nil
 }
 
 // SyncSetRemote configures the git remote for the stash repo.

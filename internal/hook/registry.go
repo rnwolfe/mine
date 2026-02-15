@@ -1,6 +1,7 @@
 package hook
 
 import (
+	"fmt"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -16,10 +17,15 @@ type Registry struct {
 var DefaultRegistry = &Registry{}
 
 // Register adds a hook to the registry.
-func (r *Registry) Register(h Hook) {
+// Returns an error if the hook pattern is invalid.
+func (r *Registry) Register(h Hook) error {
+	if _, err := filepath.Match(h.Pattern, "test"); err != nil {
+		return fmt.Errorf("invalid hook pattern %q: %w", h.Pattern, err)
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.hooks = append(r.hooks, h)
+	return nil
 }
 
 // Unregister removes all hooks from the given source.
@@ -85,8 +91,8 @@ func (r *Registry) Count() int {
 }
 
 // Register adds a hook to the default registry.
-func Register(h Hook) {
-	DefaultRegistry.Register(h)
+func Register(h Hook) error {
+	return DefaultRegistry.Register(h)
 }
 
 // matchPattern checks if a command matches a hook pattern.

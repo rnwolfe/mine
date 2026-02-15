@@ -3,6 +3,7 @@ package plugin
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -296,6 +297,169 @@ func TestRemoveNonexistent(t *testing.T) {
 	err := Remove("nonexistent")
 	if err == nil {
 		t.Error("expected error removing nonexistent plugin")
+	}
+}
+
+func TestRunCommand_MissingBinary(t *testing.T) {
+	p := &InstalledPlugin{
+		Manifest: Manifest{Plugin: PluginMeta{Name: "missing", Version: "1.0.0"}},
+		Dir:      t.TempDir(),
+		Enabled:  true,
+	}
+
+	err := RunCommand(p, "test", []string{"arg1"})
+	if err == nil {
+		t.Error("expected error running command with missing binary")
+	}
+}
+
+func TestSendLifecycleEvent_MissingBinary(t *testing.T) {
+	p := &InstalledPlugin{
+		Manifest: Manifest{Plugin: PluginMeta{Name: "missing", Version: "1.0.0"}},
+		Dir:      t.TempDir(),
+		Enabled:  true,
+	}
+
+	err := SendLifecycleEvent(p, "install")
+	if err == nil {
+		t.Error("expected error sending lifecycle event with missing binary")
+	}
+}
+
+func TestRunCommand_WithScript(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a simple script that reads stdin and exits
+	script := "#!/bin/sh\ncat > /dev/null\necho ok\n"
+	scriptPath := filepath.Join(dir, "mine-plugin-test-cmd")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	p := &InstalledPlugin{
+		Manifest: Manifest{Plugin: PluginMeta{Name: "test-cmd", Version: "1.0.0"}},
+		Dir:      dir,
+		Enabled:  true,
+	}
+
+	err := RunCommand(p, "greet", []string{"world"})
+	if err != nil {
+		t.Fatalf("RunCommand() error: %v", err)
+	}
+}
+
+func TestSendLifecycleEvent_WithScript(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a simple script that reads stdin and exits
+	script := "#!/bin/sh\ncat > /dev/null\n"
+	scriptPath := filepath.Join(dir, "mine-plugin-test-lc")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	p := &InstalledPlugin{
+		Manifest: Manifest{Plugin: PluginMeta{Name: "test-lc", Version: "1.0.0"}},
+		Dir:      dir,
+		Enabled:  true,
+	}
+
+	err := SendLifecycleEvent(p, "install")
+	if err != nil {
+		t.Fatalf("SendLifecycleEvent() error: %v", err)
+	}
+}
+
+func TestBuildPluginEnv(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("XDG_DATA_HOME", dir)
+
+	env := buildPluginEnv(Permissions{
+		ConfigRead: true,
+		EnvVars:    []string{"HOME"},
+	})
+
+	// Should always have PATH and HOME
+	var hasPath, hasHome, hasMineConfig bool
+	for _, e := range env {
+		if strings.HasPrefix(e, "PATH=") {
+			hasPath = true
+		}
+		if strings.HasPrefix(e, "HOME=") {
+			hasHome = true
+		}
+		if strings.HasPrefix(e, "MINE_CONFIG_DIR=") {
+			hasMineConfig = true
+		}
+	}
+
+	if !hasPath {
+		t.Error("env missing PATH")
+	}
+	if !hasHome {
+		t.Error("env missing HOME")
+	}
+	if !hasMineConfig {
+		t.Error("env missing MINE_CONFIG_DIR when config_read is true")
+	}
+}
+
+func TestValidatePluginName_PathTraversal(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{"valid-plugin", false},
+		{"../etc/passwd", true},
+		{"foo/bar", true},
+		{"foo\\bar", true},
+		{"..", true},
+		{".", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePluginName(tt.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validatePluginName(%q) error = %v, wantErr %v", tt.name, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestManifestValidate_KebabCase(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{"valid-plugin", false},
+		{"my-cool-plugin", false},
+		{"plugin123", false},
+		{"a", false},
+		{"Invalid_Name", true},
+		{"has spaces", true},
+		{"UPPERCASE", true},
+		{"has.dots", true},
+		{"-leading-hyphen", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &Manifest{
+				Plugin: PluginMeta{
+					Name:            tt.name,
+					Version:         "1.0.0",
+					Description:     "test",
+					Author:          "tester",
+					ProtocolVersion: "1.0.0",
+				},
+			}
+			err := m.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() name=%q, error = %v, wantErr %v", tt.name, err, tt.wantErr)
+			}
+		})
 	}
 }
 

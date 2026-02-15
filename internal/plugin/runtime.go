@@ -77,7 +77,7 @@ func RegisterPluginHooks() error {
 
 			handler := pluginHookHandler(binPath, stage, mode, timeout, p.Manifest.Permissions)
 
-			hook.Register(hook.Hook{
+			if err := hook.Register(hook.Hook{
 				Pattern: hd.Command,
 				Stage:   stage,
 				Mode:    mode,
@@ -85,7 +85,9 @@ func RegisterPluginHooks() error {
 				Source:  source,
 				Handler: handler,
 				Timeout: timeout,
-			})
+			}); err != nil {
+				return fmt.Errorf("registering hook for plugin %s: %w", p.Manifest.Plugin.Name, err)
+			}
 		}
 	}
 

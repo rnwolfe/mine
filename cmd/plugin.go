@@ -3,6 +3,8 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"strings"
 
@@ -198,7 +200,10 @@ func runPluginInstall(_ *cobra.Command, args []string) error {
 	// Confirm
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Printf("  %s ", ui.Accent.Render("Install this plugin? [y/N]"))
-	line, _ := reader.ReadString('\n')
+	line, err := reader.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return fmt.Errorf("reading input: %w", err)
+	}
 	ans := strings.TrimSpace(strings.ToLower(line))
 	if ans != "y" && ans != "yes" {
 		ui.Warn("Installation cancelled.")
@@ -210,7 +215,9 @@ func runPluginInstall(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	plugin.AuditLog(p.Manifest.Plugin.Name, "install", "version="+p.Manifest.Plugin.Version)
+	if err := plugin.AuditLog(p.Manifest.Plugin.Name, "install", "version="+p.Manifest.Plugin.Version); err != nil {
+		log.Printf("warning: audit log: %v", err)
+	}
 
 	fmt.Println()
 	ui.Ok(fmt.Sprintf("Installed %s v%s", p.Manifest.Plugin.Name, p.Manifest.Plugin.Version))
@@ -233,7 +240,9 @@ func runPluginRemove(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	plugin.AuditLog(name, "remove", "version="+p.Manifest.Plugin.Version)
+	if err := plugin.AuditLog(name, "remove", "version="+p.Manifest.Plugin.Version); err != nil {
+		log.Printf("warning: audit log: %v", err)
+	}
 
 	ui.Ok(fmt.Sprintf("Removed %s", name))
 	fmt.Println()

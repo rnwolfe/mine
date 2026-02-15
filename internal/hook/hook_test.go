@@ -87,10 +87,30 @@ func TestMatchPattern(t *testing.T) {
 	}
 }
 
+func mustRegister(t *testing.T, reg *Registry, h Hook) {
+	t.Helper()
+	if err := reg.Register(h); err != nil {
+		t.Fatalf("Register() error: %v", err)
+	}
+}
+
+func TestRegistryRegisterInvalidPattern(t *testing.T) {
+	reg := &Registry{}
+	err := reg.Register(Hook{
+		Pattern: "[invalid",
+		Stage:   StagePreexec,
+		Mode:    ModeTransform,
+		Name:    "bad",
+	})
+	if err == nil {
+		t.Error("expected error for invalid pattern")
+	}
+}
+
 func TestRegistryRegisterAndResolve(t *testing.T) {
 	reg := &Registry{}
 
-	reg.Register(Hook{
+	mustRegister(t, reg, Hook{
 		Pattern: "todo.*",
 		Stage:   StagePreexec,
 		Mode:    ModeTransform,
@@ -98,7 +118,7 @@ func TestRegistryRegisterAndResolve(t *testing.T) {
 		Source:  "user",
 		Handler: func(ctx *Context) (*Context, error) { return ctx, nil },
 	})
-	reg.Register(Hook{
+	mustRegister(t, reg, Hook{
 		Pattern: "todo.add",
 		Stage:   StagePreexec,
 		Mode:    ModeTransform,
@@ -106,7 +126,7 @@ func TestRegistryRegisterAndResolve(t *testing.T) {
 		Source:  "user",
 		Handler: func(ctx *Context) (*Context, error) { return ctx, nil },
 	})
-	reg.Register(Hook{
+	mustRegister(t, reg, Hook{
 		Pattern: "todo.add",
 		Stage:   StageNotify,
 		Mode:    ModeNotify,
@@ -140,9 +160,9 @@ func TestRegistryRegisterAndResolve(t *testing.T) {
 
 func TestRegistryUnregister(t *testing.T) {
 	reg := &Registry{}
-	reg.Register(Hook{Pattern: "todo.*", Stage: StageNotify, Mode: ModeNotify, Name: "a", Source: "user"})
-	reg.Register(Hook{Pattern: "todo.*", Stage: StageNotify, Mode: ModeNotify, Name: "b", Source: "plugin:x"})
-	reg.Register(Hook{Pattern: "todo.*", Stage: StageNotify, Mode: ModeNotify, Name: "c", Source: "user"})
+	mustRegister(t, reg, Hook{Pattern: "todo.*", Stage: StageNotify, Mode: ModeNotify, Name: "a", Source: "user"})
+	mustRegister(t, reg, Hook{Pattern: "todo.*", Stage: StageNotify, Mode: ModeNotify, Name: "b", Source: "plugin:x"})
+	mustRegister(t, reg, Hook{Pattern: "todo.*", Stage: StageNotify, Mode: ModeNotify, Name: "c", Source: "user"})
 
 	if reg.Count() != 3 {
 		t.Fatalf("Count() = %d, want 3", reg.Count())
@@ -165,7 +185,7 @@ func TestRegistryHasHooks(t *testing.T) {
 		t.Error("empty registry should have no hooks")
 	}
 
-	reg.Register(Hook{Pattern: "todo.*", Stage: StagePreexec, Mode: ModeTransform, Name: "test"})
+	mustRegister(t, reg, Hook{Pattern: "todo.*", Stage: StagePreexec, Mode: ModeTransform, Name: "test"})
 	if !reg.HasHooks("todo.add") {
 		t.Error("should have hooks for todo.add")
 	}
@@ -178,7 +198,7 @@ func TestTransformStageChaining(t *testing.T) {
 	reg := &Registry{}
 
 	// Hook 1: appends " [tagged]" to first arg
-	reg.Register(Hook{
+	mustRegister(t, reg, Hook{
 		Pattern: "test",
 		Stage:   StagePreexec,
 		Mode:    ModeTransform,
@@ -192,7 +212,7 @@ func TestTransformStageChaining(t *testing.T) {
 	})
 
 	// Hook 2: uppercases first arg (runs after hook 1 due to name sort)
-	reg.Register(Hook{
+	mustRegister(t, reg, Hook{
 		Pattern: "test",
 		Stage:   StagePreexec,
 		Mode:    ModeTransform,
@@ -219,7 +239,7 @@ func TestTransformStageChaining(t *testing.T) {
 
 func TestTransformStageError(t *testing.T) {
 	reg := &Registry{}
-	reg.Register(Hook{
+	mustRegister(t, reg, Hook{
 		Pattern: "test",
 		Stage:   StagePreexec,
 		Mode:    ModeTransform,
@@ -245,7 +265,7 @@ func TestNotifyStageParallel(t *testing.T) {
 	var count atomic.Int32
 
 	for i := 0; i < 5; i++ {
-		reg.Register(Hook{
+		mustRegister(t, reg, Hook{
 			Pattern: "test",
 			Stage:   StageNotify,
 			Mode:    ModeNotify,
@@ -267,7 +287,7 @@ func TestNotifyStageParallel(t *testing.T) {
 
 func TestNotifyStageErrorsLogged(t *testing.T) {
 	reg := &Registry{}
-	reg.Register(Hook{
+	mustRegister(t, reg, Hook{
 		Pattern: "test",
 		Stage:   StageNotify,
 		Mode:    ModeNotify,

@@ -141,7 +141,7 @@ func RegisterUserHooks() error {
 			timeout = DefaultNotifyTimeout
 		}
 
-		Register(Hook{
+		if err := Register(Hook{
 			Pattern: h.Pattern,
 			Stage:   h.Stage,
 			Mode:    mode,
@@ -149,7 +149,9 @@ func RegisterUserHooks() error {
 			Source:  "user",
 			Handler: ExecHandler(h.Path, mode, timeout),
 			Timeout: timeout,
-		})
+		}); err != nil {
+			return fmt.Errorf("registering hook %s: %w", h.Name, err)
+		}
 	}
 
 	return nil
@@ -157,6 +159,14 @@ func RegisterUserHooks() error {
 
 // CreateHookScript generates a starter hook script at the given path.
 func CreateHookScript(pattern string, stage Stage) (string, error) {
+	// Sanitize pattern to prevent directory traversal
+	if strings.ContainsAny(pattern, "/\\") {
+		return "", fmt.Errorf("pattern %q must not contain path separators", pattern)
+	}
+	if pattern == ".." || strings.Contains(pattern, "..") {
+		return "", fmt.Errorf("pattern %q must not contain path traversal", pattern)
+	}
+
 	dir := HooksDir()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("creating hooks dir: %w", err)
@@ -164,6 +174,19 @@ func CreateHookScript(pattern string, stage Stage) (string, error) {
 
 	filename := fmt.Sprintf("%s.%s.sh", pattern, stage)
 	path := filepath.Join(dir, filename)
+
+	// Verify the resolved path is within the hooks directory
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolving path: %w", err)
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("resolving hooks dir: %w", err)
+	}
+	if !strings.HasPrefix(absPath, absDir+string(filepath.Separator)) {
+		return "", fmt.Errorf("hook path escapes hooks directory")
+	}
 
 	if _, err := os.Stat(path); err == nil {
 		return "", fmt.Errorf("hook already exists: %s", path)

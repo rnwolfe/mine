@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/rnwolfe/mine/internal/config"
 )
+
+// validPluginName enforces kebab-case: lowercase letters, digits, and hyphens.
+var validPluginName = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
 
 // Manifest represents a parsed mine-plugin.toml file.
 type Manifest struct {
@@ -98,6 +102,9 @@ func ParseManifest(path string) (*Manifest, error) {
 func (m *Manifest) Validate() error {
 	if m.Plugin.Name == "" {
 		return fmt.Errorf("plugin.name is required")
+	}
+	if !validPluginName.MatchString(m.Plugin.Name) {
+		return fmt.Errorf("plugin.name %q must be kebab-case (lowercase letters, digits, and hyphens)", m.Plugin.Name)
 	}
 	if m.Plugin.Version == "" {
 		return fmt.Errorf("plugin.version is required")

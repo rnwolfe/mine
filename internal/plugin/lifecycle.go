@@ -4,10 +4,22 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
 )
+
+// validatePluginName checks for path traversal in plugin names.
+func validatePluginName(name string) error {
+	if strings.ContainsAny(name, "/\\") {
+		return fmt.Errorf("plugin name %q must not contain path separators", name)
+	}
+	if name == "." || name == ".." || strings.Contains(name, "..") {
+		return fmt.Errorf("plugin name %q must not contain path traversal", name)
+	}
+	return nil
+}
 
 // PluginsRegistry tracks installed plugins.
 type PluginsRegistry struct {
@@ -66,6 +78,10 @@ func Install(sourceDir, source string) (*InstalledPlugin, error) {
 	manifest, err := ParseManifest(manifestPath)
 	if err != nil {
 		return nil, fmt.Errorf("invalid plugin: %w", err)
+	}
+
+	if err := validatePluginName(manifest.Plugin.Name); err != nil {
+		return nil, err
 	}
 
 	// Create plugin directory
@@ -135,6 +151,10 @@ func Install(sourceDir, source string) (*InstalledPlugin, error) {
 
 // Remove uninstalls a plugin by name.
 func Remove(name string) error {
+	if err := validatePluginName(name); err != nil {
+		return err
+	}
+
 	reg, err := LoadRegistry()
 	if err != nil {
 		return err

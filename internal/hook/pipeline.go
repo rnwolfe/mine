@@ -86,7 +86,9 @@ func runTransformStage(reg *Registry, command string, stage Stage, ctx *Context)
 	return ctx, nil
 }
 
-// runNotifyStage runs all notify hooks concurrently. Errors are logged, not propagated.
+// runNotifyStage runs all notify hooks concurrently. Errors are logged via
+// log.Printf rather than the ui package because notify hooks run in goroutines
+// where concurrent writes to styled terminal output could interleave.
 func runNotifyStage(reg *Registry, command string, ctx *Context) {
 	hooks := reg.Resolve(command, StageNotify)
 	if len(hooks) == 0 {

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -29,9 +30,13 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	// Register user-local hooks and plugin hooks at startup.
-	// Errors are non-fatal — the CLI should work without hooks.
-	hook.RegisterUserHooks()
-	plugin.RegisterPluginHooks()
+	// Errors are non-fatal — the CLI should work without hooks/plugins.
+	if err := hook.RegisterUserHooks(); err != nil {
+		log.Printf("warning: loading user hooks: %v", err)
+	}
+	if err := plugin.RegisterPluginHooks(); err != nil {
+		log.Printf("warning: loading plugin hooks: %v", err)
+	}
 
 	if err := rootCmd.Execute(); err != nil {
 		ui.Err(err.Error())

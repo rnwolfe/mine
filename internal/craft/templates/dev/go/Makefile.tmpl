@@ -1,0 +1,15 @@
+BINARY := {{.Dir}}
+
+.PHONY: build run test clean
+
+build:
+	go build -o bin/$(BINARY) .
+
+run:
+	go run .
+
+test:
+	go test ./... -v
+
+clean:
+	rm -rf bin/

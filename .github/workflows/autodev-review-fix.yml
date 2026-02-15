@@ -141,6 +141,10 @@ jobs:
           UPDATED_BODY=$(echo "$PR_BODY" | sed \
             "s/<!-- autodev-state: {\"iteration\": ${{ steps.iteration.outputs.current }}} -->/<!-- autodev-state: {\"iteration\": ${{ steps.iteration.outputs.next }}} -->/")
 
+          if [ "$PR_BODY" = "$UPDATED_BODY" ]; then
+            echo "Error: failed to update autodev iteration counter in PR body; expected comment not found or modified." >&2
+            exit 1
+          fi
           gh pr edit "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
             --body "$UPDATED_BODY"

@@ -217,3 +217,5 @@ the copy. Same pattern applies anywhere large files are moved on disk.
 | `internal/plugin/runtime.go` | Plugin invocation (hooks, commands, lifecycle events) |
 | `internal/plugin/permissions.go` | Permission sandboxing, env builder, audit log |
 | `internal/plugin/search.go` | GitHub search for mine plugins |
+| `cmd/stash.go` | Stash CLI commands (track, commit, log, restore, sync) |
+| `internal/stash/stash.go` | Stash domain logic — git-backed versioning, manifest, sync |

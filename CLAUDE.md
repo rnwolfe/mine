@@ -48,6 +48,7 @@ mine/
 │   ├── todo/        # Todo domain
 │   ├── hook/        # Hook pipeline (stages, registry, exec)
 │   ├── plugin/      # Plugin system (manifest, lifecycle, runtime, search)
+│   ├── craft/       # Scaffolding recipe engine (data-driven, embed.FS)
 │   ├── version/     # Build-time version info
 │   └── ...          # New domains go here
 ├── docs/            # User-facing documentation (install, commands, architecture)
@@ -79,6 +80,10 @@ Rules:
 7. **Plugin protocol**: Plugins are standalone binaries invoked via JSON-over-stdin. Three invocation
    types: `hook`, `command`, `lifecycle`. Plugins declare capabilities in `mine-plugin.toml`.
    Permissions are sandboxed (env vars, filesystem, network are opt-in).
+8. **Recipe engine**: Scaffolding templates are data-driven via `embed.FS`. Built-in recipes
+   are Go structs with embedded template files. Users can add recipes by dropping template
+   directories into `~/.config/mine/recipes/<category>-<name>/`. Templates use Go
+   `text/template` with `{{.Dir}}` as the project directory name.
 
 ## Design Principles
 
@@ -312,3 +317,6 @@ section for the full workflow.
 | `internal/plugin/search.go` | GitHub search for mine plugins |
 | `cmd/stash.go` | Stash CLI commands (track, commit, log, restore, sync) |
 | `internal/stash/stash.go` | Stash domain logic — git-backed versioning, manifest, sync |
+| `cmd/craft.go` | Craft CLI commands (dev, ci, git, list) |
+| `internal/craft/recipe.go` | Recipe engine, registry, template execution |
+| `internal/craft/builtins.go` | Built-in recipe definitions (go, node, python, rust, docker, github CI) |

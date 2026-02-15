@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
+	"github.com/rnwolfe/mine/internal/craft"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
 )
+
+var registry *craft.Registry
 
 var craftCmd = &cobra.Command{
 	Use:   "craft",
@@ -20,9 +22,15 @@ var craftCmd = &cobra.Command{
 }
 
 func init() {
+	registry = craft.NewRegistry()
+	// Attempt to load user recipes (non-fatal if it fails).
+	_ = registry.LoadUserRecipes()
+
 	rootCmd.AddCommand(craftCmd)
 	craftCmd.AddCommand(craftGitCmd)
 	craftCmd.AddCommand(craftDevCmd)
+	craftCmd.AddCommand(craftCICmd)
+	craftCmd.AddCommand(craftListCmd)
 }
 
 var craftGitCmd = &cobra.Command{
@@ -33,9 +41,22 @@ var craftGitCmd = &cobra.Command{
 
 var craftDevCmd = &cobra.Command{
 	Use:   "dev <tool>",
-	Short: "Quick-start a dev tool (go, node, python, rust)",
+	Short: "Quick-start a dev tool (go, node, python, rust, docker)",
 	Args:  cobra.ExactArgs(1),
 	RunE:  hook.Wrap("craft.dev", runCraftDev),
+}
+
+var craftCICmd = &cobra.Command{
+	Use:   "ci <provider>",
+	Short: "Generate CI/CD workflow templates (github)",
+	Args:  cobra.ExactArgs(1),
+	RunE:  hook.Wrap("craft.ci", runCraftCI),
+}
+
+var craftListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all available scaffolding recipes",
+	RunE:  hook.Wrap("craft.list", runCraftList),
 }
 
 func runCraftHelp(_ *cobra.Command, _ []string) error {
@@ -45,9 +66,15 @@ func runCraftHelp(_ *cobra.Command, _ []string) error {
 	fmt.Println("  Available recipes:")
 	fmt.Println()
 	fmt.Printf("    %s   %s\n", ui.Accent.Render("mine craft git"), ui.Muted.Render("Set up git with .gitignore, hooks, etc."))
-	fmt.Printf("    %s   %s\n", ui.Accent.Render("mine craft dev go"), ui.Muted.Render("Bootstrap a Go project"))
-	fmt.Printf("    %s   %s\n", ui.Accent.Render("mine craft dev node"), ui.Muted.Render("Bootstrap a Node.js project"))
-	fmt.Printf("    %s   %s\n", ui.Accent.Render("mine craft dev python"), ui.Muted.Render("Bootstrap a Python project"))
+
+	recipes := registry.List()
+	for _, r := range recipes {
+		cmd := fmt.Sprintf("mine craft %s %s", r.Category, r.Name)
+		fmt.Printf("    %s   %s\n", ui.Accent.Render(fmt.Sprintf("%-26s", cmd)), ui.Muted.Render(r.Description))
+	}
+
+	fmt.Println()
+	fmt.Printf("    %s   %s\n", ui.Accent.Render("mine craft list"), ui.Muted.Render("Show all recipes with details"))
 	fmt.Println()
 	return nil
 }
@@ -55,19 +82,16 @@ func runCraftHelp(_ *cobra.Command, _ []string) error {
 func runCraftGit(_ *cobra.Command, _ []string) error {
 	cwd, _ := os.Getwd()
 
-	// Check if already a git repo
 	if _, err := os.Stat(".git"); err == nil {
 		ui.Ok("Already a git repo: " + cwd)
 		fmt.Println()
 		return nil
 	}
 
-	// git init
 	if err := runCmd("git", "init"); err != nil {
 		return fmt.Errorf("git init failed: %w", err)
 	}
 
-	// Create .gitignore if missing
 	if _, err := os.Stat(".gitignore"); os.IsNotExist(err) {
 		gitignore := `# OS
 .DS_Store
@@ -100,131 +124,113 @@ bin/
 }
 
 func runCraftDev(_ *cobra.Command, args []string) error {
-	tool := strings.ToLower(args[0])
-
-	switch tool {
-	case "go", "golang":
-		return craftGo()
-	case "node", "nodejs", "js":
-		return craftNode()
-	case "python", "py":
-		return craftPython()
-	default:
-		return fmt.Errorf("unknown tool %q — try: go, node, python", tool)
-	}
+	return runRecipe("dev", args[0])
 }
 
-func craftGo() error {
-	cwd, _ := os.Getwd()
-	dir := filepath.Base(cwd)
+func runCraftCI(_ *cobra.Command, args []string) error {
+	return runRecipe("ci", args[0])
+}
 
-	// Check for existing go.mod
-	if _, err := os.Stat("go.mod"); err == nil {
-		ui.Ok("Go module already initialized")
-		return nil
+func runRecipe(category, name string) error {
+	recipe, ok := registry.Get(category, strings.ToLower(name))
+	if !ok {
+		available := recipesInCategory(category)
+		return fmt.Errorf("unknown %s recipe %q — try: %s", category, name, strings.Join(available, ", "))
 	}
 
 	fmt.Println()
-	ui.Puts("  Setting up Go project...")
+	ui.Puts(fmt.Sprintf("  Setting up %s/%s...", recipe.Category, recipe.Name))
 
-	if err := runCmd("go", "mod", "init", dir); err != nil {
-		return fmt.Errorf("go mod init: %w", err)
+	data := craft.CurrentDir()
+
+	created, err := craft.Execute(recipe, data)
+	if err != nil {
+		// "already initialized" is not a hard error
+		if strings.Contains(err.Error(), "already initialized") {
+			ui.Ok(capitalize(recipe.Name) + " project already initialized")
+			return nil
+		}
+		return err
 	}
 
-	// Create main.go if missing
-	if _, err := os.Stat("main.go"); os.IsNotExist(err) {
-		main := `package main
-
-import "fmt"
-
-func main() {
-	fmt.Println("Hello from ` + dir + `!")
-}
-`
-		os.WriteFile("main.go", []byte(main), 0o644)
-		ui.Ok("Created main.go")
+	for _, f := range created {
+		ui.Ok("Created " + f)
 	}
 
-	// Create Makefile if missing
-	if _, err := os.Stat("Makefile"); os.IsNotExist(err) {
-		makefile := `BINARY := ` + dir + `
-
-.PHONY: build run test clean
-
-build:
-	go build -o bin/$(BINARY) .
-
-run:
-	go run .
-
-test:
-	go test ./... -v
-
-clean:
-	rm -rf bin/
-`
-		os.WriteFile("Makefile", []byte(makefile), 0o644)
-		ui.Ok("Created Makefile")
+	// Run post commands
+	for _, pc := range recipe.PostCommands {
+		renderedArgs := craft.TemplateArgs(pc.Args, data)
+		ui.Puts("  " + pc.Description + "...")
+		if err := runCmd(pc.Name, renderedArgs...); err != nil {
+			if pc.Optional {
+				ui.Warn("Could not run " + pc.Name + ": " + err.Error())
+			} else {
+				return fmt.Errorf("%s: %w", pc.Description, err)
+			}
+		}
 	}
 
-	ui.Ok("Go project ready")
+	ui.Ok(capitalize(recipe.Name) + " project ready")
 	fmt.Println()
 	return nil
 }
 
-func craftNode() error {
-	if _, err := os.Stat("package.json"); err == nil {
-		ui.Ok("Node project already initialized")
-		return nil
+func runCraftList(_ *cobra.Command, _ []string) error {
+	fmt.Println()
+	fmt.Println(ui.Title.Render("  Available Recipes"))
+	fmt.Println()
+
+	recipes := registry.List()
+	currentCategory := ""
+	for _, r := range recipes {
+		if r.Category != currentCategory {
+			if currentCategory != "" {
+				fmt.Println()
+			}
+			fmt.Println(ui.Subtitle.Render(fmt.Sprintf("  %s", capitalize(r.Category)+" recipes")))
+			fmt.Println()
+			currentCategory = r.Category
+		}
+
+		cmd := fmt.Sprintf("mine craft %s %s", r.Category, r.Name)
+		aliases := ""
+		if len(r.Aliases) > 0 {
+			aliases = ui.Muted.Render(fmt.Sprintf(" (aliases: %s)", strings.Join(r.Aliases, ", ")))
+		}
+		fmt.Printf("    %s  %s%s\n", ui.Accent.Render(fmt.Sprintf("%-28s", cmd)), ui.Muted.Render(r.Description), aliases)
+
+		if len(r.Files) > 0 {
+			var fileNames []string
+			for _, f := range r.Files {
+				fileNames = append(fileNames, f.Path)
+			}
+			fmt.Printf("    %s  %s\n", strings.Repeat(" ", 28), ui.Muted.Render("creates: "+strings.Join(fileNames, ", ")))
+		}
 	}
 
 	fmt.Println()
-	ui.Puts("  Setting up Node.js project...")
-
-	if err := runCmd("npm", "init", "-y"); err != nil {
-		return fmt.Errorf("npm init: %w", err)
-	}
-
-	ui.Ok("Node.js project ready")
+	ui.Tip("User recipes go in ~/.config/mine/recipes/ (e.g. dev-mytemplate/)")
 	fmt.Println()
 	return nil
 }
 
-func craftPython() error {
-	if _, err := os.Stat("pyproject.toml"); err == nil {
-		ui.Ok("Python project already initialized")
-		return nil
+func recipesInCategory(category string) []string {
+	var names []string
+	seen := make(map[string]bool)
+	for _, r := range registry.List() {
+		if r.Category == category && !seen[r.Name] {
+			names = append(names, r.Name)
+			seen[r.Name] = true
+		}
 	}
+	return names
+}
 
-	cwd, _ := os.Getwd()
-	dir := filepath.Base(cwd)
-
-	fmt.Println()
-	ui.Puts("  Setting up Python project...")
-
-	pyproject := `[project]
-name = "` + dir + `"
-version = "0.1.0"
-requires-python = ">=3.11"
-
-[build-system]
-requires = ["setuptools>=75.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
-`
-	os.WriteFile("pyproject.toml", []byte(pyproject), 0o644)
-	ui.Ok("Created pyproject.toml")
-
-	// Create virtual env
-	if err := runCmd("python3", "-m", "venv", ".venv"); err != nil {
-		ui.Warn("Could not create virtual env: " + err.Error())
-	} else {
-		ui.Ok("Created .venv")
+func capitalize(s string) string {
+	if s == "" {
+		return s
 	}
-
-	ui.Ok("Python project ready")
-	fmt.Printf("  Activate: %s\n", ui.Accent.Render("source .venv/bin/activate"))
-	fmt.Println()
-	return nil
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 func runCmd(name string, args ...string) error {

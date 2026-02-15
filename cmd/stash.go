@@ -184,6 +184,16 @@ func runStashList(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
+	// entries == nil means manifest doesn't exist (no stash initialized).
+	// len(entries) == 0 means manifest exists but no files tracked yet.
+	if entries == nil {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  No stash yet."))
+		fmt.Printf("  Run %s first.\n", ui.Accent.Render("mine stash init"))
+		fmt.Println()
+		return nil
+	}
+
 	if len(entries) == 0 {
 		fmt.Println()
 		fmt.Println(ui.Muted.Render("  No files tracked yet."))
@@ -217,6 +227,14 @@ func runStashDiff(_ *cobra.Command, _ []string) error {
 	entries, err := stash.ReadManifest()
 	if err != nil || entries == nil {
 		return fmt.Errorf("no stash found — run `mine stash init` first")
+	}
+
+	if len(entries) == 0 {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  No files tracked yet."))
+		fmt.Printf("  Try: %s\n", ui.Accent.Render("mine stash track ~/.zshrc"))
+		fmt.Println()
+		return nil
 	}
 
 	changes := 0

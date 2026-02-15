@@ -147,7 +147,7 @@ func runRecipe(category, name string) error {
 	if err != nil {
 		// "already initialized" is not a hard error
 		if strings.Contains(err.Error(), "already initialized") {
-			ui.Ok(strings.ToUpper(recipe.Name[:1]) + recipe.Name[1:] + " project already initialized")
+			ui.Ok(capitalize(recipe.Name) + " project already initialized")
 			return nil
 		}
 		return err
@@ -170,7 +170,7 @@ func runRecipe(category, name string) error {
 		}
 	}
 
-	ui.Ok(strings.ToUpper(recipe.Name[:1]) + recipe.Name[1:] + " project ready")
+	ui.Ok(capitalize(recipe.Name) + " project ready")
 	fmt.Println()
 	return nil
 }
@@ -187,7 +187,7 @@ func runCraftList(_ *cobra.Command, _ []string) error {
 			if currentCategory != "" {
 				fmt.Println()
 			}
-			fmt.Println(ui.Subtitle.Render(fmt.Sprintf("  %s", strings.ToUpper(r.Category[:1])+r.Category[1:]+" recipes")))
+			fmt.Println(ui.Subtitle.Render(fmt.Sprintf("  %s", capitalize(r.Category)+" recipes")))
 			fmt.Println()
 			currentCategory = r.Category
 		}
@@ -224,6 +224,13 @@ func recipesInCategory(category string) []string {
 		}
 	}
 	return names
+}
+
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 func runCmd(name string, args ...string) error {

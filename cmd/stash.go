@@ -102,7 +102,7 @@ func runStashInit(_ *cobra.Command, _ []string) error {
 	// Create manifest if it doesn't exist.
 	manifestPath := stash.ManifestPath()
 	if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
-		if err := os.WriteFile(manifestPath, []byte("# mine stash manifest\n# each line: source_path\n"), 0o644); err != nil {
+		if err := os.WriteFile(manifestPath, []byte("# mine stash manifest\n# each line: source_path -> safe_name (e.g. ~/.zshrc -> zshrc)\n"), 0o644); err != nil {
 			return err
 		}
 	}

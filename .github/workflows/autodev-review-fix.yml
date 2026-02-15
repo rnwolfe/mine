@@ -31,7 +31,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version-file: go.mod
 
       - name: Parse iteration count
         id: iteration
@@ -85,6 +85,13 @@ jobs:
             echo "${EOF_DELIM}"
           } >> "$GITHUB_ENV"
 
+      - name: Validate feedback
+        run: |
+          if [ ! -s /tmp/review-feedback.txt ]; then
+            echo "::error::No actionable review feedback found. Skipping agent run."
+            exit 1
+          fi
+
       # ============================================================
       # AGENT EXECUTION — Provider: Claude via claude-code-action@v1
       # To swap providers, replace this step.
@@ -109,6 +116,14 @@ jobs:
             ${{ env.REVIEW_FEEDBACK }}
           claude_args: "--max-turns 15"
       # ============================================================
+
+      - name: Revert protected file changes
+        run: |
+          PROTECTED=$(git diff --name-only | grep -E '(CLAUDE\.md|\.github/workflows/|scripts/autodev/)' || true)
+          if [ -n "$PROTECTED" ]; then
+            echo "::warning::Agent modified protected files — reverting: $PROTECTED"
+            echo "$PROTECTED" | xargs git checkout --
+          fi
 
       - name: Check for changes
         id: changes

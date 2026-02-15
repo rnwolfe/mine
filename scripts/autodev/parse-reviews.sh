@@ -17,7 +17,7 @@ FEEDBACK=""
 
 # ── Top-level reviews ──────────────────────────────────────────────
 
-REVIEWS=$(gh api \
+REVIEWS=$(gh api --paginate \
     "repos/$AUTODEV_REPO/pulls/$PR_NUMBER/reviews" \
     --jq '[.[] | select(
         (.state == "CHANGES_REQUESTED" or .state == "COMMENTED") and
@@ -40,7 +40,7 @@ fi
 
 # ── Line-level review comments ─────────────────────────────────────
 
-COMMENTS=$(gh api \
+COMMENTS=$(gh api --paginate \
     "repos/$AUTODEV_REPO/pulls/$PR_NUMBER/comments" \
     --jq '[.[] | select(
         .user.login != "github-actions[bot]"

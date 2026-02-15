@@ -31,10 +31,17 @@ fi
 # ── Pick an issue ──────────────────────────────────────────────────
 
 if [ -n "$ISSUE_NUMBER" ]; then
-    # Manual override — validate the issue exists
-    if ! gh issue view "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --json number >/dev/null 2>&1; then
-        autodev_fatal "Issue #$ISSUE_NUMBER not found"
+    # Manual override — validate the issue exists and has agent-ready label
+    LABELS=$(gh issue view "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --json labels --jq '[.labels[].name]' 2>/dev/null) \
+        || autodev_fatal "Issue #$ISSUE_NUMBER not found"
+
+    if ! echo "$LABELS" | jq -e --arg label "$AUTODEV_LABEL_READY" 'index($label)' >/dev/null 2>&1; then
+        autodev_fatal "Issue #$ISSUE_NUMBER does not have '$AUTODEV_LABEL_READY' label"
     fi
+
+    # Label in-progress atomically to prevent race conditions
+    gh issue edit "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --add-label "$AUTODEV_LABEL_IN_PROGRESS" >/dev/null
+
     echo "$ISSUE_NUMBER"
     exit 0
 fi
@@ -51,5 +58,8 @@ if [ -z "$ISSUE_NUMBER" ]; then
     autodev_info "No agent-ready issues found. Nothing to do."
     exit 0
 fi
+
+# Label in-progress atomically to prevent race conditions
+gh issue edit "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --add-label "$AUTODEV_LABEL_IN_PROGRESS" >/dev/null
 
 echo "$ISSUE_NUMBER"

@@ -39,15 +39,6 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Label issue in-progress
-        if: steps.pick.outputs.skip == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh issue edit "${{ steps.pick.outputs.issue_number }}" \
-            --repo "${{ github.repository }}" \
-            --add-label "in-progress"
-
       - name: Trigger implementation workflow
         if: steps.pick.outputs.skip == 'false'
         env:

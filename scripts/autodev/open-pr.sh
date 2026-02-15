@@ -20,7 +20,7 @@ ISSUE_TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
 
 # ── Create PR ──────────────────────────────────────────────────────
 
-PR_URL=$(gh pr create \
+PR_JSON=$(gh pr create \
     --repo "$AUTODEV_REPO" \
     --head "$BRANCH_NAME" \
     --base "$AUTODEV_BASE_BRANCH" \
@@ -44,13 +44,16 @@ See commits on this branch for implementation details.
 <!-- autodev-state: {"iteration": 0} -->
 EOF
 )" \
-    --label "$AUTODEV_LABEL_AUTODEV")
+    --label "$AUTODEV_LABEL_AUTODEV" \
+    --json number,url)
+
+PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+PR_URL=$(echo "$PR_JSON" | jq -r '.url')
 
 autodev_info "Created PR: $PR_URL"
 
 # ── Enable auto-merge ──────────────────────────────────────────────
 
-PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
 gh pr merge "$PR_NUMBER" --repo "$AUTODEV_REPO" --squash --auto
 
 autodev_info "Auto-merge enabled for PR #$PR_NUMBER"

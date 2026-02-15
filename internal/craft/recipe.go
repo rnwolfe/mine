@@ -153,8 +153,11 @@ func loadUserRecipe(baseDir, dirName string) (*Recipe, error) {
 		return nil, nil // skip directories without category-name format
 	}
 
-	category := parts[0]
-	name := parts[1]
+	category := strings.TrimSpace(parts[0])
+	name := strings.TrimSpace(parts[1])
+	if category == "" || name == "" {
+		return nil, nil // skip directories with empty category or name
+	}
 	recipeDir := filepath.Join(baseDir, dirName)
 
 	var files []FileTemplate

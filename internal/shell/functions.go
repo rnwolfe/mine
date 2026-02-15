@@ -17,14 +17,44 @@ func Functions() []ShellFunc {
 		{
 			Name: "mkcd",
 			Desc: "Create a directory and cd into it",
-			Bash: `mkcd() { mkdir -p "$1" && cd "$1"; }`,
-			Zsh:  `mkcd() { mkdir -p "$1" && cd "$1"; }`,
-			Fish: `function mkcd; mkdir -p $argv[1]; and cd $argv[1]; end`,
+			Bash: `mkcd() {
+  if [ "$1" = "--help" ]; then
+    echo "mkcd — Create a directory and cd into it"
+    echo "Usage: mkcd <dir>"
+    echo "Example: mkcd my-project"
+    return 0
+  fi
+  mkdir -p "$1" && cd "$1"
+}`,
+			Zsh: `mkcd() {
+  if [[ "$1" == "--help" ]]; then
+    echo "mkcd — Create a directory and cd into it"
+    echo "Usage: mkcd <dir>"
+    echo "Example: mkcd my-project"
+    return 0
+  fi
+  mkdir -p "$1" && cd "$1"
+}`,
+			Fish: `function mkcd
+  if test "$argv[1]" = "--help"
+    echo "mkcd — Create a directory and cd into it"
+    echo "Usage: mkcd <dir>"
+    echo "Example: mkcd my-project"
+    return 0
+  end
+  mkdir -p $argv[1]; and cd $argv[1]
+end`,
 		},
 		{
 			Name: "extract",
 			Desc: "Extract any common archive format",
 			Bash: `extract() {
+  if [ "$1" = "--help" ]; then
+    echo "extract — Extract any common archive format"
+    echo "Usage: extract <file>"
+    echo "Example: extract archive.tar.gz"
+    return 0
+  fi
   if [ ! -f "$1" ]; then echo "extract: '$1' not found" >&2; return 1; fi
   case "$1" in
     *.tar.bz2) tar xjf "$1" ;;
@@ -43,6 +73,12 @@ func Functions() []ShellFunc {
   esac
 }`,
 			Zsh: `extract() {
+  if [[ "$1" == "--help" ]]; then
+    echo "extract — Extract any common archive format"
+    echo "Usage: extract <file>"
+    echo "Example: extract archive.tar.gz"
+    return 0
+  fi
   if [[ ! -f "$1" ]]; then echo "extract: '$1' not found" >&2; return 1; fi
   case "$1" in
     *.tar.bz2) tar xjf "$1" ;;
@@ -61,6 +97,12 @@ func Functions() []ShellFunc {
   esac
 }`,
 			Fish: `function extract
+  if test "$argv[1]" = "--help"
+    echo "extract — Extract any common archive format"
+    echo "Usage: extract <file>"
+    echo "Example: extract archive.tar.gz"
+    return 0
+  end
   if not test -f $argv[1]
     echo "extract: '$argv[1]' not found" >&2; return 1
   end
@@ -84,37 +126,160 @@ end`,
 		{
 			Name: "ports",
 			Desc: "Show listening network ports",
-			Bash: `ports() { lsof -iTCP -sTCP:LISTEN -P -n 2>/dev/null || ss -tlnp 2>/dev/null; }`,
-			Zsh:  `ports() { lsof -iTCP -sTCP:LISTEN -P -n 2>/dev/null || ss -tlnp 2>/dev/null; }`,
-			Fish: `function ports; lsof -iTCP -sTCP:LISTEN -P -n 2>/dev/null; or ss -tlnp 2>/dev/null; end`,
+			Bash: `ports() {
+  if [ "$1" = "--help" ]; then
+    echo "ports — Show listening network ports"
+    echo "Usage: ports"
+    echo "Example: ports"
+    return 0
+  fi
+  lsof -iTCP -sTCP:LISTEN -P -n 2>/dev/null || ss -tlnp 2>/dev/null
+}`,
+			Zsh: `ports() {
+  if [[ "$1" == "--help" ]]; then
+    echo "ports — Show listening network ports"
+    echo "Usage: ports"
+    echo "Example: ports"
+    return 0
+  fi
+  lsof -iTCP -sTCP:LISTEN -P -n 2>/dev/null || ss -tlnp 2>/dev/null
+}`,
+			Fish: `function ports
+  if test "$argv[1]" = "--help"
+    echo "ports — Show listening network ports"
+    echo "Usage: ports"
+    echo "Example: ports"
+    return 0
+  end
+  lsof -iTCP -sTCP:LISTEN -P -n 2>/dev/null; or ss -tlnp 2>/dev/null
+end`,
 		},
 		{
 			Name: "gitroot",
 			Desc: "cd to the root of the current git repo",
-			Bash: `gitroot() { cd "$(git rev-parse --show-toplevel 2>/dev/null)" || echo "not in a git repo" >&2; }`,
-			Zsh:  `gitroot() { cd "$(git rev-parse --show-toplevel 2>/dev/null)" || echo "not in a git repo" >&2; }`,
-			Fish: `function gitroot; cd (git rev-parse --show-toplevel 2>/dev/null); or echo "not in a git repo" >&2; end`,
+			Bash: `gitroot() {
+  if [ "$1" = "--help" ]; then
+    echo "gitroot — cd to the root of the current git repo"
+    echo "Usage: gitroot"
+    echo "Example: gitroot"
+    return 0
+  fi
+  cd "$(git rev-parse --show-toplevel 2>/dev/null)" || echo "not in a git repo" >&2
+}`,
+			Zsh: `gitroot() {
+  if [[ "$1" == "--help" ]]; then
+    echo "gitroot — cd to the root of the current git repo"
+    echo "Usage: gitroot"
+    echo "Example: gitroot"
+    return 0
+  fi
+  cd "$(git rev-parse --show-toplevel 2>/dev/null)" || echo "not in a git repo" >&2
+}`,
+			Fish: `function gitroot
+  if test "$argv[1]" = "--help"
+    echo "gitroot — cd to the root of the current git repo"
+    echo "Usage: gitroot"
+    echo "Example: gitroot"
+    return 0
+  end
+  cd (git rev-parse --show-toplevel 2>/dev/null); or echo "not in a git repo" >&2
+end`,
 		},
 		{
 			Name: "serve",
 			Desc: "Start a quick HTTP server in the current directory",
-			Bash: `serve() { local port="${1:-8000}"; python3 -m http.server "$port" 2>/dev/null || python -m SimpleHTTPServer "$port"; }`,
-			Zsh:  `serve() { local port="${1:-8000}"; python3 -m http.server "$port" 2>/dev/null || python -m SimpleHTTPServer "$port"; }`,
-			Fish: `function serve; set -l port (test (count $argv) -gt 0; and echo $argv[1]; or echo 8000); python3 -m http.server $port 2>/dev/null; or python -m SimpleHTTPServer $port; end`,
+			Bash: `serve() {
+  if [ "$1" = "--help" ]; then
+    echo "serve — Start a quick HTTP server in the current directory"
+    echo "Usage: serve [port]"
+    echo "Example: serve 3000"
+    return 0
+  fi
+  local port="${1:-8000}"
+  python3 -m http.server "$port" 2>/dev/null || python -m SimpleHTTPServer "$port"
+}`,
+			Zsh: `serve() {
+  if [[ "$1" == "--help" ]]; then
+    echo "serve — Start a quick HTTP server in the current directory"
+    echo "Usage: serve [port]"
+    echo "Example: serve 3000"
+    return 0
+  fi
+  local port="${1:-8000}"
+  python3 -m http.server "$port" 2>/dev/null || python -m SimpleHTTPServer "$port"
+}`,
+			Fish: `function serve
+  if test "$argv[1]" = "--help"
+    echo "serve — Start a quick HTTP server in the current directory"
+    echo "Usage: serve [port]"
+    echo "Example: serve 3000"
+    return 0
+  end
+  set -l port (test (count $argv) -gt 0; and echo $argv[1]; or echo 8000)
+  python3 -m http.server $port 2>/dev/null; or python -m SimpleHTTPServer $port
+end`,
 		},
 		{
 			Name: "backup",
 			Desc: "Create a timestamped backup copy of a file",
-			Bash: `backup() { cp "$1" "$1.bak.$(date +%Y%m%d_%H%M%S)"; }`,
-			Zsh:  `backup() { cp "$1" "$1.bak.$(date +%Y%m%d_%H%M%S)"; }`,
-			Fish: `function backup; cp $argv[1] $argv[1].bak.(date +%Y%m%d_%H%M%S); end`,
+			Bash: `backup() {
+  if [ "$1" = "--help" ]; then
+    echo "backup — Create a timestamped backup copy of a file"
+    echo "Usage: backup <file>"
+    echo "Example: backup config.yaml"
+    return 0
+  fi
+  cp "$1" "$1.bak.$(date +%Y%m%d_%H%M%S)"
+}`,
+			Zsh: `backup() {
+  if [[ "$1" == "--help" ]]; then
+    echo "backup — Create a timestamped backup copy of a file"
+    echo "Usage: backup <file>"
+    echo "Example: backup config.yaml"
+    return 0
+  fi
+  cp "$1" "$1.bak.$(date +%Y%m%d_%H%M%S)"
+}`,
+			Fish: `function backup
+  if test "$argv[1]" = "--help"
+    echo "backup — Create a timestamped backup copy of a file"
+    echo "Usage: backup <file>"
+    echo "Example: backup config.yaml"
+    return 0
+  end
+  cp $argv[1] $argv[1].bak.(date +%Y%m%d_%H%M%S)
+end`,
 		},
 		{
 			Name: "tre",
 			Desc: "tree with sensible defaults (2 levels, ignore hidden/vendor)",
-			Bash: `tre() { tree -L "${1:-2}" -I 'node_modules|vendor|.git|__pycache__|.venv' --dirsfirst; }`,
-			Zsh:  `tre() { tree -L "${1:-2}" -I 'node_modules|vendor|.git|__pycache__|.venv' --dirsfirst; }`,
-			Fish: `function tre; tree -L (test (count $argv) -gt 0; and echo $argv[1]; or echo 2) -I 'node_modules|vendor|.git|__pycache__|.venv' --dirsfirst; end`,
+			Bash: `tre() {
+  if [ "$1" = "--help" ]; then
+    echo "tre — tree with sensible defaults (2 levels, ignore hidden/vendor)"
+    echo "Usage: tre [depth]"
+    echo "Example: tre 3"
+    return 0
+  fi
+  tree -L "${1:-2}" -I 'node_modules|vendor|.git|__pycache__|.venv' --dirsfirst
+}`,
+			Zsh: `tre() {
+  if [[ "$1" == "--help" ]]; then
+    echo "tre — tree with sensible defaults (2 levels, ignore hidden/vendor)"
+    echo "Usage: tre [depth]"
+    echo "Example: tre 3"
+    return 0
+  fi
+  tree -L "${1:-2}" -I 'node_modules|vendor|.git|__pycache__|.venv' --dirsfirst
+}`,
+			Fish: `function tre
+  if test "$argv[1]" = "--help"
+    echo "tre — tree with sensible defaults (2 levels, ignore hidden/vendor)"
+    echo "Usage: tre [depth]"
+    echo "Example: tre 3"
+    return 0
+  end
+  tree -L (test (count $argv) -gt 0; and echo $argv[1]; or echo 2) -I 'node_modules|vendor|.git|__pycache__|.venv' --dirsfirst
+end`,
 		},
 	}
 }

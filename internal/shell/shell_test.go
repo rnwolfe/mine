@@ -185,6 +185,107 @@ func TestStarshipConfig(t *testing.T) {
 	}
 }
 
+func TestFunctionsHelpFlag(t *testing.T) {
+	funcs := Functions()
+
+	for _, fn := range funcs {
+		// Each function's implementation should contain --help handling.
+		t.Run(fn.Name+"/bash", func(t *testing.T) {
+			if !strings.Contains(fn.Bash, `"--help"`) {
+				t.Errorf("bash %s missing --help check", fn.Name)
+			}
+			// Help output should include description.
+			if !strings.Contains(fn.Bash, fn.Name+" — ") {
+				t.Errorf("bash %s --help missing description line", fn.Name)
+			}
+			// Help output should include usage.
+			if !strings.Contains(fn.Bash, "Usage: "+fn.Name) {
+				t.Errorf("bash %s --help missing usage line", fn.Name)
+			}
+			// Help output should include example.
+			if !strings.Contains(fn.Bash, "Example: "+fn.Name) {
+				t.Errorf("bash %s --help missing example line", fn.Name)
+			}
+		})
+
+		t.Run(fn.Name+"/zsh", func(t *testing.T) {
+			if !strings.Contains(fn.Zsh, `"--help"`) {
+				t.Errorf("zsh %s missing --help check", fn.Name)
+			}
+			if !strings.Contains(fn.Zsh, fn.Name+" — ") {
+				t.Errorf("zsh %s --help missing description line", fn.Name)
+			}
+			if !strings.Contains(fn.Zsh, "Usage: "+fn.Name) {
+				t.Errorf("zsh %s --help missing usage line", fn.Name)
+			}
+			if !strings.Contains(fn.Zsh, "Example: "+fn.Name) {
+				t.Errorf("zsh %s --help missing example line", fn.Name)
+			}
+		})
+
+		t.Run(fn.Name+"/fish", func(t *testing.T) {
+			if !strings.Contains(fn.Fish, `"--help"`) {
+				t.Errorf("fish %s missing --help check", fn.Name)
+			}
+			if !strings.Contains(fn.Fish, fn.Name+" — ") {
+				t.Errorf("fish %s --help missing description line", fn.Name)
+			}
+			if !strings.Contains(fn.Fish, "Usage: "+fn.Name) {
+				t.Errorf("fish %s --help missing usage line", fn.Name)
+			}
+			if !strings.Contains(fn.Fish, "Example: "+fn.Name) {
+				t.Errorf("fish %s --help missing example line", fn.Name)
+			}
+		})
+	}
+}
+
+func TestFunctionsScriptContainsHelp(t *testing.T) {
+	shells := []string{Bash, Zsh, Fish}
+	for _, sh := range shells {
+		t.Run(sh, func(t *testing.T) {
+			script, err := FunctionsScript(sh)
+			if err != nil {
+				t.Fatalf("FunctionsScript(%q) error: %v", sh, err)
+			}
+
+			// Every function should have --help handling in the generated script.
+			for _, fn := range Functions() {
+				if !strings.Contains(script, "Usage: "+fn.Name) {
+					t.Errorf("generated %s script for %s missing help usage line", sh, fn.Name)
+				}
+			}
+		})
+	}
+}
+
+func TestFunctionsHelpShellSyntax(t *testing.T) {
+	funcs := Functions()
+
+	for _, fn := range funcs {
+		// Bash should use [ ... ] for --help check.
+		t.Run(fn.Name+"/bash_syntax", func(t *testing.T) {
+			if !strings.Contains(fn.Bash, `[ "$1" = "--help" ]`) {
+				t.Errorf("bash %s should use [ ] for --help check", fn.Name)
+			}
+		})
+
+		// Zsh should use [[ ... ]] for --help check.
+		t.Run(fn.Name+"/zsh_syntax", func(t *testing.T) {
+			if !strings.Contains(fn.Zsh, `[[ "$1" == "--help" ]]`) {
+				t.Errorf("zsh %s should use [[ ]] for --help check", fn.Name)
+			}
+		})
+
+		// Fish should use test for --help check.
+		t.Run(fn.Name+"/fish_syntax", func(t *testing.T) {
+			if !strings.Contains(fn.Fish, `test "$argv[1]" = "--help"`) {
+				t.Errorf("fish %s should use test for --help check", fn.Name)
+			}
+		})
+	}
+}
+
 func TestInitScriptBashAliasFormat(t *testing.T) {
 	script, _ := InitScript(Bash)
 	// Bash aliases use = without spaces.

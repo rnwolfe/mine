@@ -280,13 +280,30 @@ func RestoreToSource(file string, version string) error {
 		return err
 	}
 
-	if err := os.WriteFile(entry.Source, content, 0o644); err != nil {
+	// Determine permissions for the source file: preserve existing mode when present,
+	// otherwise use a restrictive default.
+	srcPerm := os.FileMode(0o600)
+	if info, err := os.Stat(entry.Source); err == nil {
+		srcPerm = info.Mode().Perm()
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat source %s: %w", entry.Source, err)
+	}
+
+	if err := os.WriteFile(entry.Source, content, srcPerm); err != nil {
 		return fmt.Errorf("writing to %s: %w", entry.Source, err)
 	}
 
 	// Also update the stash copy.
 	stashPath := filepath.Join(Dir(), entry.SafeName)
-	if err := os.WriteFile(stashPath, content, 0o644); err != nil {
+
+	stashPerm := os.FileMode(0o600)
+	if info, err := os.Stat(stashPath); err == nil {
+		stashPerm = info.Mode().Perm()
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat stash copy %s: %w", stashPath, err)
+	}
+
+	if err := os.WriteFile(stashPath, content, stashPerm); err != nil {
 		return fmt.Errorf("updating stash copy: %w", err)
 	}
 

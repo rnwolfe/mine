@@ -54,6 +54,7 @@ mine/
 ├── docs/            # User-facing documentation (install, commands, architecture)
 │   └── internal/    # Agentic docs (vision, decisions, status — NOT user-facing)
 ├── scripts/         # Install, release, CI helpers
+│   └── autodev/     # Autonomous dev workflow scripts
 ├── site/            # Landing page (Vercel, auto-deploys)
 └── .github/         # CI/CD workflows, CODEOWNERS, PR template
 ```
@@ -120,6 +121,53 @@ Rules:
 - CODEOWNERS: `@rnwolfe` reviews everything
 - Site: https://mine.rwolfe.io (Vercel)
 - Repo: https://github.com/rnwolfe/mine
+
+## Autonomous Development Workflow
+
+An event-driven GitHub Actions pipeline that autonomously implements issues end-to-end.
+
+### How it works
+
+Three workflows form a loop:
+
+1. **`autodev-dispatch`** — Runs on a 4-hour cron (or manual trigger). Picks the oldest
+   `agent-ready` issue, labels it `in-progress`, and triggers the implement workflow.
+2. **`autodev-implement`** — Checks out `main`, creates a branch, runs the agent (Claude
+   via `claude-code-action@v1`) to implement the issue, pushes, and opens a PR with
+   auto-merge enabled. The PR triggers CI and `claude-code-review` automatically.
+3. **`autodev-review-fix`** — Fires when a review requests changes on an `autodev` PR.
+   Extracts review feedback, runs the agent to fix issues, and pushes. This re-triggers
+   CI + review, creating a feedback loop until the review passes or the iteration limit hits.
+
+### Labels
+
+| Label | Meaning |
+|-------|---------|
+| `agent-ready` | Issue is ready for autonomous implementation |
+| `in-progress` | Issue is currently being worked on |
+| `autodev` | PR was created by the autonomous workflow |
+| `needs-human` | Autodev hit a limit and needs human intervention |
+
+### Circuit breakers
+
+- **Max concurrency**: Only 1 `autodev` PR open at a time (prevents merge conflicts)
+- **Max iterations**: 3 review-fix cycles before adding `needs-human` label
+- **Timeouts**: 30 min for implementation, 20 min for review fixes
+- **Protected files**: Agent cannot modify CLAUDE.md, workflows, or autodev scripts
+
+### Model-agnostic design
+
+Each workflow has a clearly delimited `AGENT EXECUTION` block. To swap providers:
+1. Replace the `claude-code-action@v1` step with the target provider's action
+2. Update `scripts/autodev/agent-exec.sh` for local testing
+3. Set `AUTODEV_PROVIDER` env var
+
+### Triggering autonomous development
+
+1. Create a GitHub issue with clear acceptance criteria
+2. Add the `agent-ready` label
+3. Wait for the next cron run, or manually trigger `autodev-dispatch` from the Actions tab
+4. Optionally pass a specific issue number via the workflow dispatch input
 
 ## GitHub Issue Workflow
 
@@ -295,6 +343,12 @@ must read the issue, verify each criterion, update issue checkboxes, and use
 `Fixes #N` / `Closes #N` / `Resolves #N` in the PR body. See "GitHub Issue Workflow"
 section for the full workflow.
 
+### L-013: Iteration tracking via HTML comments
+Autodev tracks review-fix iteration count in PR body HTML comments
+(`<!-- autodev-state: {"iteration": N} -->`). This survives PR body edits and is
+invisible to readers. `grep -oP` extracts the value. Always bump the counter after
+each review-fix cycle, and check it before starting a new one.
+
 ## Key Files
 
 | File | Purpose |
@@ -320,3 +374,9 @@ section for the full workflow.
 | `cmd/craft.go` | Craft CLI commands (dev, ci, git, list) |
 | `internal/craft/recipe.go` | Recipe engine, registry, template execution |
 | `internal/craft/builtins.go` | Built-in recipe definitions (go, node, python, rust, docker, github CI) |
+| `scripts/autodev/config.sh` | Autodev shared constants, logging, utilities |
+| `scripts/autodev/pick-issue.sh` | Issue selection with concurrency guard |
+| `scripts/autodev/parse-reviews.sh` | Extract review feedback for agent consumption |
+| `scripts/autodev/check-gates.sh` | Quality gate verification (CI, iterations, mergeable) |
+| `scripts/autodev/open-pr.sh` | PR creation with auto-merge and iteration tracking |
+| `scripts/autodev/agent-exec.sh` | Model-agnostic agent execution abstraction |

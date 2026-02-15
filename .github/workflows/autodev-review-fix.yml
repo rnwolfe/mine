@@ -1,0 +1,146 @@
+name: Autodev Review Fix
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+concurrency:
+  group: autodev-review-fix-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  fix:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'autodev') &&
+      github.event.review.state == 'changes_requested'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Parse iteration count
+        id: iteration
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          source scripts/autodev/config.sh
+
+          PR_BODY=$(gh pr view "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --json body --jq '.body')
+
+          ITERATION=$(echo "$PR_BODY" | grep -oP '(?<=<!-- autodev-state: \{"iteration": )\d+' || echo "0")
+          echo "current=$ITERATION" >> "$GITHUB_OUTPUT"
+          echo "next=$((ITERATION + 1))" >> "$GITHUB_OUTPUT"
+
+      - name: Check iteration limit
+        if: ${{ fromJSON(steps.iteration.outputs.current) >= 3 }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr edit "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --add-label "needs-human"
+
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body "Autodev has reached the maximum iteration limit (${{ steps.iteration.outputs.current }}/3). This PR needs human review and intervention."
+
+          # Disable auto-merge
+          gh pr merge "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --disable-auto || true
+
+          echo "::error::Iteration limit reached. Stopping."
+          exit 1
+
+      - name: Extract review feedback
+        id: feedback
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash scripts/autodev/parse-reviews.sh \
+            "${{ github.event.pull_request.number }}" > /tmp/review-feedback.txt || true
+
+          # Set feedback as env var (safe for multiline content)
+          EOF_DELIM=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          {
+            echo "REVIEW_FEEDBACK<<${EOF_DELIM}"
+            cat /tmp/review-feedback.txt
+            echo "${EOF_DELIM}"
+          } >> "$GITHUB_ENV"
+
+      # ============================================================
+      # AGENT EXECUTION — Provider: Claude via claude-code-action@v1
+      # To swap providers, replace this step.
+      # ============================================================
+      - name: Run agent
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are fixing review feedback on a PR for the mine CLI tool.
+
+            IMPORTANT RULES:
+            - Read CLAUDE.md first for project conventions
+            - Run `make test` and `make build` to verify your changes
+            - Follow existing code patterns and style
+            - Do NOT modify CLAUDE.md, any files in .github/workflows/, or scripts/autodev/
+            - Address ALL review comments below
+            - If a comment is unclear, make your best judgment
+
+            ## Review Feedback to Address
+
+            ${{ env.REVIEW_FEEDBACK }}
+          claude_args: "--max-turns 15"
+      # ============================================================
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push fixes
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: address review feedback (iteration ${{ steps.iteration.outputs.next }})"
+          git push
+
+      - name: Update iteration counter
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_BODY=$(gh pr view "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --json body --jq '.body')
+
+          UPDATED_BODY=$(echo "$PR_BODY" | sed \
+            "s/<!-- autodev-state: {\"iteration\": ${{ steps.iteration.outputs.current }}} -->/<!-- autodev-state: {\"iteration\": ${{ steps.iteration.outputs.next }}} -->/")
+
+          gh pr edit "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body "$UPDATED_BODY"

@@ -202,7 +202,8 @@ func runPluginInstall(_ *cobra.Command, args []string) error {
 	fmt.Printf("  %s ", ui.Accent.Render("Install this plugin? [y/N]"))
 	line, err := reader.ReadString('\n')
 	if err != nil && err != io.EOF {
-		return fmt.Errorf("reading input: %w", err)
+		// Align with other prompts: ignore read errors and treat as empty input.
+		line = ""
 	}
 	ans := strings.TrimSpace(strings.ToLower(line))
 	if ans != "y" && ans != "yes" {

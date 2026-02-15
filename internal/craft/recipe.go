@@ -118,7 +118,8 @@ func (r *Registry) List() []*Recipe {
 }
 
 // LoadUserRecipes scans ~/.config/mine/recipes/ for user-defined recipes.
-// Each subdirectory is a recipe with a recipe.toml manifest and template files.
+// Each subdirectory is treated as a recipe; its metadata is derived from the
+// directory name and its files are used as templates.
 func (r *Registry) LoadUserRecipes() error {
 	recipesDir := filepath.Join(config.GetPaths().ConfigDir, "recipes")
 	if _, err := os.Stat(recipesDir); os.IsNotExist(err) {

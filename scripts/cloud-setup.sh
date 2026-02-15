@@ -95,7 +95,7 @@ install_gh() {
 # --- Persist PATH for subsequent Bash tool calls (idempotent) ---
 persist_env() {
   if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
-    # Remove any existing PATH/GOPATH/GOPROXY lines to avoid unbounded growth.
+    # Remove any existing PATH/GOPATH/GOPROXY/GOSUMDB lines to avoid unbounded growth.
     if [ -f "${CLAUDE_ENV_FILE}" ]; then
       grep -vE '^(PATH=|GOPATH=|GOPROXY=|GOSUMDB=)' "${CLAUDE_ENV_FILE}" > "${CLAUDE_ENV_FILE}.tmp" || true
       mv "${CLAUDE_ENV_FILE}.tmp" "${CLAUDE_ENV_FILE}"

@@ -46,6 +46,8 @@ mine/
 │   ├── store/       # SQLite data layer
 │   ├── ui/          # Theme, styles, print helpers
 │   ├── todo/        # Todo domain
+│   ├── hook/        # Hook pipeline (stages, registry, exec)
+│   ├── plugin/      # Plugin system (manifest, lifecycle, runtime, search)
 │   ├── version/     # Build-time version info
 │   └── ...          # New domains go here
 ├── docs/            # User-facing documentation (install, commands, architecture)
@@ -71,6 +73,12 @@ Rules:
 3. **UI consistency**: All output through `internal/ui` helpers — never raw `fmt.Println`
 4. **Config**: Single TOML file, loaded once, XDG-compliant paths
 5. **Progressive migration**: Schema changes via `store.migrate()` auto-applied on open
+6. **Plugin pipeline**: Commands traverse four hook stages: prevalidate → preexec → postexec → notify.
+   Hooks are either `transform` (modify context, sequential) or `notify` (fire-and-forget, async).
+   Pipeline is zero-cost when no hooks are registered.
+7. **Plugin protocol**: Plugins are standalone binaries invoked via JSON-over-stdin. Three invocation
+   types: `hook`, `command`, `lifecycle`. Plugins declare capabilities in `mine-plugin.toml`.
+   Permissions are sandboxed (env vars, filesystem, network are opt-in).
 
 ## Design Principles
 
@@ -172,13 +180,40 @@ Copilot code review found 7 legitimate issues on first PR: bc dependency in CI,
 unchecked errors in tests, duplicated test setup, unsafe `rm $(which ...)`,
 missing curl safety note, and doc/code mismatch. Treat it as a real reviewer.
 
+### L-009: Plugin stage/mode pairing matters
+Notify mode hooks only make sense at the notify stage. A hook declared as
+`stage = "preexec"` with `mode = "notify"` will silently never execute because
+the pipeline skips notify-mode hooks during transform stages. Manifest validation
+now enforces: notify stage ↔ notify mode, everything else ↔ transform mode.
+
+### L-010: Fire-and-forget means fire-and-forget
+The notify stage was originally blocking via `wg.Wait()`, defeating the purpose.
+Notify hooks should never block command completion — the goroutine is launched
+and the command returns immediately. Tests that verify notify execution need
+polling/deadline logic instead of synchronous assertions.
+
+### L-011: Stream large plugin binaries
+Plugin binaries can be 10-50MB. Reading them entirely into memory via
+`os.ReadFile` wastes memory. Use `io.Copy` between file handles to stream
+the copy. Same pattern applies anywhere large files are moved on disk.
+
 ## Key Files
 
 | File | Purpose |
 |------|---------|
 | `cmd/root.go` | Dashboard, command registration |
 | `cmd/todo.go` | Todo CRUD commands |
+| `cmd/plugin.go` | Plugin CLI commands (install, remove, search, info) |
 | `internal/ui/theme.go` | Colors, icons, style constants |
 | `internal/store/store.go` | DB connection, migrations |
 | `internal/todo/todo.go` | Todo domain logic + queries |
 | `internal/config/config.go` | Config load/save, XDG paths |
+| `internal/hook/hook.go` | Hook types, Context, Handler interface |
+| `internal/hook/pipeline.go` | Hook pipeline (Wrap, stage execution, flag rewrites) |
+| `internal/hook/discover.go` | User hook discovery, script creation, testing |
+| `internal/hook/exec.go` | ExecHandler — runs external hook scripts |
+| `internal/plugin/manifest.go` | Plugin manifest parsing and validation |
+| `internal/plugin/lifecycle.go` | Plugin install, remove, list, registry management |
+| `internal/plugin/runtime.go` | Plugin invocation (hooks, commands, lifecycle events) |
+| `internal/plugin/permissions.go` | Permission sandboxing, env builder, audit log |
+| `internal/plugin/search.go` | GitHub search for mine plugins |

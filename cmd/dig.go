@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
@@ -19,13 +20,13 @@ var digCmd = &cobra.Command{
 
 Duration examples: 25m, 1h, 45m, 2h
 Default: 25m (pomodoro)`,
-	RunE: runDig,
+	RunE: hook.Wrap("dig", runDig),
 }
 
 var digStatsCmd = &cobra.Command{
 	Use:   "stats",
 	Short: "View your deep work stats",
-	RunE:  runDigStats,
+	RunE:  hook.Wrap("dig.stats", runDigStats),
 }
 
 func init() {

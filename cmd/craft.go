@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -15,7 +16,7 @@ var craftCmd = &cobra.Command{
 	Use:   "craft",
 	Short: "Scaffold projects and bootstrap dev tools",
 	Long:  `Quickly spin up new projects or install dev tool configurations.`,
-	RunE:  runCraftHelp,
+	RunE:  hook.Wrap("craft", runCraftHelp),
 }
 
 func init() {
@@ -27,14 +28,14 @@ func init() {
 var craftGitCmd = &cobra.Command{
 	Use:   "git",
 	Short: "Set up a git repository with best practices",
-	RunE:  runCraftGit,
+	RunE:  hook.Wrap("craft.git", runCraftGit),
 }
 
 var craftDevCmd = &cobra.Command{
 	Use:   "dev <tool>",
 	Short: "Quick-start a dev tool (go, node, python, rust)",
 	Args:  cobra.ExactArgs(1),
-	RunE:  runCraftDev,
+	RunE:  hook.Wrap("craft.dev", runCraftDev),
 }
 
 func runCraftHelp(_ *cobra.Command, _ []string) error {

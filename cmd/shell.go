@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/rnwolfe/mine/internal/config"
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/shell"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
@@ -16,7 +17,7 @@ var shellCmd = &cobra.Command{
 	Use:   "shell",
 	Short: "Shell integration and enhancements",
 	Long:  `Set up shell completions, aliases, functions, and prompt integration.`,
-	RunE:  runShellHelp,
+	RunE:  hook.Wrap("shell", runShellHelp),
 }
 
 func init() {
@@ -40,7 +41,7 @@ Usage: eval "$(mine shell init zsh)"
 This sets up aliases, utility functions, and prompt integration
 in a single command. Add it to your shell config for persistent use.`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: runShellInit,
+	RunE: hook.Wrap("shell.init", runShellInit),
 }
 
 func runShellInit(_ *cobra.Command, args []string) error {
@@ -64,7 +65,7 @@ var shellCompletionsCmd = &cobra.Command{
 	Use:   "completions [bash|zsh|fish]",
 	Short: "Generate shell completions",
 	Args:  cobra.MaximumNArgs(1),
-	RunE:  runShellCompletions,
+	RunE:  hook.Wrap("shell.completions", runShellCompletions),
 }
 
 func runShellCompletions(_ *cobra.Command, args []string) error {
@@ -132,7 +133,7 @@ func runShellCompletions(_ *cobra.Command, args []string) error {
 var shellAliasesCmd = &cobra.Command{
 	Use:   "aliases",
 	Short: "Show recommended shell aliases",
-	RunE:  runShellAliases,
+	RunE:  hook.Wrap("shell.aliases", runShellAliases),
 }
 
 func runShellAliases(_ *cobra.Command, _ []string) error {
@@ -168,7 +169,7 @@ func runShellAliases(_ *cobra.Command, _ []string) error {
 var shellFunctionsCmd = &cobra.Command{
 	Use:   "functions",
 	Short: "List available shell utility functions",
-	RunE:  runShellFunctions,
+	RunE:  hook.Wrap("shell.functions", runShellFunctions),
 }
 
 func runShellFunctions(_ *cobra.Command, _ []string) error {
@@ -196,7 +197,7 @@ func runShellFunctions(_ *cobra.Command, _ []string) error {
 var shellPromptCmd = &cobra.Command{
 	Use:   "prompt",
 	Short: "Show prompt integration setup",
-	RunE:  runShellPrompt,
+	RunE:  hook.Wrap("shell.prompt", runShellPrompt),
 }
 
 func runShellPrompt(_ *cobra.Command, _ []string) error {

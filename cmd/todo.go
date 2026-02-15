@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/todo"
 	"github.com/rnwolfe/mine/internal/ui"
@@ -17,7 +18,7 @@ var todoCmd = &cobra.Command{
 	Aliases: []string{"t"},
 	Short:   "Manage your tasks",
 	Long:    `Fast, no-nonsense task management. Add, complete, and track todos.`,
-	RunE:    runTodoList,
+	RunE:    hook.Wrap("todo.list", runTodoList),
 }
 
 var (
@@ -45,7 +46,7 @@ var todoAddCmd = &cobra.Command{
 	Use:   "add <title>",
 	Short: "Add a new todo",
 	Args:  cobra.MinimumNArgs(1),
-	RunE:  runTodoAdd,
+	RunE:  hook.Wrap("todo.add", runTodoAdd),
 }
 
 var todoDoneCmd = &cobra.Command{
@@ -53,7 +54,7 @@ var todoDoneCmd = &cobra.Command{
 	Aliases: []string{"do", "complete", "x"},
 	Short:   "Mark a todo as complete",
 	Args:    cobra.ExactArgs(1),
-	RunE:    runTodoDone,
+	RunE:    hook.Wrap("todo.done", runTodoDone),
 }
 
 var todoRmCmd = &cobra.Command{
@@ -61,14 +62,14 @@ var todoRmCmd = &cobra.Command{
 	Aliases: []string{"remove", "delete"},
 	Short:   "Delete a todo",
 	Args:    cobra.ExactArgs(1),
-	RunE:    runTodoRm,
+	RunE:    hook.Wrap("todo.rm", runTodoRm),
 }
 
 var todoEditCmd = &cobra.Command{
 	Use:   "edit <id> <new title>",
 	Short: "Edit a todo's title",
 	Args:  cobra.MinimumNArgs(2),
-	RunE:  runTodoEdit,
+	RunE:  hook.Wrap("todo.edit", runTodoEdit),
 }
 
 func runTodoList(_ *cobra.Command, _ []string) error {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/todo"
 	"github.com/rnwolfe/mine/internal/version"
@@ -18,7 +19,7 @@ var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show mine status (for prompt integration)",
 	Long:  `Output current mine status as JSON or a compact prompt segment.`,
-	RunE:  runStatus,
+	RunE:  hook.Wrap("status", runStatus),
 }
 
 func init() {

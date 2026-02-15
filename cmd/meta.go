@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/meta"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
@@ -24,21 +25,21 @@ var metaCmd = &cobra.Command{
 	Use:   "meta",
 	Short: "Interact with mine-as-a-product",
 	Long:  `Commands for feature requests, bug reports, and other mine meta-operations.`,
-	RunE:  runMetaHelp,
+	RunE:  hook.Wrap("meta", runMetaHelp),
 }
 
 var metaFrCmd = &cobra.Command{
 	Use:   "fr [title]",
 	Short: "Submit a feature request",
 	Long:  `Submit a feature request as a GitHub issue on the mine repo.`,
-	RunE:  runMetaFr,
+	RunE:  hook.Wrap("meta.fr", runMetaFr),
 }
 
 var metaBugCmd = &cobra.Command{
 	Use:   "bug [title]",
 	Short: "Report a bug",
 	Long:  `Report a bug as a GitHub issue on the mine repo with auto-detected system info.`,
-	RunE:  runMetaBug,
+	RunE:  hook.Wrap("meta.bug", runMetaBug),
 }
 
 func init() {

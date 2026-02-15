@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/rnwolfe/mine/internal/config"
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -11,7 +12,7 @@ import (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "View and manage configuration",
-	RunE:  runConfigShow,
+	RunE:  hook.Wrap("config", runConfigShow),
 }
 
 func init() {

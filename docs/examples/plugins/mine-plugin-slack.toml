@@ -1,0 +1,27 @@
+[plugin]
+name = "slack-notify"
+version = "0.1.0"
+description = "Post mine activity to a Slack channel"
+author = "rnwolfe"
+license = "MIT"
+min_mine_version = "0.2.0"
+protocol_version = "1.0.0"
+
+[[hooks]]
+command = "todo.done"
+stage = "notify"
+mode = "notify"
+timeout = "15s"
+
+[[hooks]]
+command = "dig"
+stage = "notify"
+mode = "notify"
+
+[permissions]
+network = true
+filesystem = []
+store = false
+config_read = false
+config_write = false
+env_vars = ["SLACK_WEBHOOK_URL", "SLACK_CHANNEL"]

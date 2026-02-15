@@ -382,13 +382,52 @@ func SyncPull() error {
 	if err != nil {
 		return fmt.Errorf("reading manifest: %w", err)
 	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("determining home directory: %w", err)
+	}
+	sep := string(os.PathSeparator)
+
 	for _, e := range entries {
+		// Validate SafeName to avoid path traversal within the stash directory.
+		if e.SafeName == "" {
+			return fmt.Errorf("invalid manifest entry: empty SafeName")
+		}
+		if strings.Contains(e.SafeName, "..") || strings.ContainsAny(e.SafeName, "/\\:") {
+			return fmt.Errorf("invalid manifest entry for %s: unsafe SafeName %q", e.Source, e.SafeName)
+		}
+
+		// Validate Source: must be an absolute path under the user's home directory.
+		if e.Source == "" {
+			return fmt.Errorf("invalid manifest entry: empty Source for SafeName %q", e.SafeName)
+		}
+		srcPath := filepath.Clean(e.Source)
+		if !filepath.IsAbs(srcPath) {
+			return fmt.Errorf("invalid manifest entry for %s: source path is not absolute", e.Source)
+		}
+		rel, err := filepath.Rel(home, srcPath)
+		if err != nil {
+			return fmt.Errorf("validating source path %s: %w", e.Source, err)
+		}
+		if rel == ".." || strings.HasPrefix(rel, ".."+sep) {
+			return fmt.Errorf("manifest entry source outside home directory is not allowed: %s", e.Source)
+		}
+
 		stashPath := filepath.Join(dir, e.SafeName)
 		data, err := os.ReadFile(stashPath)
 		if err != nil {
+			// If the stash file is missing or unreadable, skip this entry.
 			continue
 		}
-		if err := os.WriteFile(e.Source, data, 0o644); err != nil {
+
+		// Preserve existing file mode if the source file already exists.
+		mode := os.FileMode(0o644)
+		if info, err := os.Stat(srcPath); err == nil {
+			mode = info.Mode().Perm()
+		}
+
+		if err := os.WriteFile(srcPath, data, mode); err != nil {
 			return fmt.Errorf("restoring %s: %w", e.Source, err)
 		}
 	}

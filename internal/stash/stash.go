@@ -107,18 +107,31 @@ func FindEntry(name string) (*Entry, error) {
 
 	home, _ := os.UserHomeDir()
 
+	// First, look for exact / explicit matches.
 	for _, e := range entries {
 		// Match against safe name, source path, or ~-relative path.
 		display := strings.Replace(e.Source, home+"/", "~/", 1)
 		if e.SafeName == name || e.Source == name || display == name {
 			return &e, nil
 		}
-		// Also match on just the filename portion.
+	}
+
+	// If no exact match, consider basename matches but require uniqueness.
+	var candidates []Entry
+	for _, e := range entries {
 		if filepath.Base(e.Source) == name || filepath.Base(e.SafeName) == name {
-			return &e, nil
+			candidates = append(candidates, e)
 		}
 	}
-	return nil, fmt.Errorf("no tracked file matching %q", name)
+
+	switch len(candidates) {
+	case 0:
+		return nil, fmt.Errorf("no tracked file matching %q", name)
+	case 1:
+		return &candidates[0], nil
+	default:
+		return nil, fmt.Errorf("multiple tracked files share the name %q; please use a full or ~-relative path or safe name", name)
+	}
 }
 
 // Commit snapshots the current stash state with a message.

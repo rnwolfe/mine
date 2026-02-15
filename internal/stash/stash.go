@@ -143,7 +143,14 @@ func Commit(message string) (string, error) {
 			// Source might be deleted — that's valid, git will record the state.
 			continue
 		}
-		if err := os.WriteFile(dst, data, 0o644); err != nil {
+		// Preserve file mode: prefer existing stash file mode, then source file mode, then default.
+		mode := os.FileMode(0o644)
+		if info, err := os.Stat(dst); err == nil {
+			mode = info.Mode()
+		} else if info, err := os.Stat(src); err == nil {
+			mode = info.Mode()
+		}
+		if err := os.WriteFile(dst, data, mode); err != nil {
 			return "", fmt.Errorf("copying %s: %w", e.SafeName, err)
 		}
 	}

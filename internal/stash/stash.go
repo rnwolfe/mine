@@ -79,7 +79,7 @@ func ReadManifest() ([]Entry, error) {
 		return nil, err
 	}
 
-	var entries []Entry
+	entries := []Entry{} // non-nil: distinguishes "file exists, no entries" from "file missing" (nil)
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -134,6 +134,17 @@ func FindEntry(name string) (*Entry, error) {
 	}
 }
 
+// validateSafeName checks that a SafeName is safe for use as a filename in the stash directory.
+func validateSafeName(safeName string) error {
+	if safeName == "" {
+		return fmt.Errorf("empty SafeName")
+	}
+	if strings.Contains(safeName, "..") || strings.ContainsAny(safeName, "/\\:") {
+		return fmt.Errorf("unsafe SafeName %q", safeName)
+	}
+	return nil
+}
+
 // Commit snapshots the current stash state with a message.
 // Initializes the git repo on first commit.
 func Commit(message string) (string, error) {
@@ -149,12 +160,22 @@ func Commit(message string) (string, error) {
 		return "", fmt.Errorf("reading manifest: %w", err)
 	}
 	for _, e := range entries {
+		if err := validateSafeName(e.SafeName); err != nil {
+			return "", fmt.Errorf("invalid manifest entry for %s: %w", e.Source, err)
+		}
 		src := e.Source
 		dst := filepath.Join(dir, e.SafeName)
 		data, err := os.ReadFile(src)
 		if err != nil {
-			// Source might be deleted — that's valid, git will record the state.
-			continue
+			if os.IsNotExist(err) {
+				// Source was deleted: remove stash copy so git will record the deletion.
+				if remErr := os.Remove(dst); remErr != nil && !os.IsNotExist(remErr) {
+					return "", fmt.Errorf("removing deleted file %s from stash: %w", e.SafeName, remErr)
+				}
+				continue
+			}
+			// Other read errors should abort the commit.
+			return "", fmt.Errorf("reading source %s: %w", src, err)
 		}
 		// Preserve file mode: prefer existing stash file mode, then source file mode, then default.
 		mode := os.FileMode(0o644)
@@ -391,11 +412,8 @@ func SyncPull() error {
 
 	for _, e := range entries {
 		// Validate SafeName to avoid path traversal within the stash directory.
-		if e.SafeName == "" {
-			return fmt.Errorf("invalid manifest entry: empty SafeName")
-		}
-		if strings.Contains(e.SafeName, "..") || strings.ContainsAny(e.SafeName, "/\\:") {
-			return fmt.Errorf("invalid manifest entry for %s: unsafe SafeName %q", e.Source, e.SafeName)
+		if err := validateSafeName(e.SafeName); err != nil {
+			return fmt.Errorf("invalid manifest entry for %s: %w", e.Source, err)
 		}
 
 		// Validate Source: must be an absolute path under the user's home directory.
@@ -408,10 +426,12 @@ func SyncPull() error {
 		}
 		rel, err := filepath.Rel(home, srcPath)
 		if err != nil {
-			return fmt.Errorf("validating source path %s: %w", e.Source, err)
+			fmt.Fprintf(os.Stderr, "warning: skipping manifest entry with unresolvable source path: %s\n", e.Source)
+			continue
 		}
 		if rel == ".." || strings.HasPrefix(rel, ".."+sep) {
-			return fmt.Errorf("manifest entry source outside home directory is not allowed: %s", e.Source)
+			fmt.Fprintf(os.Stderr, "warning: skipping manifest entry with source outside home directory: %s\n", e.Source)
+			continue
 		}
 
 		stashPath := filepath.Join(dir, e.SafeName)

@@ -177,11 +177,7 @@ func runStashTrack(_ *cobra.Command, args []string) error {
 func runStashList(_ *cobra.Command, _ []string) error {
 	entries, err := stash.ReadManifest()
 	if err != nil {
-		fmt.Println()
-		fmt.Println(ui.Muted.Render("  No stash yet."))
-		fmt.Printf("  Run %s first.\n", ui.Accent.Render("mine stash init"))
-		fmt.Println()
-		return nil
+		return fmt.Errorf("failed to read stash manifest: %w", err)
 	}
 
 	// entries == nil means manifest doesn't exist (no stash initialized).
@@ -225,7 +221,10 @@ func runStashList(_ *cobra.Command, _ []string) error {
 func runStashDiff(_ *cobra.Command, _ []string) error {
 	dir := stash.Dir()
 	entries, err := stash.ReadManifest()
-	if err != nil || entries == nil {
+	if err != nil {
+		return err
+	}
+	if entries == nil {
 		return fmt.Errorf("no stash found — run `mine stash init` first")
 	}
 
@@ -277,7 +276,10 @@ func runStashCommit(cmd *cobra.Command, _ []string) error {
 	}
 
 	entries, err := stash.ReadManifest()
-	if err != nil || len(entries) == 0 {
+	if err != nil {
+		return err
+	}
+	if len(entries) == 0 {
 		return fmt.Errorf("nothing to commit — track files with `mine stash track <file>` first")
 	}
 
@@ -338,7 +340,10 @@ func runStashRestore(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	entry, _ := stash.FindEntry(file)
+	entry, err := stash.FindEntry(file)
+	if err != nil {
+		return err
+	}
 	home, _ := os.UserHomeDir()
 	display := strings.Replace(entry.Source, home, "~", 1)
 

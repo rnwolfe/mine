@@ -120,6 +120,30 @@ func TestReadManifestSkipsComments(t *testing.T) {
 	}
 }
 
+func TestReadManifestEmptyEntries(t *testing.T) {
+	stashDir, _ := setupTestEnv(t)
+	if err := os.MkdirAll(stashDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a manifest with only comments and blank lines — no tracked entries.
+	content := "# mine stash manifest\n# each line: source_path -> safe_name\n\n"
+	if err := os.WriteFile(ManifestPath(), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	entries, err := ReadManifest()
+	if err != nil {
+		t.Fatalf("ReadManifest() error: %v", err)
+	}
+	if entries == nil {
+		t.Error("ReadManifest() returned nil, want non-nil empty slice for existing manifest")
+	}
+	if len(entries) != 0 {
+		t.Errorf("ReadManifest() returned %d entries, want 0", len(entries))
+	}
+}
+
 func TestFindEntry(t *testing.T) {
 	stashDir, homeDir := setupTestEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "content")

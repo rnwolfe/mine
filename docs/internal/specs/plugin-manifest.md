@@ -20,8 +20,8 @@ license = "MIT"                           # SPDX identifier
 min_mine_version = "0.2.0"               # minimum compatible mine version
 protocol_version = "1.0.0"               # protocol version this plugin targets
 
-# Optional: binary entry point (defaults to plugin name)
-entrypoint = "mine-plugin-obsidian"
+# Optional: binary entry point (defaults to "mine-plugin-" + name)
+entrypoint = "mine-plugin-obsidian-sync"
 
 # Hook registrations
 [[hooks]]
@@ -64,7 +64,7 @@ env_vars = ["OBSIDIAN_VAULT"]             # allowed environment variables
 | license            | string | no       | SPDX license identifier |
 | min_mine_version   | string | no       | Minimum compatible mine version |
 | protocol_version   | string | yes      | Protocol version (currently "1.0.0") |
-| entrypoint         | string | no       | Binary name (defaults to plugin name) |
+| entrypoint         | string | no       | Binary name (defaults to `mine-plugin-` + name) |
 
 ### [[hooks]] — Optional, repeatable
 

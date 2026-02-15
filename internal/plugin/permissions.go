@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,6 +92,8 @@ func buildPluginEnv(perms Permissions) []string {
 	for _, v := range perms.EnvVars {
 		if val := os.Getenv(v); val != "" {
 			env = append(env, v+"="+val)
+		} else {
+			log.Printf("warning: plugin declared env var %s but it is not set", v)
 		}
 	}
 

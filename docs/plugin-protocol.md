@@ -70,17 +70,20 @@ but do not abort the command.
 ## Command Invocation
 
 Plugins can register custom commands. When a user runs a plugin command (e.g.
-`mine obsidian sync`), mine invokes the plugin binary with:
+`mine obsidian sync --vault notes`), mine invokes the plugin binary with:
 
 ```json
 {
   "protocol_version": "1.0.0",
   "type": "command",
   "command": "sync",
-  "args": ["--vault", "notes"],
-  "flags": {}
+  "args": ["--vault", "notes"]
 }
 ```
+
+`args` contains the raw, unparsed command-line arguments exactly as the user
+typed them. Flag parsing is the plugin's responsibility. The `flags` field is
+not populated for command invocations.
 
 The plugin writes raw output to stdout (not JSON). This output is displayed
 directly to the user.

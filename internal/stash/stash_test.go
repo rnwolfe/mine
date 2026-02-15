@@ -393,7 +393,7 @@ func TestRestoreToSource(t *testing.T) {
 	}
 
 	// Restore original version to source.
-	if err := RestoreToSource(".zshrc", origHash); err != nil {
+	if _, err := RestoreToSource(".zshrc", origHash); err != nil {
 		t.Fatalf("RestoreToSource() error: %v", err)
 	}
 

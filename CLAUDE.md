@@ -283,6 +283,13 @@ Plugin binaries can be 10-50MB. Reading them entirely into memory via
 `os.ReadFile` wastes memory. Use `io.Copy` between file handles to stream
 the copy. Same pattern applies anywhere large files are moved on disk.
 
+### L-012: Acceptance criteria must be explicitly verified
+Issue #8 was implemented in PR #22, but the acceptance criteria were never verified
+and the issue didn't auto-close because the PR didn't use closing keywords. Agents
+must read the issue, verify each criterion, update issue checkboxes, and use
+`Fixes #N` / `Closes #N` / `Resolves #N` in the PR body. See "GitHub Issue Workflow"
+section for the full workflow.
+
 ## Key Files
 
 | File | Purpose |

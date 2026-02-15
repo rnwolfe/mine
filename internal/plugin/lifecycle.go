@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -99,17 +100,14 @@ func Install(sourceDir, source string) (*InstalledPlugin, error) {
 		return nil, err
 	}
 
-	// Copy entrypoint binary if it exists in source
+	// Copy entrypoint binary if it exists in source (streamed to avoid
+	// loading large binaries into memory).
 	entrypoint := manifest.Entrypoint()
 	srcBin := filepath.Join(sourceDir, entrypoint)
 	if info, err := os.Stat(srcBin); err == nil && !info.IsDir() {
-		binData, err := os.ReadFile(srcBin)
-		if err != nil {
-			return nil, fmt.Errorf("reading plugin binary: %w", err)
-		}
 		destBin := filepath.Join(pluginDir, entrypoint)
-		if err := os.WriteFile(destBin, binData, 0o755); err != nil {
-			return nil, fmt.Errorf("writing plugin binary: %w", err)
+		if err := copyFile(srcBin, destBin, 0o755); err != nil {
+			return nil, fmt.Errorf("copying plugin binary: %w", err)
 		}
 	}
 
@@ -178,7 +176,9 @@ func Remove(name string) error {
 
 	// Remove plugin directory
 	if pluginDir != "" {
-		os.RemoveAll(pluginDir)
+		if err := os.RemoveAll(pluginDir); err != nil {
+			return fmt.Errorf("removing plugin directory %s: %w", pluginDir, err)
+		}
 	}
 
 	reg.Plugins = filtered
@@ -235,4 +235,24 @@ func Get(name string) (*InstalledPlugin, error) {
 	}
 
 	return nil, fmt.Errorf("plugin %q not found", name)
+}
+
+// copyFile streams src to dst without loading the entire file into memory.
+func copyFile(src, dst string, perm os.FileMode) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Close()
 }

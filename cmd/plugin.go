@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/rnwolfe/mine/internal/plugin"
@@ -174,7 +175,7 @@ func runPluginInstall(_ *cobra.Command, args []string) error {
 	sourceDir := args[0]
 
 	// Parse manifest first to show permissions
-	manifestPath := sourceDir + "/mine-plugin.toml"
+	manifestPath := filepath.Join(sourceDir, "mine-plugin.toml")
 	manifest, err := plugin.ParseManifest(manifestPath)
 	if err != nil {
 		return err

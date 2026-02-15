@@ -3,7 +3,6 @@ package hook
 import (
 	"fmt"
 	"log"
-	"sync"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -49,6 +48,10 @@ func WrapWith(reg *Registry, command string, fn func(cmd *cobra.Command, args []
 			return fmt.Errorf("hook preexec failed: %w", err)
 		}
 
+		// Apply flag rewrites from transform hooks back to the Cobra command
+		// so the actual command sees the modified values.
+		applyFlagRewrites(cmd, ctx.Flags)
+
 		// Execute the actual command
 		if err := fn(cmd, ctx.Args); err != nil {
 			return err
@@ -60,8 +63,8 @@ func WrapWith(reg *Registry, command string, fn func(cmd *cobra.Command, args []
 			return fmt.Errorf("hook postexec failed: %w", err)
 		}
 
-		// Stage 4: notify (fire-and-forget)
-		runNotifyStage(reg, command, ctx)
+		// Stage 4: notify (fire-and-forget, non-blocking)
+		go runNotifyStage(reg, command, ctx)
 
 		return nil
 	}
@@ -86,26 +89,35 @@ func runTransformStage(reg *Registry, command string, stage Stage, ctx *Context)
 	return ctx, nil
 }
 
-// runNotifyStage runs all notify hooks concurrently. Errors are logged via
-// log.Printf rather than the ui package because notify hooks run in goroutines
-// where concurrent writes to styled terminal output could interleave.
+// runNotifyStage runs all notify hooks concurrently in a fire-and-forget manner.
+// The caller launches this in a goroutine so command completion is not blocked.
+// Errors are logged via log.Printf rather than the ui package because notify
+// hooks run in background goroutines where concurrent writes to styled terminal
+// output could interleave.
 func runNotifyStage(reg *Registry, command string, ctx *Context) {
 	hooks := reg.Resolve(command, StageNotify)
-	if len(hooks) == 0 {
-		return
-	}
-
-	var wg sync.WaitGroup
 	for _, h := range hooks {
-		wg.Add(1)
 		go func(h Hook) {
-			defer wg.Done()
 			if _, err := h.Handler(ctx); err != nil {
 				log.Printf("notify hook %q error: %v", h.Name, err)
 			}
 		}(h)
 	}
-	wg.Wait()
+}
+
+// applyFlagRewrites writes hook-modified flag values back to the Cobra command
+// so the actual command handler sees the updated values.
+func applyFlagRewrites(cmd *cobra.Command, flags map[string]string) {
+	for name, value := range flags {
+		f := cmd.Flags().Lookup(name)
+		if f == nil {
+			continue
+		}
+		if f.Value.String() != value {
+			f.Value.Set(value)
+			f.Changed = true
+		}
+	}
 }
 
 // extractFlags extracts changed flag values from a Cobra command.

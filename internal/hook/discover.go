@@ -252,15 +252,17 @@ func TestHook(path string) (string, error) {
 	}
 
 	mode := ModeTransform
+	timeout := DefaultTransformTimeout
 	if h.Stage == StageNotify {
 		mode = ModeNotify
+		timeout = DefaultNotifyTimeout
 	}
 
 	ctx := NewContext("test.command", []string{"sample", "args"}, map[string]string{
 		"flag1": "value1",
 	})
 
-	handler := ExecHandler(path, mode, 5*time.Second)
+	handler := ExecHandler(path, mode, timeout)
 	result, err := handler(ctx)
 	if err != nil {
 		return "", fmt.Errorf("hook execution failed: %w", err)

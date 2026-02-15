@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestNewContext(t *testing.T) {
@@ -279,6 +280,12 @@ func TestNotifyStageParallel(t *testing.T) {
 
 	ctx := NewContext("test", nil, nil)
 	runNotifyStage(reg, "test", ctx)
+
+	// Notify hooks are fire-and-forget goroutines; poll briefly for completion.
+	deadline := time.Now().Add(2 * time.Second)
+	for count.Load() < 5 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
 
 	if count.Load() != 5 {
 		t.Errorf("notify count = %d, want 5", count.Load())

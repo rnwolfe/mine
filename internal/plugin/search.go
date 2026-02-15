@@ -28,10 +28,10 @@ func Search(query, tag string) ([]SearchResult, error) {
 	}
 	q += " in:name"
 
+	// Always require the mine-plugin topic; add extra tag filter if specified.
+	q += " topic:mine-plugin"
 	if tag != "" {
 		q += " topic:" + tag
-	} else {
-		q += " topic:mine-plugin"
 	}
 
 	apiURL := fmt.Sprintf("https://api.github.com/search/repositories?q=%s&sort=stars&per_page=20",

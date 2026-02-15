@@ -19,7 +19,7 @@ protocol_version = "1.0.0"
 
 [[hooks]]
 command = "todo.add"
-stage = "postexec"
+stage = "notify"
 mode = "notify"
 timeout = "10s"
 
@@ -109,6 +109,26 @@ protocol_version = "1.0.0"
 command = "todo.add"
 stage = "preexec"
 mode = "invalid"`},
+		{"notify stage with transform mode", `[plugin]
+name = "test"
+version = "0.1.0"
+description = "test"
+author = "tester"
+protocol_version = "1.0.0"
+[[hooks]]
+command = "todo.add"
+stage = "notify"
+mode = "transform"`},
+		{"preexec stage with notify mode", `[plugin]
+name = "test"
+version = "0.1.0"
+description = "test"
+author = "tester"
+protocol_version = "1.0.0"
+[[hooks]]
+command = "todo.add"
+stage = "preexec"
+mode = "notify"`},
 	}
 
 	for _, tt := range tests {

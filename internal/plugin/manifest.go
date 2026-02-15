@@ -135,6 +135,14 @@ func (m *Manifest) Validate() error {
 		if h.Mode != "transform" && h.Mode != "notify" {
 			return fmt.Errorf("hooks[%d].mode %q is invalid", i, h.Mode)
 		}
+		// Validate stage/mode pairing: notify stage requires notify mode,
+		// transform mode requires a non-notify stage.
+		if h.Stage == "notify" && h.Mode != "notify" {
+			return fmt.Errorf("hooks[%d]: notify stage requires notify mode, got %q", i, h.Mode)
+		}
+		if h.Stage != "notify" && h.Mode == "notify" {
+			return fmt.Errorf("hooks[%d]: notify mode is only valid with notify stage, got stage %q", i, h.Stage)
+		}
 	}
 
 	for i, c := range m.Commands {

@@ -90,6 +90,48 @@ jobs:
             ## Issue #${{ inputs.issue_number }}: ${{ steps.prep.outputs.title }}
 
             ${{ env.ISSUE_BODY }}
+
+            ## PR Description (REQUIRED)
+
+            After completing the implementation, you MUST write a detailed PR description
+            to the file `/tmp/pr-description.md`. This is critical — the PR will use this
+            as its body. Write it in markdown with the following structure:
+
+            ```
+            ## Summary
+
+            <2-4 sentence overview of what was implemented and why>
+
+            Closes #${{ inputs.issue_number }}
+
+            ## Changes
+
+            <Bulleted list of all significant changes, organized by area:>
+            - **New files**: list each new file and its purpose
+            - **Modified files**: list each modified file and what changed
+            - **Architecture**: describe any design decisions or patterns used
+
+            ## CLI Surface
+
+            <If any new commands/flags were added, document them here:>
+            - `mine <command>` — description
+            - Flags: `--flag` — description
+
+            ## Test Coverage
+
+            <Describe what tests were added/modified:>
+            - Unit tests for ...
+            - Integration tests for ...
+            - Edge cases covered: ...
+
+            ## Acceptance Criteria
+
+            <Check each criterion from the issue:>
+            - [x] Criterion — how it was met
+            - [ ] Criterion — why it was not met (if any)
+            ```
+
+            Write this file BEFORE your work is complete — it should be one of your last actions.
           claude_args: "--max-turns 25 --dangerously-skip-permissions"
       # ============================================================
 

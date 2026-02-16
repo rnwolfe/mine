@@ -14,8 +14,10 @@ jobs:
     # 1. "claude-review-requested" label is added (autodev pipeline)
     # 2. A PR comment explicitly requests Claude review via @claude mention
     if: |
-      (github.event_name == 'pull_request' && github.event.label.name == 'claude-review-requested') ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude'))
+      github.actor != 'vercel[bot]' && (
+        (github.event_name == 'pull_request' && github.event.label.name == 'claude-review-requested') ||
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude'))
+      )
 
     runs-on: ubuntu-latest
     permissions:

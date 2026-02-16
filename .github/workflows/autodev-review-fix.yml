@@ -19,6 +19,8 @@ permissions:
 
 jobs:
   review-fix:
+    # Skip events triggered by bots that aren't relevant reviewers
+    if: github.actor != 'vercel[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

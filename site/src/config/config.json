@@ -1,0 +1,29 @@
+{
+  "site": {
+    "title": "mine",
+    "logo": "/src/assets/logo-light.svg",
+    "logo_darkmode": "/src/assets/logo-dark.svg",
+    "logo_width": "127",
+    "logo_height": "32",
+    "logo_text": "mine"
+  },
+
+  "settings": {
+    "search": true,
+    "theme_switcher": true
+  },
+
+  "params": {
+    "footer_contact": {
+      "enable": false,
+      "action": "#"
+    },
+    "copyright": "Built by <a class=\"text-primary hover:underline no-underline\" href=\"https://github.com/rnwolfe\" target=\"_blank\" rel=\"noopener\" aria-label=\"rnwolfe\">Ryan Wolfe</a>. MIT License."
+  },
+
+  "navigation_button": {
+    "enable": true,
+    "label": "Get Started",
+    "link": "/getting-started/installation/"
+  }
+}

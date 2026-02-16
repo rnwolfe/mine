@@ -1,0 +1,34 @@
+{
+  "main": [
+    {
+      "label": "Getting Started",
+      "items": [
+        {
+          "label": "Installation",
+          "slug": "getting-started/installation"
+        },
+        {
+          "label": "Quick Start",
+          "slug": "getting-started/quick-start"
+        }
+      ]
+    },
+    {
+      "label": "Commands",
+      "autogenerate": { "directory": "commands" }
+    },
+    {
+      "label": "For Contributors",
+      "items": [
+        {
+          "label": "Architecture",
+          "slug": "contributors/architecture"
+        },
+        {
+          "label": "Plugin Protocol",
+          "slug": "contributors/plugin-protocol"
+        }
+      ]
+    }
+  ]
+}

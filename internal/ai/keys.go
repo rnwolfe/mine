@@ -65,6 +65,11 @@ func (ks *KeyStore) Save() error {
 	if err := os.WriteFile(ks.path, data, 0o600); err != nil {
 		return fmt.Errorf("writing keys: %w", err)
 	}
+
+	// Ensure permissions are 0600 even if the file already existed with different mode.
+	if err := os.Chmod(ks.path, 0o600); err != nil {
+		return fmt.Errorf("setting key file permissions: %w", err)
+	}
 	return nil
 }
 

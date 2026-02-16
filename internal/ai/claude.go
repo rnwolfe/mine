@@ -185,7 +185,15 @@ func (c *ClaudeProvider) parseResponse(apiResp *claudeResponse) *Response {
 }
 
 func (c *ClaudeProvider) handleErrorResponse(resp *http.Response) error {
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return &ProviderError{
+			Provider: "claude",
+			Message:  fmt.Sprintf("reading error response (status %d)", resp.StatusCode),
+			Err:      err,
+		}
+	}
+
 	var errResp struct {
 		Error struct {
 			Message string `json:"message"`

@@ -13,6 +13,7 @@ import (
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var aiCmd = &cobra.Command{
@@ -102,8 +103,14 @@ func runAIConfig(_ *cobra.Command, _ []string) error {
 		fmt.Println("  Or enter it now (it will be stored securely):")
 		fmt.Print("  API Key: ")
 
-		var apiKey string
-		fmt.Scanln(&apiKey)
+		// Read password without echoing to terminal
+		keyBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Println() // Print newline after password input
+		if err != nil {
+			return fmt.Errorf("reading API key: %w", err)
+		}
+
+		apiKey := strings.TrimSpace(string(keyBytes))
 		if apiKey != "" {
 			ks.Set(cfg.AI.Provider, apiKey)
 			if err := ks.Save(); err != nil {
@@ -158,6 +165,11 @@ func runAIAsk(_ *cobra.Command, args []string) error {
 }
 
 func runAIReview(_ *cobra.Command, _ []string) error {
+	// Ensure we are inside a git repository
+	if err := exec.Command("git", "rev-parse", "--git-dir").Run(); err != nil {
+		return fmt.Errorf("not in a git repository: %w", err)
+	}
+
 	// Get staged diff
 	cmd := exec.Command("git", "diff", "--cached")
 	diffOutput, err := cmd.Output()
@@ -208,6 +220,12 @@ Be concise and actionable.`,
 }
 
 func runAICommit(_ *cobra.Command, _ []string) error {
+	// Ensure we're inside a git repository
+	checkCmd := exec.Command("git", "rev-parse", "--git-dir")
+	if err := checkCmd.Run(); err != nil {
+		return fmt.Errorf("not in a git repository: %w", err)
+	}
+
 	// Get staged diff
 	cmd := exec.Command("git", "diff", "--cached")
 	diffOutput, err := cmd.Output()
@@ -260,11 +278,12 @@ Only output the commit message, nothing else.`,
 	fmt.Println()
 
 	// Offer to commit with this message
-	fmt.Print("Use this message? (y/n): ")
+	fmt.Print("Use this message? [y/N]: ")
 	var answer string
 	fmt.Scanln(&answer)
 
-	if strings.ToLower(answer) == "y" {
+	normalized := strings.ToLower(strings.TrimSpace(answer))
+	if normalized == "y" || normalized == "yes" {
 		cmd := exec.Command("git", "commit", "-m", message)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

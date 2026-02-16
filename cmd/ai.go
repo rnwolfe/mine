@@ -1,0 +1,393 @@
+package cmd
+
+import (
+	"bufio"
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+
+	"github.com/rnwolfe/mine/internal/ai"
+	"github.com/rnwolfe/mine/internal/config"
+	"github.com/rnwolfe/mine/internal/hook"
+	"github.com/rnwolfe/mine/internal/ui"
+	"github.com/spf13/cobra"
+)
+
+var aiCmd = &cobra.Command{
+	Use:   "ai",
+	Short: "AI-powered development helpers",
+	Long:  `Configure AI providers and use AI helpers for code review, commit messages, and quick questions.`,
+	RunE:  hook.Wrap("ai", runAIHelp),
+}
+
+var aiModel string
+
+func init() {
+	aiCmd.PersistentFlags().StringVarP(&aiModel, "model", "m", "", "Override the configured model")
+
+	aiCmd.AddCommand(aiConfigCmd)
+	aiCmd.AddCommand(aiAskCmd)
+	aiCmd.AddCommand(aiReviewCmd)
+	aiCmd.AddCommand(aiCommitCmd)
+}
+
+func runAIHelp(_ *cobra.Command, _ []string) error {
+	fmt.Println()
+	fmt.Println(ui.Title.Render("  mine ai") + ui.Muted.Render(" — AI-powered development helpers"))
+	fmt.Println()
+	fmt.Println(ui.Muted.Render("  Configure AI providers and use AI to help with your work."))
+	fmt.Println()
+	fmt.Println(ui.Accent.Render("  Commands:"))
+	fmt.Println()
+	fmt.Printf("    %s  Configure AI provider and API key\n", ui.KeyStyle.Render("config"))
+	fmt.Printf("    %s     Ask a quick question\n", ui.KeyStyle.Render("ask"))
+	fmt.Printf("    %s    Review staged changes\n", ui.KeyStyle.Render("review"))
+	fmt.Printf("    %s   Generate commit message from diff\n", ui.KeyStyle.Render("commit"))
+	fmt.Println()
+	fmt.Println(ui.Muted.Render("  Examples:"))
+	fmt.Println()
+	fmt.Printf("    %s\n", ui.Muted.Render(`mine ai config --provider claude --key sk-...`))
+	fmt.Printf("    %s\n", ui.Muted.Render(`mine ai ask "What's the difference between defer and panic?"`))
+	fmt.Printf("    %s\n", ui.Muted.Render(`mine ai review`))
+	fmt.Printf("    %s\n", ui.Muted.Render(`mine ai commit`))
+	fmt.Println()
+	return nil
+}
+
+// ai config command
+var (
+	aiConfigProvider string
+	aiConfigKey      string
+	aiConfigModel    string
+	aiConfigList     bool
+)
+
+var aiConfigCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Configure AI provider settings",
+	Long:  `Set up your AI provider (Claude, OpenAI, etc.) and store your API key securely.`,
+	RunE:  hook.Wrap("ai.config", runAIConfig),
+}
+
+func init() {
+	aiConfigCmd.Flags().StringVarP(&aiConfigProvider, "provider", "p", "", "Provider name (claude, openai, ollama)")
+	aiConfigCmd.Flags().StringVarP(&aiConfigKey, "key", "k", "", "API key")
+	aiConfigCmd.Flags().StringVarP(&aiConfigModel, "model", "m", "", "Default model")
+	aiConfigCmd.Flags().BoolVarP(&aiConfigList, "list", "l", false, "List configured providers")
+}
+
+func runAIConfig(_ *cobra.Command, _ []string) error {
+	ks, err := ai.NewKeystore()
+	if err != nil {
+		return err
+	}
+
+	// List mode
+	if aiConfigList {
+		providers, err := ks.List()
+		if err != nil {
+			return err
+		}
+
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+
+		fmt.Println()
+		fmt.Println(ui.Title.Render("  Configured AI Providers"))
+		fmt.Println()
+
+		if len(providers) == 0 {
+			fmt.Println(ui.Muted.Render("  No providers configured yet."))
+			fmt.Println()
+			fmt.Printf("  Get started: %s\n", ui.Accent.Render(`mine ai config --provider claude --key sk-...`))
+			fmt.Println()
+			return nil
+		}
+
+		for _, p := range providers {
+			marker := "  "
+			if cfg.AI.Provider == p {
+				marker = ui.Success.Render("✓ ")
+			}
+			fmt.Printf("%s %s", marker, ui.KeyStyle.Render(p))
+			if cfg.AI.Provider == p && cfg.AI.Model != "" {
+				fmt.Printf(" %s", ui.Muted.Render(fmt.Sprintf("(model: %s)", cfg.AI.Model)))
+			}
+			fmt.Println()
+		}
+		fmt.Println()
+		return nil
+	}
+
+	// Set provider
+	if aiConfigProvider == "" {
+		return fmt.Errorf("--provider is required (use --list to see configured providers)")
+	}
+
+	// Store API key
+	if aiConfigKey != "" {
+		if err := ks.Set(aiConfigProvider, aiConfigKey); err != nil {
+			return err
+		}
+		fmt.Println()
+		fmt.Printf("%s API key stored securely for %s\n", ui.IconVault, ui.Accent.Render(aiConfigProvider))
+	}
+
+	// Update config
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	cfg.AI.Provider = aiConfigProvider
+	if aiConfigModel != "" {
+		cfg.AI.Model = aiConfigModel
+	}
+
+	if err := config.Save(cfg); err != nil {
+		return err
+	}
+
+	fmt.Printf("%s Default provider set to %s\n", ui.IconOk, ui.Accent.Render(aiConfigProvider))
+	if cfg.AI.Model != "" {
+		fmt.Printf("%s Default model: %s\n", ui.IconOk, ui.Muted.Render(cfg.AI.Model))
+	}
+	fmt.Println()
+
+	return nil
+}
+
+// ai ask command
+var aiAskCmd = &cobra.Command{
+	Use:   "ask <question>",
+	Short: "Ask a quick question",
+	Long:  `Send a question to your configured AI provider and get an answer.`,
+	Args:  cobra.MinimumNArgs(1),
+	RunE:  hook.Wrap("ai.ask", runAIAsk),
+}
+
+func runAIAsk(_ *cobra.Command, args []string) error {
+	question := strings.Join(args, " ")
+
+	provider, err := getConfiguredProvider()
+	if err != nil {
+		return err
+	}
+
+	req := ai.NewRequest(question)
+	if aiModel != "" {
+		req.Model = aiModel
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	fmt.Println()
+	fmt.Println(ui.Muted.Render(fmt.Sprintf("  Asking %s...", provider.Name())))
+	fmt.Println()
+
+	// Stream the response
+	if err := provider.Stream(ctx, req, os.Stdout); err != nil {
+		return err
+	}
+
+	fmt.Println()
+	fmt.Println()
+	return nil
+}
+
+// ai review command
+var aiReviewCmd = &cobra.Command{
+	Use:   "review",
+	Short: "Review staged changes with AI",
+	Long:  `Get an AI-powered code review of your staged git changes.`,
+	RunE:  hook.Wrap("ai.review", runAIReview),
+}
+
+func runAIReview(_ *cobra.Command, _ []string) error {
+	// Get git diff of staged changes
+	cmd := exec.Command("git", "diff", "--cached")
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to get git diff: %w", err)
+	}
+
+	diff := string(output)
+	if strings.TrimSpace(diff) == "" {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  No staged changes to review."))
+		fmt.Println()
+		fmt.Printf("  Stage changes: %s\n", ui.Accent.Render("git add <files>"))
+		fmt.Println()
+		return nil
+	}
+
+	provider, err := getConfiguredProvider()
+	if err != nil {
+		return err
+	}
+
+	prompt := fmt.Sprintf(`Review the following code changes and provide feedback on:
+- Potential bugs or issues
+- Code quality and best practices
+- Security concerns
+- Performance improvements
+
+Here's the diff:
+
+%s`, diff)
+
+	req := ai.NewRequest(prompt)
+	req.System = "You are an expert code reviewer. Provide constructive, specific feedback."
+	if aiModel != "" {
+		req.Model = aiModel
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	fmt.Println()
+	fmt.Println(ui.Title.Render("  Code Review"))
+	fmt.Println()
+	fmt.Println(ui.Muted.Render(fmt.Sprintf("  Analyzing staged changes with %s...", provider.Name())))
+	fmt.Println()
+
+	if err := provider.Stream(ctx, req, os.Stdout); err != nil {
+		return err
+	}
+
+	fmt.Println()
+	fmt.Println()
+	return nil
+}
+
+// ai commit command
+var aiCommitCmd = &cobra.Command{
+	Use:   "commit",
+	Short: "Generate a commit message from diff",
+	Long:  `Analyze your staged changes and generate a clear commit message.`,
+	RunE:  hook.Wrap("ai.commit", runAICommit),
+}
+
+func runAICommit(_ *cobra.Command, _ []string) error {
+	// Get git diff of staged changes
+	cmd := exec.Command("git", "diff", "--cached")
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to get git diff: %w", err)
+	}
+
+	diff := string(output)
+	if strings.TrimSpace(diff) == "" {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  No staged changes to commit."))
+		fmt.Println()
+		fmt.Printf("  Stage changes: %s\n", ui.Accent.Render("git add <files>"))
+		fmt.Println()
+		return nil
+	}
+
+	provider, err := getConfiguredProvider()
+	if err != nil {
+		return err
+	}
+
+	prompt := fmt.Sprintf(`Generate a clear, concise git commit message for the following changes.
+Follow conventional commit format (feat:, fix:, docs:, refactor:, test:, chore:).
+Keep the first line under 70 characters.
+If needed, add a blank line and then a more detailed explanation.
+
+Here's the diff:
+
+%s`, diff)
+
+	req := ai.NewRequest(prompt)
+	req.System = "You are a git commit message expert. Write clear, professional commit messages."
+	req.MaxTokens = 500
+	if aiModel != "" {
+		req.Model = aiModel
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	fmt.Println()
+	fmt.Println(ui.Muted.Render(fmt.Sprintf("  Generating commit message with %s...", provider.Name())))
+	fmt.Println()
+
+	resp, err := provider.Complete(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	message := strings.TrimSpace(resp.Content)
+
+	// Display the message
+	fmt.Println(ui.Success.Render("  Suggested commit message:"))
+	fmt.Println()
+	for _, line := range strings.Split(message, "\n") {
+		fmt.Printf("    %s\n", line)
+	}
+	fmt.Println()
+
+	// Ask if they want to use it
+	fmt.Print(ui.Muted.Render("  Use this message? [y/N] "))
+	reader := bufio.NewReader(os.Stdin)
+	answer, _ := reader.ReadString('\n')
+	answer = strings.TrimSpace(strings.ToLower(answer))
+
+	if answer != "y" && answer != "yes" {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  Commit cancelled."))
+		fmt.Println()
+		return nil
+	}
+
+	// Create the commit
+	cmd = exec.Command("git", "commit", "-m", message)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to create commit: %w", err)
+	}
+
+	fmt.Println()
+	fmt.Println(ui.Success.Render("  Commit created successfully!"))
+	fmt.Println()
+
+	return nil
+}
+
+// Helper to get a configured provider
+func getConfiguredProvider() (ai.Provider, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.AI.Provider == "" {
+		return nil, fmt.Errorf("no AI provider configured. Run: mine ai config --provider claude --key sk-...")
+	}
+
+	ks, err := ai.NewKeystore()
+	if err != nil {
+		return nil, err
+	}
+
+	apiKey, err := ks.Get(cfg.AI.Provider)
+	if err != nil {
+		return nil, fmt.Errorf("API key not found. Run: mine ai config --provider %s --key <your-key>", cfg.AI.Provider)
+	}
+
+	provider, err := ai.GetProvider(cfg.AI.Provider, apiKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider, nil
+}

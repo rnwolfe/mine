@@ -20,7 +20,7 @@ ISSUE_TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
 
 # ── Create PR ──────────────────────────────────────────────────────
 
-PR_JSON=$(gh pr create \
+PR_URL=$(gh pr create \
     --repo "$AUTODEV_REPO" \
     --head "$BRANCH_NAME" \
     --base "$AUTODEV_BASE_BRANCH" \
@@ -44,11 +44,9 @@ See commits on this branch for implementation details.
 <!-- autodev-state: {"iteration": 0} -->
 EOF
 )" \
-    --label "$AUTODEV_LABEL_AUTODEV" \
-    --json number,url)
+    --label "$AUTODEV_LABEL_AUTODEV")
 
-PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
-PR_URL=$(echo "$PR_JSON" | jq -r '.url')
+PR_NUMBER=$(gh pr list --repo "$AUTODEV_REPO" --head "$BRANCH_NAME" --json number --jq '.[0].number')
 
 autodev_info "Created PR: $PR_URL"
 

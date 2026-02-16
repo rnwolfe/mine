@@ -42,7 +42,7 @@ See commits on this branch for implementation details.
 - [ ] CI passes (\`make test\`, \`make build\`)
 - [ ] Code review feedback addressed
 
-<!-- autodev-state: {"iteration": 0} -->
+<!-- autodev-state: {"phase": "copilot", "copilot_iterations": 0} -->
 EOF
 )" \
     --label "$AUTODEV_LABEL_AUTODEV")

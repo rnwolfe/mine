@@ -33,7 +33,8 @@ if [ "$REVIEW_COUNT" -gt 0 ]; then
         AUTHOR=$(echo "$review" | jq -r '.user.login')
         STATE=$(echo "$review" | jq -r '.state')
         BODY=$(echo "$review" | jq -r '.body')
-        FEEDBACK+="### $AUTHOR ($STATE)"$'\n'
+        REVIEW_ID=$(echo "$review" | jq -r '.id')
+        FEEDBACK+="### $AUTHOR ($STATE) [review_id: $REVIEW_ID]"$'\n'
         FEEDBACK+="$BODY"$'\n\n'
     done < <(echo "$REVIEWS" | jq -c '.[]')
 fi
@@ -55,7 +56,8 @@ if [ "$COMMENT_COUNT" -gt 0 ]; then
         FILEPATH=$(echo "$comment" | jq -r '.path')
         LINE=$(echo "$comment" | jq -r '.line // .original_line // "N/A"')
         BODY=$(echo "$comment" | jq -r '.body')
-        FEEDBACK+="### $FILEPATH:$LINE ($AUTHOR)"$'\n'
+        COMMENT_ID=$(echo "$comment" | jq -r '.id')
+        FEEDBACK+="### $FILEPATH:$LINE ($AUTHOR) [comment_id: $COMMENT_ID]"$'\n'
         FEEDBACK+="$BODY"$'\n\n'
     done < <(echo "$COMMENTS" | jq -c '.[]')
 fi

@@ -194,7 +194,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           allowed_bots: "github-actions[bot]"
           prompt: |
-            You are fixing Copilot review feedback on a PR for the mine CLI tool.
+            You are fixing Copilot review feedback on PR #${{ steps.route.outputs.pr_number }} for the mine CLI tool.
 
             IMPORTANT RULES:
             - Read CLAUDE.md first for project conventions
@@ -203,6 +203,14 @@ jobs:
             - Do NOT modify CLAUDE.md, any files in .github/workflows/, or scripts/autodev/
             - Address ALL review comments below
             - If a comment is unclear, make your best judgment
+
+            REVIEW COMMENT REPLIES:
+            After addressing each inline review comment, reply directly to it on GitHub
+            for easy tracking. Each inline comment includes a `[comment_id: NNNNN]` tag.
+            Use this command to reply:
+              gh api "repos/${{ github.repository }}/pulls/${{ steps.route.outputs.pr_number }}/comments/{COMMENT_ID}/replies" -f body="<your reply>"
+            Your reply should briefly explain what you changed to address the comment.
+            If you chose not to change something, explain why.
 
             ## Review Feedback to Address
 
@@ -328,7 +336,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           allowed_bots: "github-actions[bot]"
           prompt: |
-            You are doing a final review-fix pass on a PR for the mine CLI tool.
+            You are doing a final review-fix pass on PR #${{ steps.route.outputs.pr_number }} for the mine CLI tool.
             This is the last automated fix cycle — make it count.
 
             IMPORTANT RULES:
@@ -343,6 +351,15 @@ jobs:
               - Detailed description of what needs to be done
               - Acceptance criteria as a checkbox list
               - Reference to this PR for context
+
+            REVIEW COMMENT REPLIES:
+            After addressing each inline review comment, reply directly to it on GitHub
+            for easy tracking. Each inline comment includes a `[comment_id: NNNNN]` tag.
+            Use this command to reply:
+              gh api "repos/${{ github.repository }}/pulls/${{ steps.route.outputs.pr_number }}/comments/{COMMENT_ID}/replies" -f body="<your reply>"
+            Your reply should briefly explain what you changed to address the comment.
+            If you chose not to change something, explain why.
+            If you created a follow-up issue instead, include the issue link in your reply.
 
             ## Review Feedback to Address
 

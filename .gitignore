@@ -29,8 +29,9 @@ Thumbs.db
 .env
 .env.*
 
-# Claude Code (user-local settings)
-.claude/
+# Claude Code (user-local settings, except repo-scoped skills)
+.claude/*
+!.claude/skills/
 .mcp.json
 
 # Vercel

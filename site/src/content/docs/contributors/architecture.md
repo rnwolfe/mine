@@ -1,10 +1,25 @@
-# Architecture
-
-## Overview
+---
+title: Architecture
+description: Technical overview of mine's architecture and design patterns
+---
 
 mine is a single Go binary built with Cobra (CLI), Lipgloss (styling), and SQLite (storage). It follows a clean domain separation pattern where each feature is an independent package under `internal/`.
 
 ## Directory Structure
+
+```mermaid
+graph TD
+    A[main.go] --> B[cmd/]
+    B --> C[internal/]
+    C --> D[config/]
+    C --> E[store/]
+    C --> F[todo/]
+    C --> G[ui/]
+    C --> H[stash/]
+    C --> I[craft/]
+    C --> J[hook/]
+    C --> K[plugin/]
+```
 
 ```
 mine/
@@ -33,8 +48,7 @@ mine/
 │   │   └── print.go         # Output helpers
 │   └── version/             # Build metadata
 │       └── version.go
-├── docs/                    # Documentation
-├── site/                    # Landing page (Vercel)
+├── site/                    # Documentation site (Astro Starlight)
 ├── scripts/                 # Build & install helpers
 ├── .github/                 # CI/CD workflows
 ├── .goreleaser.yaml         # Release configuration
@@ -52,6 +66,17 @@ Files in `cmd/` are orchestration only. They:
 - Format output using `internal/ui`
 
 They do **not** contain business logic or direct database queries.
+
+```mermaid
+sequenceDiagram
+    User->>cmd: mine todo add "task"
+    cmd->>internal/todo: CreateTodo(...)
+    internal/todo->>store: INSERT query
+    store-->>internal/todo: todo ID
+    internal/todo-->>cmd: todo object
+    cmd->>internal/ui: FormatTodo(...)
+    internal/ui-->>User: ✓ Added todo #1
+```
 
 ### 2. Domain Packages
 
@@ -95,10 +120,13 @@ Never use raw `fmt.Println` in commands.
 
 ## Data Flow
 
-```
-User Input → Cobra (cmd/) → Domain Logic (internal/) → SQLite (store/)
-                                    ↓
-                              UI Formatting (ui/) → Terminal Output
+```mermaid
+flowchart LR
+    A[User Input] --> B[Cobra cmd/]
+    B --> C[Domain Logic internal/]
+    C --> D[SQLite store/]
+    C --> E[UI Formatting ui/]
+    E --> F[Terminal Output]
 ```
 
 ## SQLite Configuration
@@ -117,3 +145,19 @@ The database uses performance-optimized pragmas:
 - `make test` — runs the Go test suite
 - GoReleaser handles cross-compilation for releases
 - CI runs vet, test (with coverage), build, and smoke test
+
+## Plugin System
+
+mine supports extensibility via plugins:
+
+```mermaid
+graph LR
+    A[Command] --> B[Hook Pipeline]
+    B --> C[prevalidate]
+    C --> D[preexec]
+    D --> E[Execute Command]
+    E --> F[postexec]
+    F --> G[notify]
+```
+
+Plugins are standalone binaries that communicate via JSON-over-stdin. See the [Plugin Protocol](/contributors/plugin-protocol/) for details.

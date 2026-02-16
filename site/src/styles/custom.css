@@ -1,0 +1,47 @@
+/* mine brand colors */
+:root {
+	--sl-color-accent-low: hsl(39, 90%, 16%);
+	--sl-color-accent: hsl(44, 100%, 58%); /* Gold #D4A017 */
+	--sl-color-accent-high: hsl(44, 100%, 78%);
+	--sl-color-white: #fff;
+	--sl-color-gray-1: hsl(255, 20%, 15%);
+	--sl-color-gray-2: hsl(255, 18%, 20%);
+	--sl-color-gray-3: hsl(255, 15%, 30%);
+	--sl-color-gray-4: hsl(255, 13%, 40%);
+	--sl-color-gray-5: hsl(255, 10%, 60%);
+	--sl-color-gray-6: hsl(255, 8%, 80%);
+	--sl-color-black: #0f0f1a;
+}
+
+[data-theme='dark'] {
+	--sl-color-accent-low: hsl(39, 90%, 16%);
+	--sl-color-accent: hsl(44, 100%, 58%);
+	--sl-color-accent-high: hsl(44, 100%, 78%);
+	--sl-color-white: #fff;
+	--sl-color-gray-1: hsl(255, 20%, 15%);
+	--sl-color-gray-2: hsl(255, 18%, 20%);
+	--sl-color-gray-3: hsl(255, 15%, 30%);
+	--sl-color-gray-4: hsl(255, 13%, 40%);
+	--sl-color-gray-5: hsl(255, 10%, 60%);
+	--sl-color-gray-6: hsl(255, 8%, 80%);
+}
+
+/* Code block enhancements - easy to copy */
+.expressive-code {
+	margin: 1.5rem 0;
+}
+
+/* Ensure code blocks have visible copy button */
+.expressive-code .copy {
+	opacity: 1;
+}
+
+/* Make inline code stand out with brand color */
+:not(pre) > code {
+	background-color: rgba(212, 160, 23, 0.1);
+	border: 1px solid rgba(212, 160, 23, 0.2);
+	color: var(--sl-color-accent-high);
+	padding: 0.1em 0.4em;
+	border-radius: 0.25rem;
+	font-size: 0.9em;
+}

@@ -1,12 +1,21 @@
 {
+  "framework": "astro",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/install", "destination": "https://raw.githubusercontent.com/rnwolfe/mine/main/scripts/install.sh" }
+    {
+      "source": "/install",
+      "destination": "https://raw.githubusercontent.com/rnwolfe/mine/main/scripts/install.sh"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=3600" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
       ]
     }
   ]

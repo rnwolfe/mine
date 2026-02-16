@@ -1,4 +1,7 @@
-# Installation Guide
+---
+title: Installation
+description: How to install mine on your system
+---
 
 ## Quick Install (Recommended)
 
@@ -8,6 +11,7 @@ curl -fsSL https://mine.rwolfe.io/install | bash
 
 This downloads the latest release binary for your OS/arch and installs it to `~/.local/bin/`.
 
+:::tip[Inspect before running]
 To inspect the script before running:
 
 ```bash
@@ -15,6 +19,7 @@ curl -fsSL https://mine.rwolfe.io/install -o install.sh
 less install.sh
 bash install.sh
 ```
+:::
 
 ## Build from Source
 

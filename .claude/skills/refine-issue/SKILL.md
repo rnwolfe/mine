@@ -11,13 +11,37 @@ improve it to match the gold-standard quality bar.
 
 ## Input
 
-The user provides an issue number as an argument: `$ARGUMENTS`
+The user may provide an issue number as an argument: `$ARGUMENTS`
 
 Examples:
 - `/refine-issue 35` — refine issue #35
 - `/refine-issue 42` — refine issue #42
 
-If no number is provided, ask the user which issue they'd like to refine.
+If no number is provided, auto-pick from the `needs-refinement` backlog:
+
+1. Query open issues labeled `needs-refinement`:
+
+```bash
+gh issue list --state open --label "needs-refinement" --json number,title,createdAt --jq 'sort_by(.createdAt)'
+```
+
+2. If results exist, present a numbered list with titles and ages:
+
+```
+Issues needing refinement (oldest first):
+
+  1. #42  Recurring todos                    (12 days old)
+  2. #48  Better error messages              (8 days old)
+  3. #51  Docker container management         (3 days old)
+
+Pick a number, or press Enter for the oldest (#42):
+```
+
+3. Let the user pick one, or default to the oldest.
+
+4. If no `needs-refinement` issues exist, suggest:
+   "No issues labeled `needs-refinement`. Run `/sweep-issues` first to identify
+   issues that need work."
 
 ## Process
 

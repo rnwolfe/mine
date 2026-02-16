@@ -84,4 +84,5 @@ const (
 	IconArrow   = "→"
 	IconDot     = "·"
 	IconDig     = "⛏ "
+	IconAI      = "🤖"
 )

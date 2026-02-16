@@ -19,6 +19,10 @@ AUTODEV_LABEL_CLAUDE_REVIEW="claude-review-requested"
 AUTODEV_MAX_ITERATIONS=3
 AUTODEV_MAX_OPEN_PRS=1
 
+# Trusted users who can trigger autodev via agent-ready label
+# Only these users (repo owner/collaborators) can queue work for autonomous execution.
+AUTODEV_TRUSTED_USERS=("rnwolfe")
+
 # Provider (model-agnostic switch)
 AUTODEV_PROVIDER="${AUTODEV_PROVIDER:-claude}"
 

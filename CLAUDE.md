@@ -197,6 +197,8 @@ Phases: `copilot` → `claude` → `done`
 - **Claude fix**: 1 final fix cycle after Claude review
 - **Timeouts**: 30 min for implementation, 20 min for review fixes
 - **Protected files**: Agent cannot modify CLAUDE.md, workflows, or autodev scripts
+- **Trusted users**: Only users in `AUTODEV_TRUSTED_USERS` (config.sh) can trigger autodev via `agent-ready` label
+- **Scheduled review poll**: Every 15 min fallback catches reviews from bot actors gated by GitHub's contributor approval
 
 ### Model-agnostic design
 
@@ -405,6 +407,19 @@ GitHub Copilot's pull request reviewer posts reviews with state `COMMENTED`, not
 will never trigger on Copilot reviews. The fix is to check for the reviewer identity
 (`copilot-pull-request-reviewer[bot]`) and inspect whether the review has any actionable
 comments in either its body or its inline comments, rather than relying solely on the review state.
+
+### L-016: Bot actors trigger GitHub Actions approval gates
+When a bot (e.g. `Copilot`) posts a `pull_request_review`, GitHub treats it as a
+first-time contributor and requires manual approval before the triggered workflow runs
+(conclusion: `action_required`, zero jobs execute). This isn't configurable via API for
+public repos. Fix: add a `schedule` trigger as a fallback — a cron that polls for
+unprocessed reviews on autodev PRs regardless of who posted them.
+
+### L-017: Label-based triggers need trust verification
+The `agent-ready` label triggers the entire autonomous pipeline. Without verification,
+anyone who can label an issue could queue arbitrary code generation. Fix: use the issue
+timeline API to check who applied the label and only proceed if they're in the trusted
+users allowlist (`AUTODEV_TRUSTED_USERS` in config.sh).
 
 ## Key Files
 

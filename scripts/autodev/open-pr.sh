@@ -6,7 +6,8 @@ set -euo pipefail
 # Usage:
 #   scripts/autodev/open-pr.sh ISSUE_NUMBER BRANCH_NAME
 #
-# Reads issue details, creates PR with structured body, enables auto-merge.
+# Reads issue details, creates PR with structured body.
+# Human merges manually after reviewing.
 
 source "$(dirname "$0")/config.sh"
 
@@ -59,11 +60,5 @@ gh pr close "$PR_NUMBER" --repo "$AUTODEV_REPO"
 gh pr reopen "$PR_NUMBER" --repo "$AUTODEV_REPO"
 
 autodev_info "Closed/reopened PR #$PR_NUMBER to trigger CI"
-
-# ── Enable auto-merge ──────────────────────────────────────────────
-
-gh pr merge "$PR_NUMBER" --repo "$AUTODEV_REPO" --squash --auto
-
-autodev_info "Auto-merge enabled for PR #$PR_NUMBER"
 
 echo "$PR_URL"

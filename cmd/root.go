@@ -49,6 +49,7 @@ func init() {
 	rootCmd.AddCommand(todoCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(aboutCmd)
 }
 
 // runDashboard shows the at-a-glance status when you just type `mine`.

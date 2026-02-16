@@ -310,14 +310,24 @@ func runAICommit(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
+	// Truncate diff to avoid exceeding model context/MaxTokens limits (50KB cap).
+	const maxCommitDiffBytes = 50 * 1024
+	diffBytes := []byte(diff)
+	truncatedDiff := diff
+	truncationNote := ""
+	if len(diffBytes) > maxCommitDiffBytes {
+		truncatedDiff = string(diffBytes[:maxCommitDiffBytes])
+		truncationNote = "\n\n[Diff truncated to 50KB to fit model limits. Review the full diff locally if needed.]\n"
+	}
+
 	prompt := fmt.Sprintf(`Generate a clear, concise git commit message for the following changes.
 Follow conventional commit format (feat:, fix:, docs:, refactor:, test:, chore:).
 Keep the first line under 70 characters.
 If needed, add a blank line and then a more detailed explanation.
 
-Here's the diff:
+Here's the diff (it may be truncated to 50KB):
 
-%s`, diff)
+%s%s`, truncatedDiff, truncationNote)
 
 	req := ai.NewRequest(prompt)
 	req.System = "You are a git commit message expert. Write clear, professional commit messages."

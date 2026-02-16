@@ -149,6 +149,13 @@ Three workflows form a loop:
 | `autodev` | PR was created by the autonomous workflow |
 | `needs-human` | Autodev hit a limit and needs human intervention |
 
+### Secrets required
+
+| Secret | Purpose |
+|--------|---------|
+| `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token for Claude Code agent execution |
+| `AUTODEV_TOKEN` | Fine-grained PAT with Contents, Pull requests, Issues (read/write). Used for push/PR operations so events trigger downstream workflows (GITHUB_TOKEN events don't trigger other workflows). |
+
 ### Circuit breakers
 
 - **Max concurrency**: Only 1 `autodev` PR open at a time (prevents merge conflicts)
@@ -349,6 +356,13 @@ Autodev tracks review-fix iteration count in PR body HTML comments
 (`<!-- autodev-state: {"iteration": N} -->`). This survives PR body edits and is
 invisible to readers. `grep -oP` extracts the value. Always bump the counter after
 each review-fix cycle, and check it before starting a new one.
+
+### L-014: GITHUB_TOKEN cannot trigger downstream workflows
+GitHub's security policy prevents ALL events created by GITHUB_TOKEN from triggering
+other workflows (not just pushes — also PR open/close/reopen). The close/reopen
+workaround doesn't work because those events also come from GITHUB_TOKEN. Use a
+Personal Access Token (PAT) stored as a repo secret (`AUTODEV_TOKEN`) for operations
+that need to trigger CI, code review, or other downstream workflows.
 
 ## Key Files
 

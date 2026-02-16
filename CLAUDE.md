@@ -133,11 +133,12 @@ Three workflows form a loop:
 1. **`autodev-dispatch`** — Runs on a 4-hour cron (or manual trigger). Picks the oldest
    `agent-ready` issue, labels it `in-progress`, and triggers the implement workflow.
 2. **`autodev-implement`** — Checks out `main`, creates a branch, runs the agent (Claude
-   via `claude-code-action@v1`) to implement the issue, pushes, and opens a PR with
-   auto-merge enabled. The PR triggers CI and `claude-code-review` automatically.
+   via `claude-code-action@v1`) to implement the issue, pushes, and opens a PR.
+   The PR triggers CI and `claude-code-review` automatically.
 3. **`autodev-review-fix`** — Fires when a review requests changes on an `autodev` PR.
    Extracts review feedback, runs the agent to fix issues, and pushes. This re-triggers
    CI + review, creating a feedback loop until the review passes or the iteration limit hits.
+   Human merges manually after all checks pass.
 
 ### Labels
 

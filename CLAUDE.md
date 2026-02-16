@@ -195,10 +195,11 @@ Phases: `copilot` → `claude` → `done`
 - **Max concurrency**: Only 1 `autodev` PR open at a time (prevents merge conflicts)
 - **Copilot iterations**: Up to 3 fix cycles on Copilot feedback before transitioning to Claude
 - **Claude fix**: 1 final fix cycle after Claude review
-- **Timeouts**: 30 min for implementation, 20 min for review fixes
+- **Timeouts**: 60 min for implementation, 45 min for review fixes
+- **Max turns**: 100 for implementation, 50 for review fixes (high to allow complex work, prevents infinite loops)
 - **Protected files**: Agent cannot modify CLAUDE.md, workflows, or autodev scripts
 - **Trusted users**: Only users in `AUTODEV_TRUSTED_USERS` (config.sh) can trigger autodev via `agent-ready` label
-- **Scheduled review poll**: Every 15 min fallback catches reviews from bot actors gated by GitHub's contributor approval
+- **Scheduled review poll**: Every 4 hours fallback catches reviews from bot actors gated by GitHub's contributor approval
 
 ### Model-agnostic design
 

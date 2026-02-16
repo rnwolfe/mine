@@ -88,7 +88,7 @@ jobs:
             ## Issue #${{ inputs.issue_number }}: ${{ steps.prep.outputs.title }}
 
             ${{ env.ISSUE_BODY }}
-          claude_args: "--max-turns 25"
+          claude_args: "--max-turns 25 --dangerously-skip-permissions"
       # ============================================================
 
       - name: Revert protected file changes

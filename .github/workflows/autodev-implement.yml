@@ -1,0 +1,140 @@
+name: Autodev Implement
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to implement"
+        required: true
+        type: string
+
+concurrency:
+  group: autodev-implement
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Read issue and prepare branch
+        id: prep
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_JSON=$(gh issue view "${{ inputs.issue_number }}" \
+            --repo "${{ github.repository }}" \
+            --json title,body)
+
+          TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
+          BODY=$(echo "$ISSUE_JSON" | jq -r '.body')
+
+          # Build branch name
+          source scripts/autodev/config.sh
+          SLUG=$(autodev_slugify "$TITLE")
+          BRANCH="autodev/issue-${{ inputs.issue_number }}-${SLUG}"
+
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+          # Save issue body to env var via delimiter (safe for multiline)
+          EOF_DELIM=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          {
+            echo "ISSUE_BODY<<${EOF_DELIM}"
+            echo "$BODY"
+            echo "${EOF_DELIM}"
+          } >> "$GITHUB_ENV"
+
+      - name: Create branch
+        run: |
+          git checkout -b "${{ steps.prep.outputs.branch }}"
+
+      # ============================================================
+      # AGENT EXECUTION — Provider: Claude via claude-code-action@v1
+      # To swap providers, replace this step.
+      # ============================================================
+      - name: Run agent
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are implementing a feature for the mine CLI tool.
+
+            IMPORTANT RULES:
+            - Read CLAUDE.md first for project conventions
+            - Run `make test` and `make build` to verify your changes
+            - Follow existing code patterns and style
+            - Do NOT modify CLAUDE.md, any files in .github/workflows/, or scripts/autodev/
+            - Write tests for new functionality
+            - Keep files under 500 lines
+
+            ## Issue #${{ inputs.issue_number }}: ${{ steps.prep.outputs.title }}
+
+            ${{ env.ISSUE_BODY }}
+          claude_args: "--max-turns 25"
+      # ============================================================
+
+      - name: Revert protected file changes
+        run: |
+          PROTECTED=$(git diff --name-only | grep -E '(CLAUDE\.md|\.github/workflows/|scripts/autodev/)' || true)
+          if [ -n "$PROTECTED" ]; then
+            echo "::warning::Agent modified protected files — reverting: $PROTECTED"
+            echo "$PROTECTED" | xargs git checkout --
+          fi
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: implement #${{ inputs.issue_number }}" || true
+          git push -u origin "${{ steps.prep.outputs.branch }}"
+
+      - name: Create PR
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bash scripts/autodev/open-pr.sh \
+            "${{ inputs.issue_number }}" \
+            "${{ steps.prep.outputs.branch }}"
+
+      - name: Handle no changes
+        if: steps.changes.outputs.has_changes == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "${{ inputs.issue_number }}" \
+            --repo "${{ github.repository }}" \
+            --body "Autodev attempted implementation but produced no changes. This issue may need human attention."
+
+          gh issue edit "${{ inputs.issue_number }}" \
+            --repo "${{ github.repository }}" \
+            --add-label "needs-human" \
+            --remove-label "in-progress"

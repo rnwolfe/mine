@@ -1,6 +1,17 @@
 package ui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"os"
+
+	"github.com/charmbracelet/lipgloss"
+)
+
+func init() {
+	// Ensure color output is enabled unless explicitly disabled
+	if os.Getenv("NO_COLOR") == "" {
+		lipgloss.SetColorProfile(lipgloss.TrueColor)
+	}
+}
 
 // mine's color palette — warm golds, cool stone, bright gems.
 var (

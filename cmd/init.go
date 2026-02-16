@@ -36,8 +36,6 @@ func runInit(_ *cobra.Command, _ []string) error {
 	cfg := &config.Config{}
 	cfg.User.Name = name
 	cfg.Shell.DefaultShell = config.GetPaths().ConfigDir // will fix below
-	cfg.AI.Provider = "claude"
-	cfg.AI.Model = "claude-sonnet-4-5-20250929"
 
 	// Detect shell
 	shell := os.Getenv("SHELL")
@@ -45,6 +43,78 @@ func runInit(_ *cobra.Command, _ []string) error {
 		shell = "/bin/bash"
 	}
 	cfg.Shell.DefaultShell = shell
+
+	// AI setup
+	fmt.Println(ui.Subtitle.Render("  AI Setup (optional)"))
+	fmt.Println()
+	fmt.Println(ui.Muted.Render("  mine can use AI to help with code review, commit messages, and questions."))
+	fmt.Println()
+
+	// Detect available API keys from environment
+	detectedKeys := detectAIKeys()
+	if len(detectedKeys) > 0 {
+		fmt.Println(ui.Success.Render(fmt.Sprintf("  ✓ Detected %d API key(s) in environment:", len(detectedKeys))))
+		for provider := range detectedKeys {
+			envVar := getEnvVarForProvider(provider)
+			fmt.Printf("    %s %s\n", ui.KeyStyle.Render(provider), ui.Muted.Render(fmt.Sprintf("(%s)", envVar)))
+		}
+		fmt.Println()
+
+		// Ask which provider to use as default
+		defaultProvider := ""
+		if len(detectedKeys) == 1 {
+			// Only one provider, use it as default
+			for p := range detectedKeys {
+				defaultProvider = p
+			}
+			cfg.AI.Provider = defaultProvider
+		} else {
+			// Multiple providers, ask which to use
+			providerList := make([]string, 0, len(detectedKeys))
+			for p := range detectedKeys {
+				providerList = append(providerList, p)
+			}
+			fmt.Printf("  Which provider would you like to use by default? %s ", ui.Muted.Render(fmt.Sprintf("(%s)", strings.Join(providerList, ", "))))
+			input, _ := reader.ReadString('\n')
+			input = strings.TrimSpace(strings.ToLower(input))
+			if input != "" && detectedKeys[input] {
+				cfg.AI.Provider = input
+			} else if len(providerList) > 0 {
+				cfg.AI.Provider = providerList[0] // Default to first
+			}
+			fmt.Println()
+		}
+
+		// Ask for default model
+		if cfg.AI.Provider != "" {
+			defaultModel := getDefaultModelForProvider(cfg.AI.Provider)
+			modelInput := prompt(reader, "  Default model? (press Enter to skip)", defaultModel)
+			if modelInput != "" {
+				cfg.AI.Model = modelInput
+			}
+			fmt.Println()
+		}
+	} else {
+		// No API keys detected, offer free fallback
+		fmt.Println(ui.Muted.Render("  No API keys detected in environment."))
+		fmt.Println()
+		fmt.Printf("  Would you like to use a free AI model via OpenRouter? %s ", ui.Muted.Render("(y/N)"))
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(strings.ToLower(input))
+		fmt.Println()
+
+		if input == "y" || input == "yes" {
+			cfg.AI.Provider = "openrouter"
+			cfg.AI.Model = "z-ai/glm-4.5-air:free"
+			fmt.Println(ui.Success.Render("  ✓ Configured to use free OpenRouter model"))
+			fmt.Println(ui.Muted.Render("    (No API key required for free models)"))
+			fmt.Println()
+		} else {
+			fmt.Println(ui.Muted.Render("  You can configure AI later with:"))
+			fmt.Printf("    %s\n", ui.Accent.Render("mine ai config --provider claude --key sk-..."))
+			fmt.Println()
+		}
+	}
 
 	// Save config
 	if err := config.Save(cfg); err != nil {
@@ -75,9 +145,52 @@ func runInit(_ *cobra.Command, _ []string) error {
 	fmt.Printf("    %s  %s\n", ui.Accent.Render("mine todo add \"ship feature X\""), ui.Muted.Render("— capture a task"))
 	fmt.Printf("    %s                        %s\n", ui.Accent.Render("mine todo"), ui.Muted.Render("— see your tasks"))
 	fmt.Printf("    %s                      %s\n", ui.Accent.Render("mine config"), ui.Muted.Render("— tweak settings"))
+	if cfg.AI.Provider != "" {
+		fmt.Printf("    %s  %s\n", ui.Accent.Render("mine ai ask \"explain goroutines\""), ui.Muted.Render("— ask AI a question"))
+	}
 	fmt.Println()
 
 	return nil
+}
+
+// detectAIKeys checks environment for standard AI provider API keys
+func detectAIKeys() map[string]bool {
+	detected := make(map[string]bool)
+	envVars := map[string]string{
+		"claude":  "ANTHROPIC_API_KEY",
+		"openai":  "OPENAI_API_KEY",
+		"gemini":  "GEMINI_API_KEY",
+	}
+
+	for provider, envVar := range envVars {
+		if os.Getenv(envVar) != "" {
+			detected[provider] = true
+		}
+	}
+
+	return detected
+}
+
+// getEnvVarForProvider returns the env var name for a provider
+func getEnvVarForProvider(provider string) string {
+	envVars := map[string]string{
+		"claude":     "ANTHROPIC_API_KEY",
+		"openai":     "OPENAI_API_KEY",
+		"gemini":     "GEMINI_API_KEY",
+		"openrouter": "OPENROUTER_API_KEY",
+	}
+	return envVars[provider]
+}
+
+// getDefaultModelForProvider returns a sensible default model for a provider
+func getDefaultModelForProvider(provider string) string {
+	defaults := map[string]string{
+		"claude":     "claude-sonnet-4-5-20250929",
+		"openai":     "gpt-4",
+		"gemini":     "gemini-pro",
+		"openrouter": "z-ai/glm-4.5-air:free",
+	}
+	return defaults[provider]
 }
 
 func prompt(reader *bufio.Reader, question, defaultVal string) string {

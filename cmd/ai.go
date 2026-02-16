@@ -47,6 +47,24 @@ func runAIHelp(_ *cobra.Command, _ []string) error {
 	fmt.Printf("    %s    Review staged changes\n", ui.KeyStyle.Render("review"))
 	fmt.Printf("    %s   Generate commit message from diff\n", ui.KeyStyle.Render("commit"))
 	fmt.Println()
+	fmt.Println(ui.Accent.Render("  Supported Providers:"))
+	fmt.Println()
+	fmt.Printf("    %s       Anthropic Claude (env: %s)\n",
+		ui.KeyStyle.Render("claude"), ui.Muted.Render("ANTHROPIC_API_KEY"))
+	fmt.Printf("              %s\n", ui.Muted.Render("Get key: https://console.anthropic.com/settings/keys"))
+	fmt.Printf("    %s       OpenAI GPT models (env: %s)\n",
+		ui.KeyStyle.Render("openai"), ui.Muted.Render("OPENAI_API_KEY"))
+	fmt.Printf("              %s\n", ui.Muted.Render("Get key: https://platform.openai.com/api-keys"))
+	fmt.Printf("    %s  OpenRouter with free models (env: %s)\n",
+		ui.KeyStyle.Render("openrouter"), ui.Muted.Render("OPENROUTER_API_KEY"))
+	fmt.Printf("              %s\n", ui.Muted.Render("Free model: z-ai/glm-4.5-air:free (no key required)"))
+	fmt.Printf("              %s\n", ui.Muted.Render("Get key: https://openrouter.ai/keys"))
+	fmt.Println()
+	fmt.Println(ui.Accent.Render("  Zero-Config Setup:"))
+	fmt.Println()
+	fmt.Println(ui.Muted.Render("  mine automatically detects API keys from standard environment variables."))
+	fmt.Println(ui.Muted.Render("  Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY and you're ready to go!"))
+	fmt.Println()
 	fmt.Println(ui.Muted.Render("  Examples:"))
 	fmt.Println()
 	fmt.Printf("    %s\n", ui.Muted.Render(`mine ai config --provider claude --key sk-...`))
@@ -394,7 +412,14 @@ func getConfiguredProvider() (ai.Provider, error) {
 	}
 
 	if cfg.AI.Provider == "" {
-		return nil, fmt.Errorf("no AI provider configured. Run: mine ai config --provider claude --key sk-...")
+		return nil, fmt.Errorf(`no AI provider configured
+
+Get started:
+  • Set environment variable (e.g., ANTHROPIC_API_KEY, OPENAI_API_KEY)
+  • Or run: mine ai config --provider claude --key sk-...
+  • Or use free model: mine ai config --provider openrouter --default-model z-ai/glm-4.5-air:free
+
+See providers: mine ai --help`)
 	}
 
 	ks, err := ai.NewKeystore()
@@ -408,11 +433,31 @@ func getConfiguredProvider() (ai.Provider, error) {
 		helpMsg := ""
 		switch cfg.AI.Provider {
 		case "claude":
-			helpMsg = "Get your key at https://console.anthropic.com/settings/keys and run: mine ai config --provider claude --key <your-key>"
+			helpMsg = fmt.Sprintf(`API key not found for Claude.
+
+Options:
+  • Set environment variable: export ANTHROPIC_API_KEY=sk-...
+  • Get a key: https://console.anthropic.com/settings/keys
+  • Or run: mine ai config --provider claude --key <your-key>`)
+		case "openai":
+			helpMsg = fmt.Sprintf(`API key not found for OpenAI.
+
+Options:
+  • Set environment variable: export OPENAI_API_KEY=sk-...
+  • Get a key: https://platform.openai.com/api-keys
+  • Or run: mine ai config --provider openai --key <your-key>`)
+		case "openrouter":
+			helpMsg = fmt.Sprintf(`API key not found for OpenRouter.
+
+Options:
+  • Use free model (no key required): mine ai config --provider openrouter --default-model z-ai/glm-4.5-air:free
+  • Set environment variable: export OPENROUTER_API_KEY=sk-...
+  • Get a key: https://openrouter.ai/keys
+  • Or run: mine ai config --provider openrouter --key <your-key>`)
 		default:
 			helpMsg = fmt.Sprintf("Run: mine ai config --provider %s --key <your-key>", cfg.AI.Provider)
 		}
-		return nil, fmt.Errorf("API key not found. %s", helpMsg)
+		return nil, fmt.Errorf("%s", helpMsg)
 	}
 
 	provider, err := ai.GetProvider(cfg.AI.Provider, apiKey)

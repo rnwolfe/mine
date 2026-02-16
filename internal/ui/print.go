@@ -23,7 +23,9 @@ func Warn(msg string) {
 
 // Err prints an error message.
 func Err(msg string) {
-	fmt.Fprintln(os.Stderr, Error.Render(IconError+msg))
+	// Force color output for errors to ensure visibility
+	styled := Error.Copy().Bold(true).Render(IconError + msg)
+	fmt.Fprintln(os.Stderr, styled)
 }
 
 // Ok prints a success message.

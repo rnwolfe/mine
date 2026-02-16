@@ -72,21 +72,51 @@ func (k *Keystore) Set(provider, apiKey string) error {
 }
 
 // Get retrieves and decrypts an API key for a provider.
+// Falls back to standard environment variables if no key is stored.
 func (k *Keystore) Get(provider string) (string, error) {
 	data, err := k.load()
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return "", fmt.Errorf("no API key configured for %s", provider)
+			// No keystore file exists - try env var
+			return k.getFromEnv(provider)
 		}
 		return "", err
 	}
 
 	encrypted, ok := data.Keys[provider]
 	if !ok {
-		return "", fmt.Errorf("no API key configured for %s", provider)
+		// Provider not in keystore - try env var
+		return k.getFromEnv(provider)
 	}
 
 	return k.decrypt(encrypted)
+}
+
+// getFromEnv checks standard environment variables for API keys.
+func (k *Keystore) getFromEnv(provider string) (string, error) {
+	// Map provider names to standard env vars
+	envVars := map[string]string{
+		"claude":     "ANTHROPIC_API_KEY",
+		"openai":     "OPENAI_API_KEY",
+		"gemini":     "GEMINI_API_KEY",
+		"openrouter": "OPENROUTER_API_KEY",
+	}
+
+	envVar, ok := envVars[provider]
+	if !ok {
+		return "", fmt.Errorf("no API key configured for %s", provider)
+	}
+
+	apiKey := os.Getenv(envVar)
+	if apiKey == "" {
+		// Special case: OpenRouter free models don't require an API key
+		if provider == "openrouter" {
+			return "", nil // Return empty string, OpenRouter provider will handle it
+		}
+		return "", fmt.Errorf("no API key configured for %s (checked keystore and %s env var)", provider, envVar)
+	}
+
+	return apiKey, nil
 }
 
 // Delete removes an API key for a provider.

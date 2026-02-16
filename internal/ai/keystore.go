@@ -139,8 +139,11 @@ func (k *Keystore) save(data *keystoreData) error {
 		return err
 	}
 
-	// Write with restricted permissions
-	return os.WriteFile(k.path, raw, 0o600)
+	// Write with restricted permissions and ensure they are enforced even if the file already existed.
+	if err := os.WriteFile(k.path, raw, 0o600); err != nil {
+		return err
+	}
+	return os.Chmod(k.path, 0o600)
 }
 
 func (k *Keystore) encrypt(plaintext string) (string, error) {

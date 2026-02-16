@@ -75,7 +75,7 @@ var aiConfigCmd = &cobra.Command{
 func init() {
 	aiConfigCmd.Flags().StringVarP(&aiConfigProvider, "provider", "p", "", "Provider name (claude, openai, ollama)")
 	aiConfigCmd.Flags().StringVarP(&aiConfigKey, "key", "k", "", "API key")
-	aiConfigCmd.Flags().StringVarP(&aiConfigModel, "model", "m", "", "Default model")
+	aiConfigCmd.Flags().StringVar(&aiConfigModel, "default-model", "", "Default model")
 	aiConfigCmd.Flags().BoolVarP(&aiConfigList, "list", "l", false, "List configured providers")
 }
 
@@ -212,9 +212,9 @@ var aiReviewCmd = &cobra.Command{
 func runAIReview(_ *cobra.Command, _ []string) error {
 	// Get git diff of staged changes
 	cmd := exec.Command("git", "diff", "--cached")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to get git diff: %w", err)
+		return fmt.Errorf("failed to get git diff: %w\nGit output:\n%s", err, strings.TrimSpace(string(output)))
 	}
 
 	diff := string(output)
@@ -225,6 +225,14 @@ func runAIReview(_ *cobra.Command, _ []string) error {
 		fmt.Printf("  Stage changes: %s\n", ui.Accent.Render("git add <files>"))
 		fmt.Println()
 		return nil
+	}
+
+	// Truncate large diffs to avoid exceeding provider context limits
+	const maxDiffBytes = 50000 // ~50KB, conservative limit
+	truncated := false
+	if len(diff) > maxDiffBytes {
+		diff = diff[:maxDiffBytes]
+		truncated = true
 	}
 
 	provider, err := getConfiguredProvider()
@@ -238,9 +246,14 @@ func runAIReview(_ *cobra.Command, _ []string) error {
 - Security concerns
 - Performance improvements
 
-Here's the diff:
+Here's the diff%s:
 
-%s`, diff)
+%s`, func() string {
+		if truncated {
+			return " (truncated to 50KB - review may be incomplete)"
+		}
+		return ""
+	}(), diff)
 
 	req := ai.NewRequest(prompt)
 	req.System = "You are an expert code reviewer. Provide constructive, specific feedback."
@@ -277,9 +290,9 @@ var aiCommitCmd = &cobra.Command{
 func runAICommit(_ *cobra.Command, _ []string) error {
 	// Get git diff of staged changes
 	cmd := exec.Command("git", "diff", "--cached")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to get git diff: %w", err)
+		return fmt.Errorf("failed to get git diff: %w; output:\n%s", err, string(output))
 	}
 
 	diff := string(output)

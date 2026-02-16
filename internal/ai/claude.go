@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
+	"strings"
 )
 
 const (
@@ -30,9 +30,8 @@ func init() {
 		return &ClaudeProvider{
 			apiKey:       apiKey,
 			defaultModel: "claude-sonnet-4-5-20250929",
-			client: &http.Client{
-				Timeout: 60 * time.Second,
-			},
+			// No client-level timeout - rely on per-call context timeouts
+			client: &http.Client{},
 		}, nil
 	})
 }
@@ -59,7 +58,8 @@ func (c *ClaudeProvider) Complete(ctx context.Context, req *Request) (*Response,
 		apiReq.System = req.System
 	}
 
-	if req.Temperature > 0 {
+	// Always set temperature if specified (including 0.0 for deterministic output)
+	if req.Temperature >= 0 {
 		apiReq.Temperature = req.Temperature
 	}
 
@@ -130,7 +130,8 @@ func (c *ClaudeProvider) Stream(ctx context.Context, req *Request, w io.Writer) 
 		apiReq.System = req.System
 	}
 
-	if req.Temperature > 0 {
+	// Always set temperature if specified (including 0.0 for deterministic output)
+	if req.Temperature >= 0 {
 		apiReq.Temperature = req.Temperature
 	}
 
@@ -159,30 +160,52 @@ func (c *ClaudeProvider) Stream(ctx context.Context, req *Request, w io.Writer) 
 		return fmt.Errorf("Claude API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
-	// Parse SSE stream (simplified - real SSE has "data: " prefix and event types)
+	// Parse SSE stream line-by-line
+	// SSE format: "data: {json}\n\n" for each event
+	var buffer []byte
 	buf := make([]byte, 4096)
 
 	for {
 		n, err := resp.Body.Read(buf)
+		if n > 0 {
+			buffer = append(buffer, buf[:n]...)
+
+			// Process complete lines
+			for {
+				idx := bytes.IndexByte(buffer, '\n')
+				if idx == -1 {
+					break
+				}
+
+				line := string(bytes.TrimSpace(buffer[:idx]))
+				buffer = buffer[idx+1:]
+
+				// SSE data lines start with "data: "
+				if strings.HasPrefix(line, "data: ") {
+					data := strings.TrimPrefix(line, "data: ")
+
+					// Skip special SSE messages
+					if data == "[DONE]" {
+						return nil
+					}
+
+					var event claudeStreamEvent
+					if err := json.Unmarshal([]byte(data), &event); err == nil {
+						if event.Type == "content_block_delta" && event.Delta.Type == "text_delta" {
+							if _, err := w.Write([]byte(event.Delta.Text)); err != nil {
+								return err
+							}
+						}
+					}
+				}
+			}
+		}
+
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return err
-		}
-		if n == 0 {
-			break
-		}
-
-		// Parse event data
-		chunk := string(buf[:n])
-		var event claudeStreamEvent
-		if err := json.Unmarshal([]byte(chunk), &event); err == nil {
-			if event.Type == "content_block_delta" && event.Delta.Type == "text_delta" {
-				if _, err := w.Write([]byte(event.Delta.Text)); err != nil {
-					return err
-				}
-			}
 		}
 	}
 

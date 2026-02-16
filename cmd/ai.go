@@ -404,7 +404,15 @@ func getConfiguredProvider() (ai.Provider, error) {
 
 	apiKey, err := ks.Get(cfg.AI.Provider)
 	if err != nil {
-		return nil, fmt.Errorf("API key not found. Run: mine ai config --provider %s --key <your-key>", cfg.AI.Provider)
+		// Provide provider-specific help for where to get API keys
+		helpMsg := ""
+		switch cfg.AI.Provider {
+		case "claude":
+			helpMsg = "Get your key at https://console.anthropic.com/settings/keys and run: mine ai config --provider claude --key <your-key>"
+		default:
+			helpMsg = fmt.Sprintf("Run: mine ai config --provider %s --key <your-key>", cfg.AI.Provider)
+		}
+		return nil, fmt.Errorf("API key not found. %s", helpMsg)
 	}
 
 	provider, err := ai.GetProvider(cfg.AI.Provider, apiKey)

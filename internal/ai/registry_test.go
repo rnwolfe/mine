@@ -7,6 +7,12 @@ import (
 	"testing"
 )
 
+// resetRegistry is a test helper that clears the global provider registry.
+// Use this in t.Cleanup() to ensure tests don't interfere with each other.
+func resetRegistry() {
+	providers = make(map[string]ProviderFactory)
+}
+
 // Mock provider for testing
 type mockProvider struct {
 	name string
@@ -30,6 +36,9 @@ func (m *mockProvider) Stream(ctx context.Context, req *Request, w io.Writer) er
 }
 
 func TestRegisterAndGetProvider(t *testing.T) {
+	// Ensure clean state for this test
+	t.Cleanup(resetRegistry)
+
 	// Register a mock provider
 	Register("mock", func(apiKey string) (Provider, error) {
 		if apiKey == "" {
@@ -62,6 +71,9 @@ func TestRegisterAndGetProvider(t *testing.T) {
 }
 
 func TestListProviders(t *testing.T) {
+	// Ensure clean state for this test
+	t.Cleanup(resetRegistry)
+
 	// Register providers for this test
 	Register("mock", func(apiKey string) (Provider, error) {
 		return &mockProvider{name: "mock"}, nil
@@ -91,6 +103,9 @@ func TestListProviders(t *testing.T) {
 }
 
 func TestProviderComplete(t *testing.T) {
+	// Ensure clean state for this test
+	t.Cleanup(resetRegistry)
+
 	Register("test-complete", func(apiKey string) (Provider, error) {
 		return &mockProvider{name: "test-complete"}, nil
 	})

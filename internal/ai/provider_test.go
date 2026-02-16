@@ -43,3 +43,83 @@ func TestRequestCustomization(t *testing.T) {
 		t.Errorf("Temperature not set correctly")
 	}
 }
+
+func TestRequestValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		req         *Request
+		expectError bool
+	}{
+		{
+			name: "valid request with defaults",
+			req:  NewRequest("test"),
+			expectError: false,
+		},
+		{
+			name: "valid request with temperature 0.0",
+			req: &Request{
+				Prompt:      "test",
+				MaxTokens:   100,
+				Temperature: 0.0,
+			},
+			expectError: false,
+		},
+		{
+			name: "valid request with temperature 1.0",
+			req: &Request{
+				Prompt:      "test",
+				MaxTokens:   100,
+				Temperature: 1.0,
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid temperature below 0",
+			req: &Request{
+				Prompt:      "test",
+				MaxTokens:   100,
+				Temperature: -0.1,
+			},
+			expectError: true,
+		},
+		{
+			name: "invalid temperature above 1.0",
+			req: &Request{
+				Prompt:      "test",
+				MaxTokens:   100,
+				Temperature: 1.5,
+			},
+			expectError: true,
+		},
+		{
+			name: "invalid max_tokens zero",
+			req: &Request{
+				Prompt:      "test",
+				MaxTokens:   0,
+				Temperature: 0.7,
+			},
+			expectError: true,
+		},
+		{
+			name: "invalid max_tokens negative",
+			req: &Request{
+				Prompt:      "test",
+				MaxTokens:   -100,
+				Temperature: 0.7,
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.req.Validate()
+			if tt.expectError && err == nil {
+				t.Errorf("expected validation error, got nil")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("expected no validation error, got: %v", err)
+			}
+		})
+	}
+}

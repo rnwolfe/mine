@@ -36,6 +36,11 @@ func NewKeystore() (*Keystore, error) {
 	// Derive encryption key from machine-specific info.
 	// This isn't perfect security, but it prevents plaintext storage
 	// and is better than nothing without external dependencies.
+	//
+	// TODO: For future enhancement, consider:
+	// - OS keychain integration (macOS Keychain, Linux gnome-keyring, Windows Credential Manager)
+	// - Deriving key from machine ID files that are harder to predict
+	// - User-specific entropy sources beyond hostname and data directory path
 	hostname, _ := os.Hostname()
 	seed := fmt.Sprintf("%s:%s", hostname, paths.DataDir)
 	keyHash := sha256.Sum256([]byte(seed))

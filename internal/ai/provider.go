@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"fmt"
 	"io"
 )
 
@@ -32,6 +33,7 @@ type Request struct {
 	MaxTokens int
 
 	// Temperature controls randomness (0.0 = deterministic, 1.0 = creative).
+	// Valid range: [0.0, 1.0]. Values outside this range may cause API errors.
 	Temperature float64
 }
 
@@ -61,4 +63,16 @@ func NewRequest(prompt string) *Request {
 		MaxTokens:   4096,
 		Temperature: 0.7,
 	}
+}
+
+// Validate checks if the request has valid parameters.
+// Returns an error if any parameter is out of acceptable range.
+func (r *Request) Validate() error {
+	if r.Temperature < 0.0 || r.Temperature > 1.0 {
+		return fmt.Errorf("temperature must be in range [0.0, 1.0], got %f", r.Temperature)
+	}
+	if r.MaxTokens < 1 {
+		return fmt.Errorf("max_tokens must be positive, got %d", r.MaxTokens)
+	}
+	return nil
 }

@@ -41,6 +41,10 @@ func (c *ClaudeProvider) Name() string {
 }
 
 func (c *ClaudeProvider) Complete(ctx context.Context, req *Request) (*Response, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	model := req.Model
 	if model == "" {
 		model = c.defaultModel
@@ -112,6 +116,10 @@ func (c *ClaudeProvider) Complete(ctx context.Context, req *Request) (*Response,
 }
 
 func (c *ClaudeProvider) Stream(ctx context.Context, req *Request, w io.Writer) error {
+	if err := req.Validate(); err != nil {
+		return err
+	}
+
 	model := req.Model
 	if model == "" {
 		model = c.defaultModel
@@ -206,6 +214,24 @@ func (c *ClaudeProvider) Stream(ctx context.Context, req *Request, w io.Writer) 
 		}
 		if err != nil {
 			return err
+		}
+	}
+
+	// Process any remaining partial line in the buffer after EOF
+	if len(buffer) > 0 {
+		line := string(bytes.TrimSpace(buffer))
+		if strings.HasPrefix(line, "data: ") {
+			data := strings.TrimPrefix(line, "data: ")
+			if data != "[DONE]" {
+				var event claudeStreamEvent
+				if err := json.Unmarshal([]byte(data), &event); err == nil {
+					if event.Type == "content_block_delta" && event.Delta.Type == "text_delta" {
+						if _, err := w.Write([]byte(event.Delta.Text)); err != nil {
+							return err
+						}
+					}
+				}
+			}
 		}
 	}
 

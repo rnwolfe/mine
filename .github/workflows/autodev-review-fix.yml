@@ -161,12 +161,18 @@ jobs:
           fi
 
           # For pull_request_review events: check reviewer identity
+          # Note: Copilot reviews appear as either "Copilot" or "copilot-pull-request-reviewer[bot]"
           REVIEWER="${{ github.event.review.user.login }}"
           REVIEW_STATE="${{ github.event.review.state }}"
           echo "reviewer=$REVIEWER" >> "$GITHUB_OUTPUT"
 
+          IS_COPILOT=false
+          if [ "$REVIEWER" = "Copilot" ] || [ "$REVIEWER" = "copilot-pull-request-reviewer[bot]" ]; then
+            IS_COPILOT=true
+          fi
+
           if [ "$PHASE" = "copilot" ]; then
-            if [ "$REVIEWER" != "copilot-pull-request-reviewer[bot]" ]; then
+            if [ "$IS_COPILOT" != "true" ]; then
               echo "Copilot phase but reviewer is $REVIEWER. Skipping."
               echo "action=skip" >> "$GITHUB_OUTPUT"
               exit 0
@@ -195,7 +201,7 @@ jobs:
           fi
 
           if [ "$PHASE" = "claude" ]; then
-            if [ "$REVIEWER" = "copilot-pull-request-reviewer[bot]" ]; then
+            if [ "$IS_COPILOT" = "true" ]; then
               echo "Claude phase but reviewer is Copilot. Skipping."
               echo "action=skip" >> "$GITHUB_OUTPUT"
               exit 0

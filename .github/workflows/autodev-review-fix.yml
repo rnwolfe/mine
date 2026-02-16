@@ -8,7 +8,7 @@ on:
     types: [completed]
 
 concurrency:
-  group: autodev-review-fix-${{ github.event.pull_request.number || github.event.workflow_run.id }}
+  group: autodev-review-fix-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number }}
   cancel-in-progress: false
 
 permissions:
@@ -57,13 +57,19 @@ jobs:
           # Read phase state from PR body
           PR_BODY=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" \
             --json body --jq '.body')
-          PHASE=$(echo "$PR_BODY" | grep -oP '(?<=<!-- autodev-state: ).*(?= -->)' | jq -r '.phase // "copilot"')
-          COPILOT_ITERS=$(echo "$PR_BODY" | grep -oP '(?<=<!-- autodev-state: ).*(?= -->)' | jq -r '.copilot_iterations // 0')
+          PHASE=$(echo "$PR_BODY" | grep -oP '(?<=<!-- autodev-state: ).*?(?= -->)' | jq -r '.phase // "copilot"')
+          COPILOT_ITERS=$(echo "$PR_BODY" | grep -oP '(?<=<!-- autodev-state: ).*?(?= -->)' | jq -r '.copilot_iterations // 0')
           echo "phase=$PHASE" >> "$GITHUB_OUTPUT"
           echo "copilot_iterations=$COPILOT_ITERS" >> "$GITHUB_OUTPUT"
 
           # For workflow_run events (Claude Code Review completed)
           if [ "$EVENT_SOURCE" = "workflow_run" ]; then
+            CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+            if [ "$CONCLUSION" != "success" ]; then
+              echo "Claude Code Review did not succeed (conclusion: $CONCLUSION). Skipping."
+              echo "action=skip" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             if [ "$PHASE" = "claude" ]; then
               echo "action=claude-fix" >> "$GITHUB_OUTPUT"
             else
@@ -130,7 +136,7 @@ jobs:
         if: steps.route.outputs.action != 'skip'
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref || '' }}
+          ref: ${{ github.event_name == 'pull_request_review' && github.event.pull_request.head.ref || '' }}
           fetch-depth: 0
           token: ${{ secrets.AUTODEV_TOKEN }}
 
@@ -163,6 +169,9 @@ jobs:
           if [ ! -s /tmp/review-feedback.txt ]; then
             echo "No actionable feedback found. Transitioning to claude phase."
             echo "override_action=trigger-claude" >> "$GITHUB_OUTPUT"
+            # Note: We intentionally do NOT increment the copilot iteration counter here.
+            # No actionable feedback means no fix cycle occurred, so we transition directly
+            # to the Claude phase without counting it as a fix iteration.
             exit 0
           fi
 
@@ -200,6 +209,16 @@ jobs:
             ${{ env.REVIEW_FEEDBACK }}
           claude_args: "--max-turns 15 --dangerously-skip-permissions"
       # ============================================================
+
+      - name: Handle agent failure (copilot fix)
+        if: steps.route.outputs.action == 'copilot-fix' && steps.copilot-feedback.outputs.override_action != 'trigger-claude' && steps.copilot-agent.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "::warning::Copilot fix agent failed (outcome: ${{ steps.copilot-agent.outcome }}). Continuing with any partial changes."
+          gh pr comment "${{ steps.route.outputs.pr_number }}" \
+            --repo "${{ github.repository }}" \
+            --body "⚠️ Autodev agent encountered an error during copilot review fix (iteration $(( ${{ steps.route.outputs.copilot_iterations }} + 1 ))). Partial changes may have been applied."
 
       - name: Revert protected files (copilot fix)
         if: steps.route.outputs.action == 'copilot-fix' && steps.copilot-feedback.outputs.override_action != 'trigger-claude'
@@ -244,7 +263,7 @@ jobs:
             --json body --jq '.body')
 
           UPDATED_BODY=$(echo "$PR_BODY" | sed \
-            "s/<!-- autodev-state: .* -->/<!-- autodev-state: {\"phase\": \"copilot\", \"copilot_iterations\": $NEXT_ITER} -->/")
+            "s/<!-- autodev-state: [^>]* -->/<!-- autodev-state: {\"phase\": \"copilot\", \"copilot_iterations\": $NEXT_ITER} -->/")
 
           gh pr edit "${{ steps.route.outputs.pr_number }}" \
             --repo "${{ github.repository }}" \
@@ -261,8 +280,9 @@ jobs:
             --repo "${{ github.repository }}" \
             --json body --jq '.body')
 
+          COPILOT_ITER="${{ steps.route.outputs.copilot_iterations }}"
           UPDATED_BODY=$(echo "$PR_BODY" | sed \
-            's/<!-- autodev-state: .* -->/<!-- autodev-state: {"phase": "claude", "copilot_iterations": ${{ steps.route.outputs.copilot_iterations }}} -->/')
+            "s/<!-- autodev-state: [^>]* -->/<!-- autodev-state: {\"phase\": \"claude\", \"copilot_iterations\": $COPILOT_ITER} -->/")
 
           gh pr edit "${{ steps.route.outputs.pr_number }}" \
             --repo "${{ github.repository }}" \
@@ -330,6 +350,16 @@ jobs:
           claude_args: "--max-turns 15 --dangerously-skip-permissions"
       # ============================================================
 
+      - name: Handle agent failure (claude fix)
+        if: steps.route.outputs.action == 'claude-fix' && steps.claude-feedback.outputs.no_feedback != 'true' && steps.claude-agent.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "::warning::Claude fix agent failed (outcome: ${{ steps.claude-agent.outcome }}). Continuing with any partial changes."
+          gh pr comment "${{ steps.route.outputs.pr_number }}" \
+            --repo "${{ github.repository }}" \
+            --body "⚠️ Autodev agent encountered an error during final Claude review fix. Partial changes may have been applied. This PR may need human attention."
+
       - name: Revert protected files (claude fix)
         if: steps.route.outputs.action == 'claude-fix' && steps.claude-feedback.outputs.no_feedback != 'true'
         run: |
@@ -373,17 +403,20 @@ jobs:
             --repo "${{ github.repository }}" \
             --json body --jq '.body')
 
+          COPILOT_ITER="${{ steps.route.outputs.copilot_iterations }}"
           UPDATED_BODY=$(echo "$PR_BODY" | sed \
-            's/<!-- autodev-state: .* -->/<!-- autodev-state: {"phase": "done", "copilot_iterations": ${{ steps.route.outputs.copilot_iterations }}} -->/')
+            "s/<!-- autodev-state: [^>]* -->/<!-- autodev-state: {\"phase\": \"done\", \"copilot_iterations\": $COPILOT_ITER} -->/")
 
           gh pr edit "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
             --body "$UPDATED_BODY"
 
           # Remove the claude-review-requested label
-          gh pr edit "$PR_NUMBER" \
+          if ! gh pr edit "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
-            --remove-label "claude-review-requested" || true
+            --remove-label "claude-review-requested"; then
+            echo "::warning::Failed to remove label 'claude-review-requested' from PR #$PR_NUMBER. The label may not exist or there may be permission/API issues."
+          fi
 
           # Post completion comment
           gh pr comment "$PR_NUMBER" \

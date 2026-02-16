@@ -11,7 +11,7 @@ jobs:
     # Skip all other label events
     if: |
       (github.event.action != 'labeled' && !contains(github.event.pull_request.labels.*.name, 'autodev')) ||
-      (github.event.action == 'labeled' && github.event.label.name == 'claude-review-requested')
+      (github.event.action == 'labeled' && github.event.label.name == 'claude-review-requested' && contains(github.event.pull_request.labels.*.name, 'autodev'))
 
     runs-on: ubuntu-latest
     permissions:

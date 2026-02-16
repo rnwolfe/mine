@@ -155,7 +155,9 @@ implement → push → CI + Copilot review
               claude-code-review.yml (triggered by label)
                         ↓
               autodev-review-fix (claude phase)
-              └─ Agent fixes + creates follow-up issues → done
+              └─ Agent fixes + creates follow-up issues
+                        ↓
+              Phase → done, completion comment posted
                         ↓
               Human merges
 ```
@@ -188,7 +190,7 @@ Phases: `copilot` → `claude` → `done`
 ### Circuit breakers
 
 - **Max concurrency**: Only 1 `autodev` PR open at a time (prevents merge conflicts)
-- **Copilot iterations**: 3 fix cycles on Copilot feedback before transitioning to Claude
+- **Copilot iterations**: Up to 3 fix cycles on Copilot feedback before transitioning to Claude
 - **Claude fix**: 1 final fix cycle after Claude review
 - **Timeouts**: 30 min for implementation, 20 min for review fixes
 - **Protected files**: Agent cannot modify CLAUDE.md, workflows, or autodev scripts
@@ -398,8 +400,8 @@ that need to trigger CI, code review, or other downstream workflows.
 GitHub Copilot's pull request reviewer posts reviews with state `COMMENTED`, not
 `changes_requested`. A workflow filtering on `review.state == 'changes_requested'`
 will never trigger on Copilot reviews. The fix is to check for the reviewer identity
-(`copilot-pull-request-reviewer[bot]`) and inspect whether the review has actionable
-comments (body or inline comments), rather than relying on the review state.
+(`copilot-pull-request-reviewer[bot]`) and inspect whether the review has any actionable
+comments in either its body or its inline comments, rather than relying solely on the review state.
 
 ## Key Files
 

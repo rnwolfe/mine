@@ -1,6 +1,6 @@
 package version
 
-// Set at build time via ldflags.
+// Set at build time via ldflags. See Makefile for details.
 var (
 	Version = "dev"
 	Commit  = "none"

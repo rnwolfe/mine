@@ -11,35 +11,34 @@ import (
 )
 
 const (
-	openRouterAPIURL = "https://openrouter.ai/api/v1/chat/completions"
+	openAIAPIURL = "https://api.openai.com/v1/chat/completions"
 )
 
-// OpenRouterProvider implements the Provider interface for OpenRouter.
-type OpenRouterProvider struct {
+// OpenAIProvider implements the Provider interface for OpenAI.
+type OpenAIProvider struct {
 	apiKey       string
 	defaultModel string
 	client       *http.Client
 }
 
 func init() {
-	Register("openrouter", func(apiKey string) (Provider, error) {
-		// Use hardcoded fallback key for free access if no user key provided
+	Register("openai", func(apiKey string) (Provider, error) {
 		if apiKey == "" {
-			apiKey = "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"
+			return nil, fmt.Errorf("API key required for OpenAI provider")
 		}
-		return &OpenRouterProvider{
+		return &OpenAIProvider{
 			apiKey:       apiKey,
-			defaultModel: "z-ai/glm-4.5-air:free", // Free model fallback
+			defaultModel: "gpt-4o",
 			client:       &http.Client{},
 		}, nil
 	})
 }
 
-func (o *OpenRouterProvider) Name() string {
-	return "openrouter"
+func (o *OpenAIProvider) Name() string {
+	return "openai"
 }
 
-func (o *OpenRouterProvider) Complete(ctx context.Context, req *Request) (*Response, error) {
+func (o *OpenAIProvider) Complete(ctx context.Context, req *Request) (*Response, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -49,18 +48,18 @@ func (o *OpenRouterProvider) Complete(ctx context.Context, req *Request) (*Respo
 		model = o.defaultModel
 	}
 
-	messages := []openRouterMessage{
+	messages := []openAIMessage{
 		{Role: "user", Content: req.Prompt},
 	}
 
 	if req.System != "" {
 		// Prepend system message
-		messages = append([]openRouterMessage{
+		messages = append([]openAIMessage{
 			{Role: "system", Content: req.System},
 		}, messages...)
 	}
 
-	apiReq := openRouterRequest{
+	apiReq := openAIRequest{
 		Model:       model,
 		Messages:    messages,
 		MaxTokens:   req.MaxTokens,
@@ -72,15 +71,13 @@ func (o *OpenRouterProvider) Complete(ctx context.Context, req *Request) (*Respo
 		return nil, err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", openRouterAPIURL, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", openAIAPIURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+o.apiKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/rnwolfe/mine") // Required by OpenRouter
-	httpReq.Header.Set("X-Title", "mine CLI")
 
 	resp, err := o.client.Do(httpReq)
 	if err != nil {
@@ -90,10 +87,10 @@ func (o *OpenRouterProvider) Complete(ctx context.Context, req *Request) (*Respo
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("OpenRouter API error (status %d): %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("OpenAI API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
-	var apiResp openRouterResponse
+	var apiResp openAIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return nil, err
 	}
@@ -114,7 +111,7 @@ func (o *OpenRouterProvider) Complete(ctx context.Context, req *Request) (*Respo
 	}, nil
 }
 
-func (o *OpenRouterProvider) Stream(ctx context.Context, req *Request, w io.Writer) error {
+func (o *OpenAIProvider) Stream(ctx context.Context, req *Request, w io.Writer) error {
 	if err := req.Validate(); err != nil {
 		return err
 	}
@@ -124,17 +121,17 @@ func (o *OpenRouterProvider) Stream(ctx context.Context, req *Request, w io.Writ
 		model = o.defaultModel
 	}
 
-	messages := []openRouterMessage{
+	messages := []openAIMessage{
 		{Role: "user", Content: req.Prompt},
 	}
 
 	if req.System != "" {
-		messages = append([]openRouterMessage{
+		messages = append([]openAIMessage{
 			{Role: "system", Content: req.System},
 		}, messages...)
 	}
 
-	apiReq := openRouterRequest{
+	apiReq := openAIRequest{
 		Model:       model,
 		Messages:    messages,
 		MaxTokens:   req.MaxTokens,
@@ -147,15 +144,13 @@ func (o *OpenRouterProvider) Stream(ctx context.Context, req *Request, w io.Writ
 		return err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", openRouterAPIURL, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", openAIAPIURL, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+o.apiKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/rnwolfe/mine")
-	httpReq.Header.Set("X-Title", "mine CLI")
 
 	resp, err := o.client.Do(httpReq)
 	if err != nil {
@@ -165,7 +160,7 @@ func (o *OpenRouterProvider) Stream(ctx context.Context, req *Request, w io.Writ
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("OpenRouter API error (status %d): %s", resp.StatusCode, string(body))
+		return fmt.Errorf("OpenAI API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
 	// Parse SSE stream line-by-line
@@ -196,7 +191,7 @@ func (o *OpenRouterProvider) Stream(ctx context.Context, req *Request, w io.Writ
 						return nil
 					}
 
-					var event openRouterStreamEvent
+					var event openAIStreamEvent
 					if err := json.Unmarshal([]byte(data), &event); err == nil {
 						if len(event.Choices) > 0 && event.Choices[0].Delta.Content != "" {
 							if _, err := w.Write([]byte(event.Choices[0].Delta.Content)); err != nil {
@@ -222,7 +217,7 @@ func (o *OpenRouterProvider) Stream(ctx context.Context, req *Request, w io.Writ
 		if strings.HasPrefix(line, "data: ") {
 			data := strings.TrimPrefix(line, "data: ")
 			if data != "[DONE]" {
-				var event openRouterStreamEvent
+				var event openAIStreamEvent
 				if err := json.Unmarshal([]byte(data), &event); err == nil {
 					if len(event.Choices) > 0 && event.Choices[0].Delta.Content != "" {
 						if _, err := w.Write([]byte(event.Choices[0].Delta.Content)); err != nil {
@@ -237,21 +232,21 @@ func (o *OpenRouterProvider) Stream(ctx context.Context, req *Request, w io.Writ
 	return nil
 }
 
-// OpenRouter API types (OpenAI-compatible)
-type openRouterRequest struct {
-	Model       string               `json:"model"`
-	Messages    []openRouterMessage  `json:"messages"`
-	MaxTokens   int                  `json:"max_tokens,omitempty"`
-	Temperature float64              `json:"temperature,omitempty"`
-	Stream      bool                 `json:"stream,omitempty"`
+// OpenAI API types
+type openAIRequest struct {
+	Model       string          `json:"model"`
+	Messages    []openAIMessage `json:"messages"`
+	MaxTokens   int             `json:"max_tokens,omitempty"`
+	Temperature float64         `json:"temperature,omitempty"`
+	Stream      bool            `json:"stream,omitempty"`
 }
 
-type openRouterMessage struct {
+type openAIMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
-type openRouterResponse struct {
+type openAIResponse struct {
 	ID      string `json:"id"`
 	Model   string `json:"model"`
 	Choices []struct {
@@ -267,7 +262,7 @@ type openRouterResponse struct {
 	} `json:"usage"`
 }
 
-type openRouterStreamEvent struct {
+type openAIStreamEvent struct {
 	Choices []struct {
 		Delta struct {
 			Content string `json:"content"`

@@ -32,6 +32,7 @@ func init() {
 	aiCmd.AddCommand(aiAskCmd)
 	aiCmd.AddCommand(aiReviewCmd)
 	aiCmd.AddCommand(aiCommitCmd)
+	aiCmd.AddCommand(aiModelsCmd)
 }
 
 func runAIHelp(_ *cobra.Command, _ []string) error {
@@ -43,6 +44,7 @@ func runAIHelp(_ *cobra.Command, _ []string) error {
 	fmt.Println(ui.Accent.Render("  Commands:"))
 	fmt.Println()
 	fmt.Printf("    %s  Configure AI provider and API key\n", ui.KeyStyle.Render("config"))
+	fmt.Printf("    %s   List available providers and models\n", ui.KeyStyle.Render("models"))
 	fmt.Printf("    %s     Ask a quick question\n", ui.KeyStyle.Render("ask"))
 	fmt.Printf("    %s    Review staged changes\n", ui.KeyStyle.Render("review"))
 	fmt.Printf("    %s   Generate commit message from diff\n", ui.KeyStyle.Render("commit"))
@@ -55,10 +57,13 @@ func runAIHelp(_ *cobra.Command, _ []string) error {
 	fmt.Printf("    %s       OpenAI GPT models (env: %s)\n",
 		ui.KeyStyle.Render("openai"), ui.Muted.Render("OPENAI_API_KEY"))
 	fmt.Printf("              %s\n", ui.Muted.Render("Get key: https://platform.openai.com/api-keys"))
-	fmt.Printf("    %s  OpenRouter with free models (env: %s)\n",
+	fmt.Printf("    %s       Google Gemini (env: %s)\n",
+		ui.KeyStyle.Render("gemini"), ui.Muted.Render("GEMINI_API_KEY"))
+	fmt.Printf("              %s\n", ui.Muted.Render("Get key: https://aistudio.google.com/app/apikey"))
+	fmt.Printf("    %s  OpenRouter with free access (env: %s)\n",
 		ui.KeyStyle.Render("openrouter"), ui.Muted.Render("OPENROUTER_API_KEY"))
-	fmt.Printf("              %s\n", ui.Muted.Render("Free model: z-ai/glm-4.5-air:free (no key required)"))
-	fmt.Printf("              %s\n", ui.Muted.Render("Get key: https://openrouter.ai/keys"))
+	fmt.Printf("              %s\n", ui.Muted.Render("Free model: z-ai/glm-4.5-air:free (hardcoded key)"))
+	fmt.Printf("              %s\n", ui.Muted.Render("Get key: https://openrouter.ai/keys (optional)"))
 	fmt.Println()
 	fmt.Println(ui.Accent.Render("  Zero-Config Setup:"))
 	fmt.Println()
@@ -446,14 +451,21 @@ Options:
   • Set environment variable: export OPENAI_API_KEY=sk-...
   • Get a key: https://platform.openai.com/api-keys
   • Or run: mine ai config --provider openai --key <your-key>`)
+		case "gemini":
+			helpMsg = fmt.Sprintf(`API key not found for Gemini.
+
+Options:
+  • Set environment variable: export GEMINI_API_KEY=AIza...
+  • Get a key: https://aistudio.google.com/app/apikey
+  • Or run: mine ai config --provider gemini --key <your-key>`)
 		case "openrouter":
 			helpMsg = fmt.Sprintf(`API key not found for OpenRouter.
 
-Options:
-  • Use free model (no key required): mine ai config --provider openrouter --default-model z-ai/glm-4.5-air:free
-  • Set environment variable: export OPENROUTER_API_KEY=sk-...
-  • Get a key: https://openrouter.ai/keys
-  • Or run: mine ai config --provider openrouter --key <your-key>`)
+Note: OpenRouter has free access enabled (uses hardcoded key).
+This should work automatically. If you're seeing this error, try:
+  • Use a different model: mine ai ask "test" --model z-ai/glm-4.5-air:free
+  • Or provide your own key: export OPENROUTER_API_KEY=sk-...
+  • Get a key: https://openrouter.ai/keys`)
 		default:
 			helpMsg = fmt.Sprintf("Run: mine ai config --provider %s --key <your-key>", cfg.AI.Provider)
 		}
@@ -466,4 +478,139 @@ Options:
 	}
 
 	return provider, nil
+}
+
+// ai models command
+var aiModelsCmd = &cobra.Command{
+	Use:   "models",
+	Short: "List available AI providers and models",
+	Long:  `Show configured providers, available providers, and suggested models for each.`,
+	RunE:  hook.Wrap("ai.models", runAIModels),
+}
+
+func runAIModels(_ *cobra.Command, _ []string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	ks, err := ai.NewKeystore()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println()
+	fmt.Println(ui.Title.Render("  AI Providers & Models"))
+	fmt.Println()
+
+	// Get all registered providers
+	allProviders := ai.ListProviders()
+
+	// Get providers with stored keys
+	configuredProviders, err := ks.List()
+	if err != nil {
+		return err
+	}
+
+	// Create a map for faster lookup
+	configuredMap := make(map[string]bool)
+	for _, p := range configuredProviders {
+		configuredMap[p] = true
+	}
+
+	// Check which providers have env vars
+	envProviders := detectAIKeys()
+
+	// Provider details with suggested models and env var info
+	providerInfo := map[string]struct {
+		envVar         string
+		models         []string
+		apiKeyURL      string
+		requiresAPIKey bool
+	}{
+		"claude": {
+			envVar:         "ANTHROPIC_API_KEY",
+			models:         []string{"claude-sonnet-4-5-20250929", "claude-opus-4-6"},
+			apiKeyURL:      "https://console.anthropic.com/settings/keys",
+			requiresAPIKey: true,
+		},
+		"openai": {
+			envVar:         "OPENAI_API_KEY",
+			models:         []string{"gpt-4o", "gpt-4o-mini", "o3-mini"},
+			apiKeyURL:      "https://platform.openai.com/api-keys",
+			requiresAPIKey: true,
+		},
+		"gemini": {
+			envVar:         "GEMINI_API_KEY",
+			models:         []string{"gemini-2.0-flash-exp", "gemini-1.5-pro"},
+			apiKeyURL:      "https://aistudio.google.com/app/apikey",
+			requiresAPIKey: true,
+		},
+		"openrouter": {
+			envVar:         "OPENROUTER_API_KEY",
+			models:         []string{"z-ai/glm-4.5-air:free (no key required)", "google/gemini-flash-1.5", "anthropic/claude-3.5-sonnet"},
+			apiKeyURL:      "https://openrouter.ai/keys",
+			requiresAPIKey: false,
+		},
+	}
+
+	for _, provider := range allProviders {
+		info, ok := providerInfo[provider]
+		if !ok {
+			continue // Skip unknown providers
+		}
+
+		// Determine status
+		status := ""
+		isDefault := cfg.AI.Provider == provider
+		hasKey := configuredMap[provider] || envProviders[provider] || !info.requiresAPIKey
+
+		if isDefault {
+			status = ui.Success.Render("✓ DEFAULT")
+		} else if hasKey {
+			status = ui.Success.Render("✓ Ready")
+		} else {
+			status = ui.Muted.Render("○ Not configured")
+		}
+
+		// Print provider header
+		fmt.Printf("  %s %s\n", ui.KeyStyle.Render(provider), status)
+
+		// Show env var status
+		if envProviders[provider] {
+			fmt.Printf("    %s\n", ui.Success.Render(fmt.Sprintf("API key detected in %s", info.envVar)))
+		} else if configuredMap[provider] {
+			fmt.Printf("    %s\n", ui.Muted.Render("API key stored in keystore"))
+		} else if !info.requiresAPIKey {
+			fmt.Printf("    %s\n", ui.Success.Render("Free access enabled (hardcoded key)"))
+		} else {
+			fmt.Printf("    %s %s\n",
+				ui.Muted.Render(fmt.Sprintf("No API key (set %s or use:", info.envVar)),
+				ui.Accent.Render(fmt.Sprintf("mine ai config --provider %s --key <key>", provider)))
+			fmt.Printf("    %s\n", ui.Muted.Render(fmt.Sprintf("Get key: %s", info.apiKeyURL)))
+		}
+
+		// Show model if this is the default provider
+		if isDefault && cfg.AI.Model != "" {
+			fmt.Printf("    %s %s\n", ui.Muted.Render("Default model:"), ui.Accent.Render(cfg.AI.Model))
+		}
+
+		// Show suggested models
+		fmt.Printf("    %s\n", ui.Muted.Render("Suggested models:"))
+		for _, model := range info.models {
+			fmt.Printf("      • %s\n", ui.Muted.Render(model))
+		}
+
+		fmt.Println()
+	}
+
+	// Show helpful examples
+	fmt.Println(ui.Accent.Render("  Examples:"))
+	fmt.Println()
+	fmt.Printf("    %s\n", ui.Muted.Render("mine ai config --provider claude --key sk-..."))
+	fmt.Printf("    %s\n", ui.Muted.Render("mine ai ask \"explain Go interfaces\" --model gemini-2.0-flash-exp"))
+	fmt.Printf("    %s\n", ui.Muted.Render("export ANTHROPIC_API_KEY=sk-...  # Zero-config setup"))
+	fmt.Println()
+
+	return nil
 }

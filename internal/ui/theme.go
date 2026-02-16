@@ -4,12 +4,13 @@ import (
 	"os"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 func init() {
 	// Ensure color output is enabled unless explicitly disabled
 	if os.Getenv("NO_COLOR") == "" {
-		lipgloss.SetColorProfile(lipgloss.TrueColor)
+		lipgloss.SetColorProfile(termenv.TrueColor)
 	}
 }
 

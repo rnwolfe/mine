@@ -6,9 +6,14 @@ on:
   workflow_run:
     workflows: ["Claude Code Review"]
     types: [completed]
+  # Scheduled fallback: catches reviews from bot actors (e.g. Copilot) that
+  # get gated by GitHub's first-time contributor approval and never execute
+  # the pull_request_review trigger. Matches the autodev-dispatch cadence.
+  schedule:
+    - cron: "30 */4 * * *"
 
 concurrency:
-  group: autodev-review-fix-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number }}
+  group: autodev-review-fix-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || 'scheduled' }}
   cancel-in-progress: false
 
 permissions:
@@ -19,6 +24,8 @@ permissions:
 
 jobs:
   review-fix:
+    # Skip events triggered by bots that aren't relevant reviewers
+    if: github.actor != 'vercel[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -29,7 +36,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Resolve PR number based on event type
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            # Scheduled poll: find open autodev PRs not in "done" phase
+            PR_NUMBER=$(gh pr list --repo "${{ github.repository }}" \
+              --label "autodev" --state open --json number,body \
+              --jq '[.[] | select(.body | test("autodev-state") | not) // select(.body | test("\"phase\": \"done\"") | not)] | first | .number // empty')
+            if [ -z "$PR_NUMBER" ]; then
+              echo "No actionable autodev PRs found. Skipping."
+              echo "action=skip" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            EVENT_SOURCE="schedule"
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
             # workflow_run: get PR from the triggering workflow's pull_requests
             PR_NUMBER=$(echo '${{ toJSON(github.event.workflow_run.pull_requests) }}' \
               | jq -r '.[0].number // empty')
@@ -62,6 +80,12 @@ jobs:
           echo "phase=$PHASE" >> "$GITHUB_OUTPUT"
           echo "copilot_iterations=$COPILOT_ITERS" >> "$GITHUB_OUTPUT"
 
+          if [ "$PHASE" = "done" ]; then
+            echo "Phase is done. Skipping."
+            echo "action=skip" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           # For workflow_run events (Claude Code Review completed)
           if [ "$EVENT_SOURCE" = "workflow_run" ]; then
             CONCLUSION="${{ github.event.workflow_run.conclusion }}"
@@ -78,16 +102,68 @@ jobs:
             exit 0
           fi
 
+          # For scheduled events: check reviews via API (no event context)
+          if [ "$EVENT_SOURCE" = "schedule" ]; then
+            # Get the latest review on this PR
+            LATEST_REVIEW=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
+              --jq '[.[] | select(.user.login != "github-actions[bot]")] | sort_by(.submitted_at) | last // empty')
+
+            if [ -z "$LATEST_REVIEW" ] || [ "$LATEST_REVIEW" = "null" ]; then
+              echo "No reviews found on PR #$PR_NUMBER. Skipping."
+              echo "action=skip" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            REVIEWER=$(echo "$LATEST_REVIEW" | jq -r '.user.login')
+            echo "reviewer=$REVIEWER" >> "$GITHUB_OUTPUT"
+
+            # Check if there are commits after the latest review (already processed)
+            REVIEW_DATE=$(echo "$LATEST_REVIEW" | jq -r '.submitted_at')
+            LATEST_COMMIT_DATE=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER/commits" \
+              --jq '[.[].commit.committer.date] | sort | last')
+
+            if [[ "$LATEST_COMMIT_DATE" > "$REVIEW_DATE" ]]; then
+              echo "Latest commit is newer than latest review — already processed. Skipping."
+              echo "action=skip" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            # Check for inline comments
+            COMMENT_COUNT=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER/comments" \
+              --jq '[.[] | select(.user.login != "github-actions[bot]")] | length')
+
+            if [ "$PHASE" = "copilot" ]; then
+              HAS_FEEDBACK=false
+              REVIEW_BODY=$(echo "$LATEST_REVIEW" | jq -r '.body // ""')
+              if [ -n "$REVIEW_BODY" ] && [ "$REVIEW_BODY" != "null" ] && [ "$REVIEW_BODY" != "" ]; then
+                HAS_FEEDBACK=true
+              fi
+              if [ "$COMMENT_COUNT" -gt 0 ]; then
+                HAS_FEEDBACK=true
+              fi
+
+              if [ "$HAS_FEEDBACK" = "true" ] && [ "$COPILOT_ITERS" -lt 3 ]; then
+                echo "action=copilot-fix" >> "$GITHUB_OUTPUT"
+              else
+                echo "action=trigger-claude" >> "$GITHUB_OUTPUT"
+              fi
+              exit 0
+            fi
+
+            if [ "$PHASE" = "claude" ]; then
+              echo "action=claude-fix" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "Scheduled: unknown phase $PHASE. Skipping."
+            echo "action=skip" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           # For pull_request_review events: check reviewer identity
           REVIEWER="${{ github.event.review.user.login }}"
           REVIEW_STATE="${{ github.event.review.state }}"
           echo "reviewer=$REVIEWER" >> "$GITHUB_OUTPUT"
-
-          if [ "$PHASE" = "done" ]; then
-            echo "Phase is done. Skipping."
-            echo "action=skip" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
 
           if [ "$PHASE" = "copilot" ]; then
             if [ "$REVIEWER" != "copilot-pull-request-reviewer[bot]" ]; then
@@ -140,8 +216,8 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.AUTODEV_TOKEN }}
 
-      - name: Resolve PR branch for workflow_run
-        if: steps.route.outputs.action == 'claude-fix' && github.event_name == 'workflow_run'
+      - name: Resolve PR branch for non-review events
+        if: steps.route.outputs.action != 'skip' && github.event_name != 'pull_request_review'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

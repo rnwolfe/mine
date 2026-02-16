@@ -6,7 +6,8 @@ set -euo pipefail
 # Usage:
 #   scripts/autodev/open-pr.sh ISSUE_NUMBER BRANCH_NAME
 #
-# Reads issue details, creates PR with structured body.
+# Uses agent-generated PR description from /tmp/pr-description.md if available,
+# otherwise falls back to a basic template.
 # Human merges manually after reviewing.
 
 source "$(dirname "$0")/config.sh"
@@ -19,14 +20,16 @@ BRANCH_NAME="${2:?Usage: open-pr.sh ISSUE_NUMBER BRANCH_NAME}"
 ISSUE_JSON=$(gh issue view "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --json title,body)
 ISSUE_TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
 
-# ── Create PR ──────────────────────────────────────────────────────
+# ── Build PR body ─────────────────────────────────────────────────
 
-PR_URL=$(gh pr create \
-    --repo "$AUTODEV_REPO" \
-    --head "$BRANCH_NAME" \
-    --base "$AUTODEV_BASE_BRANCH" \
-    --title "$ISSUE_TITLE" \
-    --body "$(cat <<EOF
+PR_DESC_FILE="/tmp/pr-description.md"
+
+if [ -f "$PR_DESC_FILE" ] && [ -s "$PR_DESC_FILE" ]; then
+    autodev_info "Using agent-generated PR description"
+    PR_BODY=$(cat "$PR_DESC_FILE")
+else
+    autodev_warn "No agent-generated PR description found, using fallback template"
+    PR_BODY=$(cat <<EOF
 ## Summary
 
 Autonomous implementation of #$ISSUE_NUMBER.
@@ -41,10 +44,21 @@ See commits on this branch for implementation details.
 
 - [ ] CI passes (\`make test\`, \`make build\`)
 - [ ] Code review feedback addressed
-
-<!-- autodev-state: {"phase": "copilot", "copilot_iterations": 0} -->
 EOF
-)" \
+)
+fi
+
+# Append autodev state tracker
+PR_BODY+=$'\n\n<!-- autodev-state: {"phase": "copilot", "copilot_iterations": 0} -->'
+
+# ── Create PR ──────────────────────────────────────────────────────
+
+PR_URL=$(gh pr create \
+    --repo "$AUTODEV_REPO" \
+    --head "$BRANCH_NAME" \
+    --base "$AUTODEV_BASE_BRANCH" \
+    --title "$ISSUE_TITLE" \
+    --body "$PR_BODY" \
     --label "$AUTODEV_LABEL_AUTODEV")
 
 autodev_info "Created PR: $PR_URL"

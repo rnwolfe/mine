@@ -8,9 +8,9 @@ on:
     types: [completed]
   # Scheduled fallback: catches reviews from bot actors (e.g. Copilot) that
   # get gated by GitHub's first-time contributor approval and never execute
-  # the pull_request_review trigger. Runs every 15 minutes.
+  # the pull_request_review trigger. Matches the autodev-dispatch cadence.
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "30 */4 * * *"
 
 concurrency:
   group: autodev-review-fix-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || 'scheduled' }}

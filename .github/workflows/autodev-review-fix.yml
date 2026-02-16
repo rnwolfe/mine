@@ -115,7 +115,7 @@ jobs:
             ## Review Feedback to Address
 
             ${{ env.REVIEW_FEEDBACK }}
-          claude_args: "--max-turns 15"
+          claude_args: "--max-turns 15 --dangerously-skip-permissions"
       # ============================================================
 
       - name: Revert protected file changes

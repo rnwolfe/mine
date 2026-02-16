@@ -1,4 +1,7 @@
-# Installation Guide
+---
+title: Installation
+description: How to install mine on your system
+---
 
 ## Quick Install (Recommended)
 

@@ -1,0 +1,145 @@
+/* mine brand theme - gold/amber on dark backgrounds */
+:root {
+  --gold: #D4A017;
+  --amber: #FFBF00;
+  --copper: #B87333;
+  --deep: #1a1a2e;
+  --deeper: #0f0f1a;
+}
+
+/* Force dark theme */
+:root[data-theme='light'] {
+  --sl-color-accent-low: var(--deep);
+  --sl-color-accent-high: var(--gold);
+  --sl-color-white: var(--deep);
+  --sl-color-gray-1: var(--deeper);
+  --sl-color-gray-6: #e0e0e0;
+  --sl-color-text: #e0e0e0;
+  --sl-color-bg: var(--deeper);
+}
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low: rgba(212, 160, 23, 0.15);
+  --sl-color-accent: var(--gold);
+  --sl-color-accent-high: var(--amber);
+  --sl-color-white: var(--deep);
+  --sl-color-gray-1: var(--deeper);
+  --sl-color-gray-2: #1e1e2e;
+  --sl-color-gray-3: #2a2a3e;
+  --sl-color-gray-4: #3a3a4e;
+  --sl-color-gray-5: #888;
+  --sl-color-gray-6: #e0e0e0;
+  --sl-color-text: #e0e0e0;
+  --sl-color-text-accent: var(--gold);
+  --sl-color-bg: var(--deeper);
+  --sl-color-bg-nav: var(--deep);
+}
+
+/* Header and navigation */
+.site-title,
+.site-title:hover {
+  color: var(--gold) !important;
+  font-weight: 800;
+}
+
+/* Links */
+a {
+  color: var(--gold);
+}
+
+a:hover {
+  color: var(--amber);
+}
+
+/* Code blocks - enhanced for copy/paste */
+.expressive-code {
+  margin: 1.5rem 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.expressive-code .frame {
+  border: 1px solid rgba(212, 160, 23, 0.2);
+  background: var(--deep);
+}
+
+/* Copy button styling */
+.expressive-code button[title*="Copy"] {
+  background: rgba(212, 160, 23, 0.1);
+  border: 1px solid rgba(212, 160, 23, 0.3);
+  color: var(--gold);
+  transition: all 0.2s;
+}
+
+.expressive-code button[title*="Copy"]:hover {
+  background: rgba(212, 160, 23, 0.2);
+  border-color: var(--gold);
+}
+
+/* Inline code */
+code:not(pre code) {
+  background: rgba(212, 160, 23, 0.1);
+  color: var(--amber);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--gold);
+}
+
+/* Sidebar active item */
+[aria-current='page'],
+[aria-current='page']:hover {
+  color: var(--gold) !important;
+  font-weight: 600;
+}
+
+/* Search */
+:root[data-theme='dark'] .search-input {
+  background: var(--deep);
+  border-color: rgba(212, 160, 23, 0.2);
+}
+
+:root[data-theme='dark'] .search-input:focus {
+  border-color: var(--gold);
+}
+
+/* Hero section on home page */
+.hero {
+  background: linear-gradient(180deg, var(--deep) 0%, var(--deeper) 100%);
+}
+
+.hero h1 {
+  background: linear-gradient(135deg, var(--gold), var(--amber), var(--copper));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Mermaid diagrams */
+.mermaid {
+  background: transparent;
+}
+
+.mermaid .node rect,
+.mermaid .node circle,
+.mermaid .node polygon {
+  fill: var(--deep);
+  stroke: var(--gold);
+}
+
+.mermaid .node .label {
+  color: #e0e0e0;
+}
+
+.mermaid .edgePath .path {
+  stroke: var(--gold);
+}
+
+.mermaid .edgeLabel {
+  background: var(--deep);
+  color: #e0e0e0;
+}

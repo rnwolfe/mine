@@ -1,6 +1,7 @@
-# Architecture
-
-## Overview
+---
+title: Architecture
+description: Technical architecture and design patterns
+---
 
 mine is a single Go binary built with Cobra (CLI), Lipgloss (styling), and SQLite (storage). It follows a clean domain separation pattern where each feature is an independent package under `internal/`.
 
@@ -21,24 +22,18 @@ mine/
 │   └── version.go           # Version info
 ├── internal/                # Domain logic (not exported)
 │   ├── config/              # XDG config management
-│   │   ├── config.go        # Load, save, paths
-│   │   └── config_test.go
 │   ├── store/               # SQLite database
-│   │   └── store.go         # Connection, migrations
 │   ├── todo/                # Todo domain
-│   │   ├── todo.go          # Models, queries, store
-│   │   └── todo_test.go
+│   ├── stash/               # Dotfile tracking
+│   ├── craft/               # Project scaffolding
+│   ├── hook/                # Plugin hook system
+│   ├── plugin/              # Plugin lifecycle
 │   ├── ui/                  # Terminal UI
-│   │   ├── theme.go         # Colors, icons, styles
-│   │   └── print.go         # Output helpers
 │   └── version/             # Build metadata
-│       └── version.go
 ├── docs/                    # Documentation
-├── site/                    # Landing page (Vercel)
+├── site/                    # This documentation site (Astro Starlight)
 ├── scripts/                 # Build & install helpers
 ├── .github/                 # CI/CD workflows
-├── .goreleaser.yaml         # Release configuration
-├── Makefile                 # Build commands
 └── CLAUDE.md                # Project knowledge base
 ```
 
@@ -95,10 +90,13 @@ Never use raw `fmt.Println` in commands.
 
 ## Data Flow
 
-```
-User Input → Cobra (cmd/) → Domain Logic (internal/) → SQLite (store/)
-                                    ↓
-                              UI Formatting (ui/) → Terminal Output
+```mermaid
+graph LR
+    A[User Input] --> B[Cobra cmd/]
+    B --> C[Domain Logic internal/]
+    C --> D[SQLite store/]
+    C --> E[UI Formatting ui/]
+    E --> F[Terminal Output]
 ```
 
 ## SQLite Configuration
@@ -111,9 +109,35 @@ The database uses performance-optimized pragmas:
 - `temp_store=MEMORY` — temp tables in RAM
 - `busy_timeout=5000` — 5s retry on lock contention
 
+## Plugin System Architecture
+
+```mermaid
+graph TD
+    A[mine command] --> B[Hook Pipeline]
+    B --> C{Stage}
+    C -->|prevalidate| D[Validation Hooks]
+    C -->|preexec| E[Transform Hooks]
+    C -->|postexec| F[Transform Hooks]
+    C -->|notify| G[Notify Hooks]
+    D --> H[Context Transformation]
+    E --> H
+    F --> H
+    G --> I[Fire-and-forget]
+    H --> J[Command Execution]
+```
+
+The plugin system uses a four-stage hook pipeline:
+1. **prevalidate** — validate and rewrite flags before parsing
+2. **preexec** — transform context before execution
+3. **postexec** — transform context after execution
+4. **notify** — fire-and-forget side effects (logging, webhooks)
+
+Plugins communicate via JSON-over-stdin. See [Plugin Protocol](/contributing/plugin-protocol) for details.
+
 ## Build System
 
 - `make build` — builds with ldflags for version injection
-- `make test` — runs the Go test suite
+- `make test` — runs the Go test suite with race detector
+- `make cover` — generates coverage report
 - GoReleaser handles cross-compilation for releases
 - CI runs vet, test (with coverage), build, and smoke test

@@ -73,5 +73,16 @@
 2. Write tests: `internal/myfeature/myfeature_test.go`
 3. Create the command: `cmd/myfeature.go`
 4. Register in `cmd/root.go`: `rootCmd.AddCommand(myFeatureCmd)`
-5. Add to `docs/COMMANDS.md`
+5. Add documentation to `site/src/content/docs/commands/myfeature.md`
 6. Update `CHANGELOG.md`
+
+## Documentation
+
+User-facing documentation lives in `site/src/content/docs/`. To update docs:
+
+1. Navigate to `site/src/content/docs/`
+2. Edit the relevant markdown file
+3. Test locally: `cd site && npm install && npm run dev`
+4. Build to verify: `npm run build`
+
+The documentation site is built with Astro Starlight and auto-deploys to [mine.rwolfe.io](https://mine.rwolfe.io) via Vercel.

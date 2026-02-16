@@ -1,0 +1,118 @@
+---
+title: mine
+description: Your personal developer supercharger
+template: splash
+hero:
+  tagline: A single CLI tool that turbocharges dev velocity, tames environment chaos, and brings joy to the terminal. One binary. Zero deps. Radically fast.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Get Started
+      link: /getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/rnwolfe/mine
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Features
+
+<CardGrid>
+  <Card title="📋 Todo Management" icon="pencil">
+    Fast task management with priorities, due dates, and tags. Keep your work organized without leaving the terminal.
+  </Card>
+  <Card title="⏱️ Focus Timer" icon="approve-check">
+    Pomodoro-style deep work sessions with streak tracking. Build the habit of focused work.
+  </Card>
+  <Card title="📦 Dotfile Tracking" icon="setting">
+    Git-backed dotfile versioning. Track, diff, and sync your configuration files across machines.
+  </Card>
+  <Card title="🏗️ Project Scaffolding" icon="rocket">
+    Data-driven project templates for Go, Node, Python, Rust, and more. Bootstrap new projects in seconds.
+  </Card>
+  <Card title="🔌 Plugin System" icon="puzzle">
+    Extend mine with custom hooks and commands. Language-agnostic plugin protocol via JSON-over-stdin.
+  </Card>
+  <Card title="⚡ Radically Fast" icon="star">
+    Single binary, no runtime dependencies. Every local command under 50ms. Built with Go for speed.
+  </Card>
+</CardGrid>
+
+## Quick Install
+
+```bash
+# Quick install
+curl -fsSL https://mine.rwolfe.io/install | bash
+
+# Or build from source
+go install github.com/rnwolfe/mine@latest
+```
+
+After installation, run the guided setup:
+
+```bash
+mine init
+```
+
+## What it looks like
+
+```
+$ mine
+⛏ Hey Ryan!
+
+  📋 Todos      3 open (1 overdue!)
+  📅 Today      Sunday, February 16
+  ⚙️  Mine      0.1.0
+
+  tip: `mine todo` to tackle that overdue task.
+```
+
+## Example Usage
+
+### Task Management
+
+```bash
+mine todo add "build the thing" -p high -d tomorrow
+mine todo add "fix that bug" -p crit --tags "backend,urgent"
+mine todo                        # list open tasks
+mine todo done 1                 # complete a task
+```
+
+### Focus Sessions
+
+```bash
+mine dig          # 25m pomodoro (default)
+mine dig 45m      # custom duration
+mine dig stats    # see your streak
+```
+
+### Dotfile Tracking
+
+```bash
+mine stash init                  # initialize tracking
+mine stash track ~/.zshrc        # track a file
+mine stash diff                  # check for changes
+```
+
+### Project Scaffolding
+
+```bash
+mine craft dev go       # bootstrap a Go project
+mine craft dev node     # bootstrap Node.js
+mine craft ci github    # add GitHub Actions CI
+```
+
+## Tech Stack
+
+- **Go 1.25+** — fast compilation, single binary output
+- **Cobra** — CLI framework
+- **Lipgloss** — terminal styling (Charm ecosystem)
+- **SQLite** — pure Go (modernc.org/sqlite), WAL mode, no CGo
+- **TOML** — human-friendly config
+
+## License
+
+MIT

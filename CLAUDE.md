@@ -51,11 +51,15 @@ mine/
 │   ├── craft/       # Scaffolding recipe engine (data-driven, embed.FS)
 │   ├── version/     # Build-time version info
 │   └── ...          # New domains go here
-├── docs/            # User-facing documentation (install, commands, architecture)
-│   └── internal/    # Agentic docs (vision, decisions, status — NOT user-facing)
 ├── scripts/         # Install, release, CI helpers
 │   └── autodev/     # Autonomous dev workflow scripts
-├── site/            # Landing page (Vercel, auto-deploys)
+├── site/            # Documentation site (Astro Starlight, Vercel, auto-deploys)
+│   ├── src/
+│   │   ├── content/docs/  # User-facing documentation (markdown + MDX)
+│   │   ├── styles/        # Custom CSS for gold/amber brand theme
+│   │   └── assets/        # Site assets (logo, images)
+│   ├── astro.config.mjs   # Astro + Starlight config
+│   └── vercel.json        # Vercel deployment config
 └── .github/         # CI/CD workflows, CODEOWNERS, PR template
 ```
 
@@ -65,8 +69,8 @@ Rules:
 - Keep files under 500 lines
 - Tests live next to the code they test (`_test.go` suffix)
 - Core OSS docs (README, CONTRIBUTING, CHANGELOG, LICENSE) live at repo root
-- User-facing docs live in `docs/`
-- Agentic/internal docs live in `docs/internal/`
+- **User-facing docs live in `site/src/content/docs/`** (Astro Starlight)
+- Documentation site is the source of truth for user docs, deployed at mine.rwolfe.io
 
 ## Architecture Patterns
 
@@ -475,3 +479,7 @@ users allowlist (`AUTODEV_TRUSTED_USERS` in config.sh).
 | `scripts/autodev/check-gates.sh` | Quality gate verification (CI, iterations, mergeable) |
 | `scripts/autodev/open-pr.sh` | PR creation with auto-merge and iteration tracking |
 | `scripts/autodev/agent-exec.sh` | Model-agnostic agent execution abstraction |
+| `site/astro.config.mjs` | Astro Starlight configuration, sidebar, Mermaid.js integration |
+| `site/src/styles/custom.css` | Gold/amber brand theme customization |
+| `site/src/content/docs/` | User-facing documentation (markdown + MDX files) |
+| `site/vercel.json` | Vercel deployment configuration for Astro build |

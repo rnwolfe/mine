@@ -4,6 +4,8 @@
 
 A single CLI tool that turbocharges dev velocity, tames environment chaos, and brings a little joy to the terminal. One binary. Zero deps. Radically fast.
 
+📚 **[Documentation](https://mine.rwolfe.io)** | 🚀 **[Quick Start](https://mine.rwolfe.io/getting-started/quick-start)** | 🏗️ **[Architecture](https://mine.rwolfe.io/contributing/architecture)**
+
 ## Install
 
 ```bash
@@ -13,6 +15,8 @@ curl -fsSL https://mine.rwolfe.io/install | bash
 # Or build from source
 go install github.com/rnwolfe/mine@latest
 ```
+
+Full installation guide: [mine.rwolfe.io/getting-started/installation](https://mine.rwolfe.io/getting-started/installation)
 
 ## What it does
 

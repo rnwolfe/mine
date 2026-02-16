@@ -128,17 +128,45 @@ An event-driven GitHub Actions pipeline that autonomously implements issues end-
 
 ### How it works
 
-Three workflows form a loop:
+Three workflows form a loop with a phased review pipeline:
 
 1. **`autodev-dispatch`** — Runs on a 4-hour cron (or manual trigger). Picks the oldest
    `agent-ready` issue, labels it `in-progress`, and triggers the implement workflow.
 2. **`autodev-implement`** — Checks out `main`, creates a branch, runs the agent (Claude
    via `claude-code-action@v1`) to implement the issue, pushes, and opens a PR.
-   The PR triggers CI and `claude-code-review` automatically.
-3. **`autodev-review-fix`** — Fires when a review requests changes on an `autodev` PR.
-   Extracts review feedback, runs the agent to fix issues, and pushes. This re-triggers
-   CI + review, creating a feedback loop until the review passes or the iteration limit hits.
-   Human merges manually after all checks pass.
+   The PR triggers CI and Copilot review.
+3. **`autodev-review-fix`** — Phased review pipeline that routes fixes based on review phase:
+   - **Copilot phase**: Iterates on Copilot feedback up to 3 times
+   - **Claude phase**: Triggered after Copilot is satisfied (adds `claude-review-requested` label)
+   - **Done**: Agent addresses Claude's feedback, creates follow-up issues for unresolved items
+4. **`claude-code-review`** — Runs on non-autodev PRs normally. For autodev PRs, only
+   triggers when the `claude-review-requested` label is added (after Copilot phase completes).
+
+### Review pipeline flow
+
+```
+implement → push → CI + Copilot review
+                        ↓
+              autodev-review-fix (copilot phase)
+              ├─ Has comments & iter < 3 → agent fixes → push → loop
+              ├─ Has comments & iter >= 3 → transition to claude
+              └─ No comments → transition to claude
+                        ↓
+              claude-code-review.yml (triggered by label)
+                        ↓
+              autodev-review-fix (claude phase)
+              └─ Agent fixes + creates follow-up issues → done
+                        ↓
+              Human merges
+```
+
+### Phase state tracking
+
+PR body contains an HTML comment tracking pipeline state:
+```
+<!-- autodev-state: {"phase": "copilot", "copilot_iterations": 0} -->
+```
+Phases: `copilot` → `claude` → `done`
 
 ### Labels
 
@@ -148,6 +176,7 @@ Three workflows form a loop:
 | `in-progress` | Issue is currently being worked on |
 | `autodev` | PR was created by the autonomous workflow |
 | `needs-human` | Autodev hit a limit and needs human intervention |
+| `claude-review-requested` | Copilot phase done, ready for Claude review |
 
 ### Secrets required
 
@@ -159,7 +188,8 @@ Three workflows form a loop:
 ### Circuit breakers
 
 - **Max concurrency**: Only 1 `autodev` PR open at a time (prevents merge conflicts)
-- **Max iterations**: 3 review-fix cycles before adding `needs-human` label
+- **Copilot iterations**: 3 fix cycles on Copilot feedback before transitioning to Claude
+- **Claude fix**: 1 final fix cycle after Claude review
 - **Timeouts**: 30 min for implementation, 20 min for review fixes
 - **Protected files**: Agent cannot modify CLAUDE.md, workflows, or autodev scripts
 
@@ -363,6 +393,13 @@ other workflows (not just pushes — also PR open/close/reopen). The close/reope
 workaround doesn't work because those events also come from GITHUB_TOKEN. Use a
 Personal Access Token (PAT) stored as a repo secret (`AUTODEV_TOKEN`) for operations
 that need to trigger CI, code review, or other downstream workflows.
+
+### L-015: Copilot review state is COMMENTED, not changes_requested
+GitHub Copilot's pull request reviewer posts reviews with state `COMMENTED`, not
+`changes_requested`. A workflow filtering on `review.state == 'changes_requested'`
+will never trigger on Copilot reviews. The fix is to check for the reviewer identity
+(`copilot-pull-request-reviewer[bot]`) and inspect whether the review has actionable
+comments (body or inline comments), rather than relying on the review state.
 
 ## Key Files
 

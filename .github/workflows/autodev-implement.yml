@@ -62,8 +62,16 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Create branch
+        env:
+          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
         run: |
-          git checkout -b "${{ steps.prep.outputs.branch }}"
+          BRANCH="${{ steps.prep.outputs.branch }}"
+          # Delete stale remote branch if it exists (e.g. from a prior closed PR)
+          if git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
+            echo "::notice::Deleting stale remote branch: $BRANCH"
+            git push origin --delete "$BRANCH" || true
+          fi
+          git checkout -b "$BRANCH"
 
       # ============================================================
       # AGENT EXECUTION — Provider: Claude via claude-code-action@v1

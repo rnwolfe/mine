@@ -21,7 +21,7 @@ permissions:
 jobs:
   implement:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -132,7 +132,7 @@ jobs:
             ```
 
             Write this file as one of your last actions, after completing the implementation.
-          claude_args: "--max-turns 25 --dangerously-skip-permissions"
+          claude_args: "--max-turns 100 --dangerously-skip-permissions"
       # ============================================================
 
       - name: Revert protected file changes

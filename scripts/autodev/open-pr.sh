@@ -47,18 +47,6 @@ EOF
 )" \
     --label "$AUTODEV_LABEL_AUTODEV")
 
-PR_NUMBER=$(gh pr list --repo "$AUTODEV_REPO" --head "$BRANCH_NAME" --json number --jq '.[0].number')
-
 autodev_info "Created PR: $PR_URL"
-
-# ── Trigger CI ─────────────────────────────────────────────────────
-# Pushes by GITHUB_TOKEN don't trigger downstream workflows (GitHub
-# security policy). Close/reopen the PR to fire the pull_request event
-# which triggers CI and code review.
-
-gh pr close "$PR_NUMBER" --repo "$AUTODEV_REPO"
-gh pr reopen "$PR_NUMBER" --repo "$AUTODEV_REPO"
-
-autodev_info "Closed/reopened PR #$PR_NUMBER to trigger CI"
 
 echo "$PR_URL"

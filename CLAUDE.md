@@ -116,6 +116,9 @@ Rules:
 
 - **main is sacred.** All changes go through PRs. No direct pushes.
 - Branch naming: `feat/`, `fix/`, `chore/`, `docs/` prefixes
+- **Conventional commits**: PR squash merges use `type: description` format
+  (e.g. `feat: add phased review pipeline`, `fix: prevent duplicate reviews`).
+  Valid types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`.
 - PRs require CI passing (`test` job). Copilot provides automated review.
 - Human merges PRs after reviewing.
 - CODEOWNERS: `@rnwolfe` reviews everything

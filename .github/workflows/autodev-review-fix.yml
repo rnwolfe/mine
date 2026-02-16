@@ -34,6 +34,10 @@ jobs:
         id: route
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Pass review body via env var to avoid shell injection — the body
+          # contains arbitrary text (code references, file paths) that would
+          # be interpreted as commands if interpolated directly into the script.
+          EVENT_REVIEW_BODY: ${{ github.event.review.body }}
         run: |
           # Resolve PR number based on event type
           if [ "${{ github.event_name }}" = "schedule" ]; then
@@ -180,7 +184,7 @@ jobs:
 
             # Check if review has actionable comments
             HAS_COMMENTS=false
-            REVIEW_BODY="${{ github.event.review.body }}"
+            REVIEW_BODY="$EVENT_REVIEW_BODY"
             if [ -n "$REVIEW_BODY" ] && [ "$REVIEW_BODY" != "null" ]; then
               HAS_COMMENTS=true
             fi

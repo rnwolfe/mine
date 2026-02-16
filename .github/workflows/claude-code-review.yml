@@ -1,17 +1,21 @@
 name: Claude Code Review
 
 on:
+  # Label trigger: autodev pipeline adds "claude-review-requested" label
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened, labeled]
+    types: [labeled]
+  # Comment trigger: anyone comments with "@claude" on a PR
+  issue_comment:
+    types: [created]
 
 jobs:
   claude-review:
-    # For non-autodev PRs: run on open/sync/ready/reopen (normal behavior)
-    # For autodev PRs: only run when "claude-review-requested" label is added (after copilot phase)
-    # Skip all other label events
+    # Only run when:
+    # 1. "claude-review-requested" label is added (autodev pipeline)
+    # 2. A PR comment explicitly requests Claude review via @claude mention
     if: |
-      (github.event.action != 'labeled' && !contains(github.event.pull_request.labels.*.name, 'autodev')) ||
-      (github.event.action == 'labeled' && github.event.label.name == 'claude-review-requested' && contains(github.event.pull_request.labels.*.name, 'autodev'))
+      (github.event_name == 'pull_request' && github.event.label.name == 'claude-review-requested') ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude'))
 
     runs-on: ubuntu-latest
     permissions:
@@ -26,6 +30,15 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Resolve PR number
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            echo "number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
@@ -33,4 +46,4 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ steps.pr.outputs.number }}'

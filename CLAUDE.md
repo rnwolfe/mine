@@ -139,8 +139,8 @@ Three workflows form a loop with a phased review pipeline:
    - **Copilot phase**: Iterates on Copilot feedback up to 3 times
    - **Claude phase**: Triggered after Copilot is satisfied (adds `claude-review-requested` label)
    - **Done**: Agent addresses Claude's feedback, creates follow-up issues for unresolved items
-4. **`claude-code-review`** — Runs on non-autodev PRs normally. For autodev PRs, only
-   triggers when the `claude-review-requested` label is added (after Copilot phase completes).
+4. **`claude-code-review`** — Only triggers when explicitly requested: via `claude-review-requested`
+   label (autodev pipeline) or `@claude` mention in a PR comment (manual request).
 
 ### Review pipeline flow
 

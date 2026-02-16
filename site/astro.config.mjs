@@ -1,6 +1,6 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
-import starlightMermaid from 'starlight-mermaid';
+import starlightClientMermaid from '@pasqal-io/starlight-client-mermaid';
 
 // https://astro.build/config
 export default defineConfig({
@@ -14,9 +14,9 @@ export default defineConfig({
 				dark: './src/assets/logo-dark.svg',
 				replacesTitle: false,
 			},
-			social: {
-				github: 'https://github.com/rnwolfe/mine',
-			},
+			social: [
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/rnwolfe/mine' },
+			],
 			customCss: [
 				'./src/styles/custom.css',
 			],
@@ -41,12 +41,7 @@ export default defineConfig({
 				},
 			],
 			plugins: [
-				starlightMermaid({
-					theme: {
-						light: 'neutral',
-						dark: 'dark',
-					},
-				}),
+				starlightClientMermaid(),
 			],
 		}),
 	],

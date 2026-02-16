@@ -27,7 +27,7 @@ jobs:
     # Skip events triggered by bots that aren't relevant reviewers
     if: github.actor != 'vercel[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       # ── Determine action ──────────────────────────────────────────
       - name: Determine action
@@ -297,7 +297,7 @@ jobs:
             ## Review Feedback to Address
 
             ${{ env.REVIEW_FEEDBACK }}
-          claude_args: "--max-turns 15 --dangerously-skip-permissions"
+          claude_args: "--max-turns 50 --dangerously-skip-permissions"
       # ============================================================
 
       - name: Handle agent failure (copilot fix)
@@ -446,7 +446,7 @@ jobs:
             ## Review Feedback to Address
 
             ${{ env.REVIEW_FEEDBACK }}
-          claude_args: "--max-turns 15 --dangerously-skip-permissions"
+          claude_args: "--max-turns 50 --dangerously-skip-permissions"
       # ============================================================
 
       - name: Handle agent failure (claude fix)

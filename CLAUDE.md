@@ -323,6 +323,28 @@ Workflow:
 3. When ready to implement, create a branch from the issue
 4. Issues reference the spec; PRs reference the issue
 
+## Backlog Curation Skills
+
+Three Claude Code skills form a backlog curation pipeline. All are manual-invoke only
+(`disable-model-invocation: true`) since they create/update GitHub issues.
+
+| Skill | Purpose | Example |
+|-------|---------|---------|
+| `/brainstorm` | Generate feature ideas through codebase exploration | `/brainstorm todo`, `/brainstorm plugins` |
+| `/refine-issue` | Iteratively improve an existing issue via Q&A | `/refine-issue 35` |
+| `/draft-issue` | Turn a rough idea into a structured issue | `/draft-issue recurring todos` |
+
+All three target the gold-standard issue template (based on issue #35) defined in
+`.claude/skills/shared/issue-quality-checklist.md`. The template includes: summary,
+subcommands table, architecture notes, integration points, acceptance criteria, and
+documentation requirements.
+
+Key files:
+- `.claude/skills/brainstorm/SKILL.md` — feature ideation skill
+- `.claude/skills/refine-issue/SKILL.md` — issue refinement skill
+- `.claude/skills/draft-issue/SKILL.md` — issue drafting skill
+- `.claude/skills/shared/issue-quality-checklist.md` — shared quality template
+
 ## Lessons Learned
 
 ### L-001: Git config name parsing

@@ -28,9 +28,9 @@ AUTODEV_PROVIDER="${AUTODEV_PROVIDER:-claude}"
 
 # ── Logging helpers ─────────────────────────────────────────────────
 
-autodev_info()  { echo "::notice::autodev: $*"; }
-autodev_warn()  { echo "::warning::autodev: $*"; }
-autodev_error() { echo "::error::autodev: $*"; }
+autodev_info()  { echo "::notice::autodev: $*" >&2; }
+autodev_warn()  { echo "::warning::autodev: $*" >&2; }
+autodev_error() { echo "::error::autodev: $*" >&2; }
 
 autodev_fatal() {
     autodev_error "$@"

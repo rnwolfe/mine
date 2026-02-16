@@ -131,7 +131,7 @@ jobs:
             - [ ] Criterion — why it was not met (if any)
             ```
 
-            Write this file as one of your last actions, after completing the implementation.
+            Write this file BEFORE your work is complete — it should be one of your last actions.
           claude_args: "--max-turns 25 --dangerously-skip-permissions"
       # ============================================================
 

@@ -3,37 +3,28 @@
 ## Context
 
 - **Playbook:** Backlog Loop
-- **Agent:** {{AGENT_NAME}}
-- **Project:** {{AGENT_PATH}}
-- **Auto Run Folder:** {{AUTORUN_FOLDER}}
-- **Loop:** {{LOOP_NUMBER}}
+- **Agent:** Mine CLI
+- **Project:** /home/rnwolfe/dev/mine
+- **Auto Run Folder:** /home/rnwolfe/dev/mine/maestro
+- **Loop:** 00001
 
 ## Objective
 
-Execute the implementation plan from `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_PLAN.md`. Write code, write tests, and verify everything builds and passes.
+Execute the implementation plan from `/home/rnwolfe/dev/mine/maestro/LOOP_00001_PLAN.md`. Write code, write tests, and verify everything builds and passes. All work happens in the worktree.
 
 ## Tasks
 
-- [ ] **Read the plan**: Read `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_PLAN.md`. If the file doesn't exist, mark this task complete without proceeding — there's nothing to implement.
+- [x] **Read the plan and locate worktree**: Plan at `LOOP_00001_PLAN.md`, worktree at `/home/rnwolfe/dev/mine-worktrees/issue-19`.
 
-- [ ] **Implement the feature**: Following the plan, create and modify files as specified. Adhere to these rules:
-  - Read CLAUDE.md for project conventions
-  - Follow existing code patterns and style
-  - Do NOT modify CLAUDE.md, any files in `.github/workflows/`, or `scripts/autodev/`
-  - Keep files under 500 lines
-  - Use `internal/ui` helpers for all output
-  - Use the store pattern for data persistence
+- [x] **Implement the feature**: Created `internal/analytics/` package (analytics.go, id.go) with fire-and-forget Ping(), daily dedup via kv table, installation ID persistence. Added `AnalyticsConfig` to config with `*bool` pointer semantics (nil = enabled). Added `config set/get` subcommands. Integrated analytics ping via `PersistentPostRun` on rootCmd. Added one-time privacy notice. Added privacy docs page to site. Generated analytics ID during `mine init`.
 
-- [ ] **Write tests**: Create `_test.go` files alongside the code. Cover:
-  - Happy path for each new function
-  - Error cases and edge cases
-  - Any acceptance criteria that can be verified programmatically
+- [x] **Write tests**: Created analytics_test.go (9 tests) and id_test.go (5 tests) covering: payload construction, no-extra-fields audit, opt-out behavior, HTTP send verification, daily dedup, dedup reset across days, network failure silence, ShowNotice first-time/only-once, UUID generation/persistence/corruption/empty-file, UUID validation.
 
-- [ ] **Run tests**: Execute `make test` and verify all tests pass (including existing tests). If tests fail, fix the issues before proceeding.
+- [x] **Run tests**: All 17 packages pass with race detector enabled. 14 new analytics tests + all existing tests green.
 
-- [ ] **Run build**: Execute `make build` and verify the binary builds successfully. If the build fails, fix the issues.
+- [x] **Run build**: Binary builds successfully with ldflags.
 
-- [ ] **Verify protected files**: Run `git diff --name-only` and confirm no changes to CLAUDE.md, `.github/workflows/`, or `scripts/autodev/`. If any protected files were modified, revert them with `git checkout -- <file>`.
+- [x] **Verify protected files**: `git diff --name-only` shows only: cmd/config.go, cmd/init.go, cmd/root.go, go.mod, internal/config/config.go, site/src/config/sidebar.json. No protected files modified.
 
 ## Guidelines
 
@@ -42,3 +33,4 @@ Execute the implementation plan from `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_PL
 - Run `make test` frequently during implementation, not just at the end
 - Prefer editing existing files over creating new ones where it makes sense
 - Don't add unnecessary abstractions — keep it simple
+- All file paths are relative to the worktree directory, NOT the main project root

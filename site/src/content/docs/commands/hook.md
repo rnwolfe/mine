@@ -33,7 +33,7 @@ Scripts follow a naming convention: `<command-pattern>.<stage>.<ext>`
 ```
 
 - The command pattern uses dot-separated segments (`todo.add`, `todo.*`, `*`)
-- Wildcard `*` matches a single segment; use it for broad hooks
+- Wildcard `*` matches any characters (Go `filepath.Match` rules) — a bare `*` matches all commands
 - Scripts must be executable (`chmod +x`)
 - Any language works — bash, python, ruby, compiled binaries
 
@@ -46,10 +46,11 @@ Hooks receive a JSON context on stdin:
   "command": "todo.add",
   "args": ["buy milk"],
   "flags": {"priority": "high"},
-  "result": null,
   "timestamp": "2026-01-15T10:30:00Z"
 }
 ```
+
+The `result` field is included after command execution (`postexec` and `notify` stages) and omitted in earlier stages.
 
 Transform hooks write modified JSON to stdout. Notify hooks can ignore output.
 

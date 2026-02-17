@@ -5,13 +5,12 @@ Logs all mine command invocations to a JSON Lines file for personal analytics.
 This is a notify hook — it runs in the background after every command
 and never blocks execution.
 
-Install:
-    cp all-commands.notify.py ~/.config/mine/hooks/
-    chmod +x ~/.config/mine/hooks/all-commands.notify.py
+Install (rename to use wildcard pattern):
+    cp all-commands.notify.py ~/.config/mine/hooks/'*.notify.py'
+    chmod +x ~/.config/mine/hooks/'*.notify.py'
 
-Note: The filename uses "all-commands" as the pattern component, but rename
-it to "*.notify.py" when installing to match all commands. The repo uses
-"all-commands" to avoid glob issues with version control.
+Note: The repo filename uses "all-commands" to avoid glob issues in version
+control. When installing, rename to "*.notify.py" so it matches all commands.
 
 Test:
     mine hook test ~/.config/mine/hooks/*.notify.py

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # mine hook: todo.add at preexec stage (transform mode)
 #
 # Auto-tags todos with "inbox" if no tags are specified.
@@ -15,12 +15,12 @@
 # Read JSON context from stdin
 CONTEXT=$(cat)
 
-# Check if --tags flag is already set
-HAS_TAGS=$(echo "$CONTEXT" | grep -o '"tags"')
+# Check if --tags flag is already set (using jq for robust JSON parsing)
+HAS_TAGS=$(echo "$CONTEXT" | jq -r 'if .flags | has("tags") then "yes" else empty end')
 
 if [ -z "$HAS_TAGS" ]; then
   # No tags flag — inject "inbox" as default tag
-  CONTEXT=$(echo "$CONTEXT" | sed 's/"flags":{/"flags":{"tags":"inbox",/')
+  CONTEXT=$(echo "$CONTEXT" | jq '.flags.tags = "inbox"')
 fi
 
 # Output modified context for the next hook in the chain

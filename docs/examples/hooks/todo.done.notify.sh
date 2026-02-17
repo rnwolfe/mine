@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # mine hook: todo.done at notify stage (notify mode)
 #
 # Logs completed todos to a file and optionally sends a webhook.
@@ -16,8 +16,8 @@
 CONTEXT=$(cat)
 
 # Extract command info
-COMMAND=$(echo "$CONTEXT" | grep -o '"command":"[^"]*"' | cut -d'"' -f4)
-TIMESTAMP=$(echo "$CONTEXT" | grep -o '"timestamp":"[^"]*"' | cut -d'"' -f4)
+COMMAND=$(echo "$CONTEXT" | jq -r '.command')
+TIMESTAMP=$(echo "$CONTEXT" | jq -r '.timestamp')
 
 # Log to file
 LOG_FILE="${XDG_DATA_HOME:-$HOME/.local/share}/mine/completed.log"

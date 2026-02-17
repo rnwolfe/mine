@@ -20,7 +20,7 @@ Test:
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -35,7 +35,7 @@ def main():
 
     entry = {
         "command": context.get("command", "unknown"),
-        "timestamp": context.get("timestamp", datetime.utcnow().isoformat()),
+        "timestamp": context.get("timestamp", datetime.now(timezone.utc).isoformat()),
         "args_count": len(context.get("args", [])),
         "flags_count": len(context.get("flags", {})),
     }

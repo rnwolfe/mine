@@ -11,7 +11,7 @@ productivity tools with one fast, delightful, opinionated companion.
 
 - **Language**: Go 1.25+
 - **CLI**: Cobra
-- **TUI**: Lipgloss (+ Bubbletea for interactive views, coming)
+- **TUI**: Lipgloss + Bubbletea (reusable fuzzy-search picker in `internal/tui/`)
 - **Storage**: SQLite via modernc.org/sqlite (pure Go, no CGo)
 - **Config**: TOML at `~/.config/mine/config.toml` (XDG-compliant)
 - **Binary**: Single static binary, ~7.6 MB stripped
@@ -49,6 +49,8 @@ mine/
 │   ├── hook/        # Hook pipeline (stages, registry, exec)
 │   ├── plugin/      # Plugin system (manifest, lifecycle, runtime, search)
 │   ├── craft/       # Scaffolding recipe engine (data-driven, embed.FS)
+│   ├── tui/         # Reusable TUI components (fuzzy-search picker)
+│   ├── tmux/        # Tmux session management and layout persistence
 │   ├── version/     # Build-time version info
 │   └── ...          # New domains go here
 ├── docs/            # Agentic/internal docs only (vision, decisions, status, specs, plans)
@@ -94,6 +96,14 @@ Rules:
    are Go structs with embedded template files. Users can add recipes by dropping template
    directories into `~/.config/mine/recipes/<category>-<name>/`. Templates use Go
    `text/template` with `{{.Dir}}` as the project directory name.
+9. **TUI picker pattern**: Interactive commands use `internal/tui.Run()` — a reusable
+   Bubbletea-based fuzzy-search picker. Callers implement `tui.Item` (FilterValue, Title,
+   Description) and pass items to `tui.Run()` with options. Falls back to plain list output
+   when `tui.IsTTY()` returns false. New interactive features (AI sessions, SSH, port
+   forwarding) should reuse this abstraction.
+10. **External binary integration**: Features wrapping external tools (tmux, git, etc.)
+    shell out via `exec.Command` with structured output parsing. Attach/switch commands
+    that replace the process use an injectable `execSyscall` var for testability.
 
 ## Design Principles
 
@@ -488,6 +498,11 @@ users allowlist (`AUTODEV_TRUSTED_USERS` in config.sh).
 | `cmd/craft.go` | Craft CLI commands (dev, ci, git, list) |
 | `internal/craft/recipe.go` | Recipe engine, registry, template execution |
 | `internal/craft/builtins.go` | Built-in recipe definitions (go, node, python, rust, docker, github CI) |
+| `internal/tui/picker.go` | Reusable fuzzy-search picker (Bubbletea model, Run helper) |
+| `internal/tui/fuzzy.go` | Fuzzy matching algorithm (subsequence with scoring) |
+| `internal/tmux/tmux.go` | Tmux session management (list, new, attach, kill) |
+| `internal/tmux/layout.go` | Layout persistence (save/load/list, TOML in XDG config) |
+| `cmd/tmux.go` | Tmux CLI commands with TUI picker integration |
 | `scripts/autodev/config.sh` | Autodev shared constants, logging, utilities |
 | `scripts/autodev/pick-issue.sh` | Issue selection with concurrency guard |
 | `scripts/autodev/parse-reviews.sh` | Extract review feedback for agent consumption |

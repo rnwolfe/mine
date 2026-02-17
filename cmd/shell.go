@@ -151,6 +151,7 @@ func runShellAliases(_ *cobra.Command, _ []string) error {
 		{"md", "mine dig", "start a focus session"},
 		{"mc", "mine craft", "scaffold something"},
 		{"ms", "mine stash", "dotfile management"},
+		{"mx", "mine tmux", "tmux sessions"},
 	}
 
 	for _, a := range aliases {

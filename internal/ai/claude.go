@@ -174,6 +174,13 @@ func (c *ClaudeProvider) Stream(ctx context.Context, req *Request, w io.Writer) 
 	buf := make([]byte, 4096)
 
 	for {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		n, err := resp.Body.Read(buf)
 		if n > 0 {
 			buffer = append(buffer, buf[:n]...)

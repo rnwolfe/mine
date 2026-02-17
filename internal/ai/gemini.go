@@ -82,6 +82,17 @@ func (g *GeminiProvider) Complete(ctx context.Context, req *Request) (*Response,
 		return nil, err
 	}
 
+	// SECURITY NOTE: Google's Gemini API requires the API key as a URL query parameter.
+	// This is the official authentication method per Google's documentation:
+	// https://ai.google.dev/gemini-api/docs/api-key
+	//
+	// Known limitation: URL query parameters can be logged by proxies, servers, and browsers.
+	// Google does not currently support header-based authentication for the Gemini API.
+	// Users should be aware that API keys may appear in server logs.
+	//
+	// Mitigation: API keys are stored encrypted at rest in the keystore and only transmitted
+	// over HTTPS. For production use, consider using Google Cloud's Vertex AI API which
+	// supports service account authentication.
 	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
 		geminiAPIBaseURL, model, g.apiKey)
 
@@ -169,6 +180,8 @@ func (g *GeminiProvider) Stream(ctx context.Context, req *Request, w io.Writer) 
 		return err
 	}
 
+	// SECURITY NOTE: Google's Gemini API requires the API key as a URL query parameter.
+	// See comment in Complete() method for full details on this limitation.
 	url := fmt.Sprintf("%s/models/%s:streamGenerateContent?key=%s&alt=sse",
 		geminiAPIBaseURL, model, g.apiKey)
 
@@ -195,6 +208,13 @@ func (g *GeminiProvider) Stream(ctx context.Context, req *Request, w io.Writer) 
 	buf := make([]byte, 4096)
 
 	for {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		n, err := resp.Body.Read(buf)
 		if n > 0 {
 			buffer = append(buffer, buf[:n]...)

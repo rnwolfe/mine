@@ -25,3 +25,14 @@ Loop 00001 complete. More issues available — continuing to next loop.
 - **PR:** https://github.com/rnwolfe/mine/pull/111
 - **Status:** PR opened
 - **Files changed:** 5
+
+### Loop 00002 — Documentation & Follow-up
+- **Doc pages updated:** `site/src/content/docs/commands/hook.md` (new command reference page for `mine hook`), 3 example hook scripts in `docs/examples/hooks/`
+- **Follow-up issues created:** none — all scope covered, no technical debt
+- **CLAUDE.md changes needed:** no — already updated in the PR (architecture pattern #11, key files for `registry.go` and `cmd/hook.go`)
+
+### Loop 00002 — Finalized
+- **Issue:** #28
+- **PR:** #111
+- **Status:** maestro/review-ready — awaiting human review
+- **Worktree:** cleaned up

@@ -4,6 +4,8 @@
  * Isolated from Starlight — only loaded by LandingLayout.
  */
 
+@import "tailwindcss";
+
 /* ── Primitives ── */
 :root {
   --l-gold: #D4A017;

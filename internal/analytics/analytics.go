@@ -42,7 +42,9 @@ var client = &http.Client{
 }
 
 // Ping sends an analytics event for the given command.
-// It is designed to be called in a goroutine: go analytics.Ping(db, cmd)
+// It is designed to be called in a goroutine, for example:
+//
+//	go analytics.Ping(db, cmd, enabled, analytics.DefaultEndpoint)
 //
 // Ping is a no-op when:
 //   - analytics is disabled in config
@@ -89,6 +91,11 @@ func Ping(conn *sql.DB, command string, enabled bool, endpoint string) {
 	}
 	resp.Body.Close()
 
+	// Only record dedup on success — transient server errors should allow retry
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return
+	}
+
 	// Record successful ping for dedup (upsert)
 	_, _ = conn.Exec(
 		`INSERT INTO kv (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
@@ -97,8 +104,8 @@ func Ping(conn *sql.DB, command string, enabled bool, endpoint string) {
 	)
 }
 
-// ShowNotice prints the one-time privacy notice and marks it as shown.
-// Returns true if the notice was shown, false if it was already shown.
+// ShowNotice records that the one-time privacy notice has been shown.
+// It returns true if the notice should be displayed now (first time), false if it was already shown.
 func ShowNotice(conn *sql.DB) bool {
 	const noticeKey = "analytics:notice_shown"
 

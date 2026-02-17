@@ -38,6 +38,8 @@ func testDB(t *testing.T) *sql.DB {
 }
 
 func TestBuildPayload_Fields(t *testing.T) {
+	// Capture date before building payload to avoid midnight rollover flake
+	today := time.Now().Format("2006-01-02")
 	p := BuildPayload("test-id-123", "todo")
 
 	if p.InstallID != "test-id-123" {
@@ -52,8 +54,8 @@ func TestBuildPayload_Fields(t *testing.T) {
 	if p.Arch != runtime.GOARCH {
 		t.Errorf("Arch = %q, want %q", p.Arch, runtime.GOARCH)
 	}
-	if p.Date != time.Now().Format("2006-01-02") {
-		t.Errorf("Date = %q, want today's date", p.Date)
+	if p.Date != today {
+		t.Errorf("Date = %q, want %q", p.Date, today)
 	}
 }
 

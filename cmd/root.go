@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/rnwolfe/mine/internal/analytics"
@@ -23,7 +24,7 @@ var rootCmd = &cobra.Command{
 	Long:  `mine — everything you need, nothing you don't. Radically yours.`,
 	RunE:  hook.Wrap("mine", runDashboard),
 	PersistentPostRun: func(cmd *cobra.Command, _ []string) {
-		fireAnalytics(cmd.Name())
+		fireAnalytics(topLevelCommand(cmd))
 	},
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true,
@@ -58,7 +59,8 @@ func init() {
 }
 
 // fireAnalytics sends an anonymous analytics ping in the background.
-// It's a no-op if config is not initialized or the store can't be opened.
+// It's a no-op if config is not initialized, analytics are disabled,
+// or the store can't be opened.
 func fireAnalytics(command string) {
 	if !config.Initialized() {
 		return
@@ -66,6 +68,10 @@ func fireAnalytics(command string) {
 
 	cfg, err := config.Load()
 	if err != nil {
+		return
+	}
+
+	if !cfg.Analytics.IsEnabled() {
 		return
 	}
 
@@ -79,15 +85,13 @@ func fireAnalytics(command string) {
 		endpoint = analytics.DefaultEndpoint
 	}
 
-	// Show one-time privacy notice if needed
-	if cfg.Analytics.IsEnabled() {
-		if analytics.ShowNotice(db.Conn()) {
-			fmt.Println()
-			fmt.Println(ui.Muted.Render("  mine sends anonymous usage stats (command names, version, OS) to help"))
-			fmt.Println(ui.Muted.Render("  improve the tool. No personal data is ever collected."))
-			fmt.Printf("  Opt out anytime: %s\n", ui.Accent.Render("mine config set analytics false"))
-			fmt.Println()
-		}
+	// Show one-time privacy notice if needed (stderr to avoid contaminating stdout)
+	if analytics.ShowNotice(db.Conn()) {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, ui.Muted.Render("  mine sends anonymous usage stats (command names, version, OS) to help"))
+		fmt.Fprintln(os.Stderr, ui.Muted.Render("  improve the tool. No personal data is ever collected."))
+		fmt.Fprintf(os.Stderr, "  Opt out anytime: %s\n", ui.Accent.Render("mine config set analytics false"))
+		fmt.Fprintln(os.Stderr)
 	}
 
 	// Fire-and-forget: the goroutine outlives this function but is bounded by
@@ -96,6 +100,16 @@ func fireAnalytics(command string) {
 		defer db.Close()
 		analytics.Ping(db.Conn(), command, cfg.Analytics.IsEnabled(), endpoint)
 	}()
+}
+
+// topLevelCommand extracts the top-level command name from a Cobra command.
+// For example, "mine todo add" returns "todo", and "mine" returns "mine".
+func topLevelCommand(cmd *cobra.Command) string {
+	parts := strings.Fields(cmd.CommandPath())
+	if len(parts) >= 2 {
+		return parts[1] // First word after "mine"
+	}
+	return parts[0] // Root command itself
 }
 
 // runDashboard shows the at-a-glance status when you just type `mine`.

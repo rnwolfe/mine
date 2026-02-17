@@ -144,13 +144,13 @@ func runInit(_ *cobra.Command, _ []string) error {
 		}
 	}
 
+	// Set analytics defaults (enabled by default, opt-out)
+	cfg.Analytics.Enabled = config.BoolPtr(true)
+
 	// Save config
 	if err := config.Save(cfg); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
-
-	// Set analytics defaults (enabled by default, opt-out)
-	cfg.Analytics.Enabled = config.BoolPtr(true)
 
 	// Initialize database
 	db, err := store.Open()

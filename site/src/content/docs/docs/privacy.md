@@ -24,7 +24,7 @@ mine includes lightweight, anonymous usage analytics to help us understand adopt
 
 ## How it works
 
-- Analytics are **fire-and-forget**: a background goroutine sends a single HTTP POST after each command. Your commands stay fast (< 50ms).
+- Analytics run **after** each command with a short (2-second) HTTP timeout. Thanks to daily dedup, the network is almost never hit.
 - **Daily dedup**: only one ping per command per day — not per invocation.
 - **Fails silently**: if you're offline or the endpoint is unreachable, nothing happens.
 - The installation ID is a random UUIDv4 stored in `~/.local/share/mine/analytics_id`. It is not tied to your identity in any way.

@@ -1,4 +1,5 @@
 ---
+name: personality-audit
 description: "Audit CLI output, docs, and site content for personality and tone consistency"
 disable-model-invocation: true
 ---

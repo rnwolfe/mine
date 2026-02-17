@@ -1,4 +1,5 @@
 ---
+name: draft-issue
 description: "Turn a rough idea into a fully structured GitHub issue matching the gold-standard template"
 disable-model-invocation: true
 ---

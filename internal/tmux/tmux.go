@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -163,14 +164,10 @@ func tmuxExec(args ...string) error {
 var execSyscall = defaultExecSyscall
 
 func defaultExecSyscall(binary string, argv []string, envv []string) error {
-	// On real usage, this would be syscall.Exec which replaces the process.
-	// We use exec.Command as a fallback for portability.
-	cmd := exec.Command(binary, argv[1:]...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Env = envv
-	return cmd.Run()
+	// syscall.Exec replaces the current process image with tmux, so mine
+	// disappears from the process tree entirely. The user returns to their
+	// original shell when they detach from the tmux session.
+	return syscall.Exec(binary, argv, envv)
 }
 
 // parseSessions parses tmux list-sessions formatted output.

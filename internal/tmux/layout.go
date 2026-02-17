@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/rnwolfe/mine/internal/config"
@@ -13,6 +14,7 @@ import (
 // Layout represents a saved tmux window/pane arrangement.
 type Layout struct {
 	Name    string         `toml:"name"`
+	SavedAt time.Time      `toml:"saved_at"`
 	Windows []WindowLayout `toml:"windows"`
 }
 
@@ -120,7 +122,7 @@ func captureLayout(name string) (*Layout, error) {
 		return nil, fmt.Errorf("listing windows: %w", err)
 	}
 
-	layout := &Layout{Name: name}
+	layout := &Layout{Name: name, SavedAt: time.Now()}
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -188,6 +190,12 @@ func WriteLayout(layout *Layout) error {
 }
 
 // applyLayout creates windows and panes from a saved layout.
+// It renames the first existing window (window 0) and creates additional
+// windows for the rest of the layout. Any windows in the current session
+// beyond the first are not removed — only the first window is repurposed.
+// If the session has more windows than the layout, extra windows are left
+// intact. This is intentional: a full cleanup would be destructive if the
+// user has unsaved work in those windows.
 func applyLayout(layout *Layout) error {
 	for i, w := range layout.Windows {
 		if i == 0 {

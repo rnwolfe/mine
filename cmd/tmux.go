@@ -202,7 +202,7 @@ func runTmuxAttach(_ *cobra.Command, args []string) error {
 var tmuxKillCmd = &cobra.Command{
 	Use:   "kill [name]",
 	Short: "Kill a tmux session",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  hook.Wrap("tmux.kill", runTmuxKill),
 }
 
@@ -216,16 +216,56 @@ func runTmuxKill(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	s, err := tmux.FuzzyFindSession(args[0], sessions)
-	if err != nil {
+	if len(sessions) == 0 {
+		return fmt.Errorf("no tmux sessions running")
+	}
+
+	var target *tmux.Session
+
+	if len(args) > 0 {
+		// Name provided — fuzzy-match it.
+		s, err := tmux.FuzzyFindSession(args[0], sessions)
+		if err != nil {
+			return err
+		}
+		target = s
+	} else {
+		// No name: use picker if TTY, else show list and require a name.
+		if !tui.IsTTY() {
+			fmt.Println()
+			fmt.Println(ui.Muted.Render("  Specify a session name or run interactively in a terminal."))
+			return printSessionList(sessions)
+		}
+
+		items := make([]tui.Item, len(sessions))
+		for i := range sessions {
+			items[i] = sessions[i]
+		}
+
+		chosen, err := tui.Run(items,
+			tui.WithTitle(ui.IconPick+"Kill session"),
+			tui.WithHeight(12),
+		)
+		if err != nil {
+			return err
+		}
+		if chosen == nil {
+			return nil // user canceled
+		}
+
+		for i := range sessions {
+			if sessions[i].Name == chosen.Title() {
+				target = &sessions[i]
+				break
+			}
+		}
+	}
+
+	if err := tmux.KillSession(target.Name); err != nil {
 		return err
 	}
 
-	if err := tmux.KillSession(s.Name); err != nil {
-		return err
-	}
-
-	ui.Ok(fmt.Sprintf("Killed session %s", ui.Accent.Render(s.Name)))
+	ui.Ok(fmt.Sprintf("Killed session %s", ui.Accent.Render(target.Name)))
 	fmt.Println()
 	return nil
 }
@@ -345,10 +385,16 @@ func runTmuxLayoutLs(_ *cobra.Command, _ []string) error {
 			windowNames[i] = w.Name
 		}
 
-		fmt.Printf("  %s  %s  %s\n",
+		savedAt := ""
+		if !layout.SavedAt.IsZero() {
+			savedAt = "  " + ui.Muted.Render(layout.SavedAt.Format("2006-01-02 15:04"))
+		}
+
+		fmt.Printf("  %s  %s  %s%s\n",
 			ui.Accent.Render(fmt.Sprintf("%-16s", name)),
 			ui.Muted.Render(fmt.Sprintf("%-12s", windows)),
 			ui.Muted.Render("["+strings.Join(windowNames, ", ")+"]"),
+			savedAt,
 		)
 	}
 	fmt.Println()

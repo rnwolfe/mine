@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/rnwolfe/mine/internal/analytics"
 	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/plugin"
@@ -21,6 +22,9 @@ var rootCmd = &cobra.Command{
 	Short: "Your personal developer supercharger",
 	Long:  `mine — everything you need, nothing you don't. Radically yours.`,
 	RunE:  hook.Wrap("mine", runDashboard),
+	PersistentPostRun: func(cmd *cobra.Command, _ []string) {
+		fireAnalytics(cmd.Name())
+	},
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true,
 	},
@@ -51,6 +55,47 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(aboutCmd)
+}
+
+// fireAnalytics sends an anonymous analytics ping in the background.
+// It's a no-op if config is not initialized or the store can't be opened.
+func fireAnalytics(command string) {
+	if !config.Initialized() {
+		return
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return
+	}
+
+	db, err := store.Open()
+	if err != nil {
+		return
+	}
+
+	endpoint := os.Getenv("MINE_ANALYTICS_ENDPOINT")
+	if endpoint == "" {
+		endpoint = analytics.DefaultEndpoint
+	}
+
+	// Show one-time privacy notice if needed
+	if cfg.Analytics.IsEnabled() {
+		if analytics.ShowNotice(db.Conn()) {
+			fmt.Println()
+			fmt.Println(ui.Muted.Render("  mine sends anonymous usage stats (command names, version, OS) to help"))
+			fmt.Println(ui.Muted.Render("  improve the tool. No personal data is ever collected."))
+			fmt.Printf("  Opt out anytime: %s\n", ui.Accent.Render("mine config set analytics false"))
+			fmt.Println()
+		}
+	}
+
+	// Fire-and-forget: the goroutine outlives this function but is bounded by
+	// the HTTP client timeout (2s). The main process exits normally.
+	go func() {
+		defer db.Close()
+		analytics.Ping(db.Conn(), command, cfg.Analytics.IsEnabled(), endpoint)
+	}()
 }
 
 // runDashboard shows the at-a-glance status when you just type `mine`.

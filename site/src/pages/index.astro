@@ -1,0 +1,326 @@
+---
+import config from "@/config/config.json";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>{config.site.title} — Your personal developer supercharger</title>
+    <meta name="description" content="A single Go binary that replaces the sprawl of productivity tools with one fast, delightful, opinionated companion. Todos, focus timer, scaffolding, dotfiles, and more." />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <link rel="canonical" href="https://mine.rwolfe.io" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="mine — Your personal developer supercharger" />
+    <meta property="og:description" content="A single Go binary that replaces the sprawl of productivity tools with one fast, delightful, opinionated companion." />
+    <meta property="og:url" content="https://mine.rwolfe.io" />
+    <meta property="og:site_name" content="mine" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --gold: #D4A017;
+        --gold-bright: #FFD700;
+        --gold-dim: #8B6914;
+        --bg: #0a0a0a;
+        --surface: #111;
+        --border: rgba(255,255,255,0.06);
+        --border-gold: rgba(212,160,23,0.2);
+        --text-1: #f0f0f0;
+        --text-2: #999;
+        --text-3: #555;
+        --fd: 'Bricolage Grotesque', sans-serif;
+        --fb: 'Figtree', sans-serif;
+        --fm: 'JetBrains Mono', monospace;
+        --mw: 1100px;
+      }
+      *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+      html { font-family: var(--fb); background: var(--bg); color: var(--text-1); scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+      body { min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
+      a { color: var(--gold); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .w { max-width: var(--mw); margin: 0 auto; padding-inline: 1.5rem; width: 100%; }
+
+      /* ── Nav ── */
+      nav { position: sticky; top: 0; z-index: 100; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); background: rgba(10,10,10,0.75); border-bottom: 1px solid var(--border); }
+      .nav-i { display: flex; align-items: center; justify-content: space-between; padding: 1rem 0; }
+      .nav-b { font-family: var(--fd); font-size: 1.25rem; font-weight: 700; color: var(--text-1); display: flex; align-items: center; gap: 0.5rem; }
+      .nav-b:hover { text-decoration: none; }
+      .nav-l { display: flex; gap: 1.75rem; list-style: none; }
+      .nav-l a { color: var(--text-2); font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+      .nav-l a:hover { color: var(--text-1); text-decoration: none; }
+
+      /* ── Hero ── */
+      .hero { position: relative; padding: 8rem 0 5rem; text-align: center; overflow: hidden; }
+      .hero-glow { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 55% at 50% 35%, rgba(212,160,23,0.07) 0%, transparent 70%); pointer-events: none; }
+      .hero-icon { font-size: 4.5rem; margin-bottom: 2rem; display: inline-block; filter: drop-shadow(0 0 40px rgba(212,160,23,0.25)); }
+      .hero-t { font-family: var(--fd); font-size: clamp(2.5rem, 6vw, 4.25rem); font-weight: 800; line-height: 1.08; margin-bottom: 1.5rem; letter-spacing: -0.03em; }
+      .gg { background: linear-gradient(135deg, #8B6914 0%, #D4A017 35%, #FFD700 55%, #D4A017 80%, #8B6914 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+      .hero-sub { font-size: clamp(1rem, 2vw, 1.15rem); color: var(--text-2); max-width: 540px; margin: 0 auto 2.5rem; line-height: 1.75; }
+
+      /* ── Install box ── */
+      .ibox { display: inline-flex; align-items: center; gap: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 0.85rem 1rem 0.85rem 1.5rem; margin-bottom: 2rem; font-family: var(--fm); font-size: 0.88rem; transition: border-color 0.3s; }
+      .ibox:hover { border-color: var(--border-gold); }
+      .ibox .p { color: var(--gold); user-select: none; opacity: 0.6; }
+      .ibox .c { color: var(--text-1); }
+      .cbtn { background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px; color: var(--text-2); font-family: var(--fm); font-size: 0.75rem; padding: 0.35rem 0.75rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+      .cbtn:hover { background: rgba(255,255,255,0.1); color: var(--text-1); }
+      .cbtn.ok { color: var(--gold); border-color: var(--border-gold); }
+
+      /* ── Buttons ── */
+      .ctas { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+      .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.8rem 1.75rem; border-radius: 10px; font-family: var(--fb); font-size: 0.95rem; font-weight: 600; transition: all 0.25s; }
+      .btn:hover { text-decoration: none; }
+      .btn-g { background: var(--gold); color: #000; }
+      .btn-g:hover { background: var(--gold-bright); box-shadow: 0 0 24px rgba(212,160,23,0.3); transform: translateY(-1px); }
+      .btn-o { border: 1px solid rgba(255,255,255,0.12); color: var(--text-1); }
+      .btn-o:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.04); }
+
+      /* ── Section heading ── */
+      .sh { font-family: var(--fd); font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; text-align: center; margin-bottom: 3.5rem; letter-spacing: -0.02em; }
+
+      /* ── Features ── */
+      .features { padding: 4rem 0 5rem; }
+      .fg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+      .fc { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s; }
+      .fc:hover { border-color: var(--border-gold); box-shadow: 0 0 40px rgba(212,160,23,0.04); transform: translateY(-2px); }
+      .fc-i { font-size: 1.75rem; margin-bottom: 1rem; }
+      .fc-n { font-family: var(--fd); font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; }
+      .fc-d { font-size: 0.9rem; color: var(--text-2); line-height: 1.6; margin-bottom: 0.75rem; }
+      .fc-c { font-family: var(--fm); font-size: 0.78rem; color: var(--gold); opacity: 0.7; }
+
+      /* ── Terminal ── */
+      .term-s { padding: 3rem 0 5rem; }
+      .tw { max-width: 680px; margin: 0 auto; background: #0c0c0c; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; box-shadow: 0 25px 60px rgba(0,0,0,0.5), 0 0 80px rgba(212,160,23,0.03); }
+      .th { background: #1a1a1a; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.5rem; }
+      .td { width: 12px; height: 12px; border-radius: 50%; }
+      .td.r { background: #ff5f57; }
+      .td.y { background: #febc2e; }
+      .td.g { background: #28c840; }
+      .tt { flex: 1; text-align: center; font-family: var(--fm); font-size: 0.78rem; color: var(--text-3); margin-right: 36px; }
+      .tb { padding: 1.5rem 2rem; font-family: var(--fm); font-size: 0.84rem; line-height: 1.85; }
+      .tp { color: var(--text-3); }
+      .tc { color: var(--text-1); font-weight: 500; }
+      .to { color: var(--text-2); }
+      .tg { color: var(--gold); }
+      .tgr { color: #28c840; }
+      .tdim { color: var(--text-3); }
+      .tl { color: var(--text-1); }
+
+      /* ── Philosophy ── */
+      .phil { padding: 5rem 0; border-top: 1px solid var(--border); }
+      .pils { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3rem; margin-top: 3.5rem; }
+      .pil-i { font-size: 2rem; margin-bottom: 1rem; }
+      .pil-t { font-family: var(--fd); font-size: 1.1rem; font-weight: 700; margin-bottom: 0.75rem; }
+      .pil-d { font-size: 0.9rem; color: var(--text-2); line-height: 1.65; }
+
+      /* ── Final CTA ── */
+      .fcta { padding: 5rem 0 6rem; text-align: center; position: relative; }
+      .fcta-glow { position: absolute; inset: 0; background: radial-gradient(ellipse 60% 80% at 50% 80%, rgba(212,160,23,0.04) 0%, transparent 70%); pointer-events: none; }
+      .alt { font-family: var(--fm); font-size: 0.85rem; color: var(--text-3); margin-top: 1.5rem; }
+      .alt code { font-family: var(--fm); background: var(--surface); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.82rem; color: var(--text-2); border: 1px solid var(--border); }
+
+      /* ── Footer ── */
+      footer { margin-top: auto; border-top: 1px solid var(--border); padding: 2rem 0; text-align: center; font-size: 0.85rem; color: var(--text-3); }
+
+      /* ── Animations ── */
+      @keyframes fu { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+      .hero-icon, .hero-t, .hero-sub, .ibox, .ctas { animation: fu 0.7s ease-out both; }
+      .hero-t { animation-delay: 0.1s; }
+      .hero-sub { animation-delay: 0.2s; }
+      .hero .ibox { animation-delay: 0.3s; }
+      .hero .ctas { animation-delay: 0.4s; }
+
+      .rv { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+      .rv.vis { opacity: 1; transform: translateY(0); }
+      .fc:nth-child(1) { transition-delay: 0s; }
+      .fc:nth-child(2) { transition-delay: 0.08s; }
+      .fc:nth-child(3) { transition-delay: 0.16s; }
+      .fc:nth-child(4) { transition-delay: 0.24s; }
+      .fc:nth-child(5) { transition-delay: 0.32s; }
+      .fc:nth-child(6) { transition-delay: 0.4s; }
+      .pils > :nth-child(1) { transition-delay: 0s; }
+      .pils > :nth-child(2) { transition-delay: 0.1s; }
+      .pils > :nth-child(3) { transition-delay: 0.2s; }
+
+      /* ── Responsive ── */
+      @media (max-width: 768px) {
+        .hero { padding: 4.5rem 0 3rem; }
+        .fg { grid-template-columns: 1fr; }
+        .pils { grid-template-columns: 1fr; gap: 2rem; }
+        .ibox { display: flex; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; padding: 0.75rem 1rem; gap: 0.75rem; font-size: 0.8rem; }
+        .ibox .p { display: none; }
+        .tb { padding: 1.25rem; font-size: 0.78rem; }
+      }
+      @media (min-width: 769px) and (max-width: 1024px) {
+        .fg { grid-template-columns: repeat(2, 1fr); }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="w nav-i">
+        <a href="/" class="nav-b">⛏️ mine</a>
+        <ul class="nav-l">
+          <li><a href="/docs/">Docs</a></li>
+          <li><a href="https://github.com/rnwolfe/mine" target="_blank" rel="noopener">GitHub</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <section class="hero">
+        <div class="hero-glow"></div>
+        <div class="w">
+          <div class="hero-icon">⛏️</div>
+          <h1 class="hero-t">Your terminal,<br><span class="gg">supercharged.</span></h1>
+          <p class="hero-sub">One binary. Zero deps. Todos, focus sessions, scaffolding, dotfiles &mdash; everything a developer needs, nothing they don't.</p>
+          <div class="ibox">
+            <span class="p">$</span>
+            <span class="c">curl -fsSL https://mine.rwolfe.io/install | bash</span>
+            <button class="cbtn" data-copy="curl -fsSL https://mine.rwolfe.io/install | bash">Copy</button>
+          </div>
+          <div class="ctas">
+            <a href="/docs/getting-started/installation/" class="btn btn-g">Get Started &rarr;</a>
+            <a href="https://github.com/rnwolfe/mine" class="btn btn-o" target="_blank" rel="noopener">View on GitHub</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="features">
+        <div class="w">
+          <h2 class="sh rv">What's in the mine?</h2>
+          <div class="fg">
+            <div class="fc rv">
+              <div class="fc-i">📋</div>
+              <div class="fc-n">Task Management</div>
+              <p class="fc-d">Priorities, due dates, and tags. Your todo list lives where you work.</p>
+              <div class="fc-c">mine todo</div>
+            </div>
+            <div class="fc rv">
+              <div class="fc-i">⏱</div>
+              <div class="fc-n">Focus Timer</div>
+              <p class="fc-d">Pomodoro sessions with streak tracking. Deep work, measured and celebrated.</p>
+              <div class="fc-c">mine dig</div>
+            </div>
+            <div class="fc rv">
+              <div class="fc-i">🚀</div>
+              <div class="fc-n">Project Scaffolding</div>
+              <p class="fc-d">Bootstrap Go, Node, and Python projects in seconds. Templates that actually work.</p>
+              <div class="fc-c">mine craft</div>
+            </div>
+            <div class="fc rv">
+              <div class="fc-i">📦</div>
+              <div class="fc-n">Dotfile Tracking</div>
+              <p class="fc-d">Track, diff, and sync your config files. Version your dots without the headache.</p>
+              <div class="fc-c">mine stash</div>
+            </div>
+            <div class="fc rv">
+              <div class="fc-i">🐚</div>
+              <div class="fc-n">Shell Integration</div>
+              <p class="fc-d">Completions for bash, zsh, and fish. Smart alias suggestions included.</p>
+              <div class="fc-c">mine shell</div>
+            </div>
+            <div class="fc rv">
+              <div class="fc-i">🤖</div>
+              <div class="fc-n">AI-Powered</div>
+              <p class="fc-d">Claude integration for intelligent assistance right in your terminal.</p>
+              <div class="fc-c">mine ai</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="term-s">
+        <div class="w">
+          <h2 class="sh rv">See it in action.</h2>
+          <div class="tw rv">
+            <div class="th">
+              <div class="td r"></div>
+              <div class="td y"></div>
+              <div class="td g"></div>
+              <div class="tt">mine</div>
+            </div>
+            <div class="tb">
+              <div><span class="tp">$</span> <span class="tc">mine</span></div>
+              <div class="tg">⛏ Hey there!</div>
+              <br />
+              <div class="to">&nbsp; 📋 Todos &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="tl">3 open</span> <span class="tg">(1 overdue!)</span></div>
+              <div class="to">&nbsp; 📅 Today &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="tl">Sunday, February 16</span></div>
+              <div class="to">&nbsp; ⚙️&nbsp; Mine &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="tl">0.1.0</span></div>
+              <br />
+              <div class="tdim">&nbsp; 💡 tip: <span class="to">mine todo</span> to tackle that overdue task.</div>
+              <br />
+              <div><span class="tp">$</span> <span class="tc">mine todo add "ship it" -p high -d tomorrow</span></div>
+              <div class="tgr">✅ Added: ship it (due tomorrow)</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="phil">
+        <div class="w">
+          <h2 class="sh rv">Built different.</h2>
+          <div class="pils">
+            <div class="rv">
+              <div class="pil-i">⚡</div>
+              <div class="pil-t">Radically Fast</div>
+              <p class="pil-d">Every command responds in under 50&thinsp;ms. Single static binary. Zero runtime dependencies.</p>
+            </div>
+            <div class="rv">
+              <div class="pil-i">🔒</div>
+              <div class="pil-t">Local-First</div>
+              <p class="pil-d">Your data stays on your machine. SQLite with WAL mode. No cloud. No accounts. No telemetry.</p>
+            </div>
+            <div class="rv">
+              <div class="pil-i">🎯</div>
+              <div class="pil-t">Opinionated</div>
+              <p class="pil-d">Smart defaults that just work. Escape hatches when you need them. Convention over configuration.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fcta">
+        <div class="fcta-glow"></div>
+        <div class="w">
+          <h2 class="sh rv">Get started in seconds.</h2>
+          <div class="ibox rv">
+            <span class="p">$</span>
+            <span class="c">curl -fsSL https://mine.rwolfe.io/install | bash</span>
+            <button class="cbtn" data-copy="curl -fsSL https://mine.rwolfe.io/install | bash">Copy</button>
+          </div>
+          <p class="alt rv">or <code>go install github.com/rnwolfe/mine@latest</code></p>
+          <div class="ctas rv" style="margin-top: 2rem;">
+            <a href="/docs/" class="btn btn-g">Read the Docs &rarr;</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="w">⛏ mine &mdash; Built by <a href="https://github.com/rnwolfe">Ryan Wolfe</a>. MIT License.</div>
+    </footer>
+
+    <script>
+      const obs = new IntersectionObserver((es) => {
+        es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('vis'); obs.unobserve(e.target); } });
+      }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+      document.querySelectorAll('.rv').forEach(el => obs.observe(el));
+
+      document.querySelectorAll('.cbtn').forEach(b => {
+        b.addEventListener('click', () => {
+          const text = b.getAttribute('data-copy') || '';
+          navigator.clipboard.writeText(text).then(() => {
+            b.textContent = 'Copied!'; b.classList.add('ok');
+            setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('ok'); }, 2000);
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

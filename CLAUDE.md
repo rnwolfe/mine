@@ -322,7 +322,7 @@ Overall: 2/3 criteria met. Criterion 3 should be tracked separately.
 Feature backlog is tracked via GitHub Issues with labels:
 - `feature` — new feature requests
 - `enhancement` — improvements to existing features
-- `phase/1`, `phase/2`, `phase/3` — roadmap phase
+- `phase:1`, `phase:2`, `phase:3` — roadmap phase
 - `good-first-issue` — approachable for new contributors
 - `spec` — has a spec document in `docs/internal/specs/`
 
@@ -334,24 +334,34 @@ Workflow:
 
 ## Backlog Curation Skills
 
-Three Claude Code skills form a backlog curation pipeline. All are manual-invoke only
-(`disable-model-invocation: true`) since they create/update GitHub issues.
+Five Claude Code skills form a backlog quality and personality pipeline. All are
+manual-invoke only (`disable-model-invocation: true`) since they create/update GitHub
+issues or modify user-facing strings.
 
 | Skill | Purpose | Example |
 |-------|---------|---------|
 | `/brainstorm` | Generate feature ideas through codebase exploration | `/brainstorm todo`, `/brainstorm plugins` |
-| `/refine-issue` | Iteratively improve an existing issue via Q&A | `/refine-issue 35` |
+| `/sweep-issues` | Audit open issues against quality checklist and label gaps | `/sweep-issues`, `/sweep-issues feature` |
+| `/refine-issue` | Iteratively improve an existing issue via Q&A (auto-picks `needs-refinement`) | `/refine-issue 35`, `/refine-issue` |
 | `/draft-issue` | Turn a rough idea into a structured issue | `/draft-issue recurring todos` |
+| `/personality-audit` | Audit CLI output, docs, and site for tone consistency | `/personality-audit cli`, `/personality-audit docs` |
 
-All three target the gold-standard issue template (based on issue #35) defined in
+The pipeline flow: `/sweep-issues` labels issues needing work with `needs-refinement` →
+`/refine-issue` (no args) auto-picks from that queue → `/personality-audit` ensures
+user-facing strings stay consistent with the project voice. `/brainstorm` and `/draft-issue`
+feed new issues into the backlog that `/sweep-issues` later evaluates.
+
+All skills target the gold-standard issue template (based on issue #35) defined in
 `.claude/skills/shared/issue-quality-checklist.md`. The template includes: summary,
 subcommands table, architecture notes, integration points, acceptance criteria, and
 documentation requirements.
 
 Key files:
 - `.claude/skills/brainstorm/SKILL.md` — feature ideation skill
-- `.claude/skills/refine-issue/SKILL.md` — issue refinement skill
+- `.claude/skills/sweep-issues/SKILL.md` — backlog quality audit skill
+- `.claude/skills/refine-issue/SKILL.md` — issue refinement skill (with auto-pick)
 - `.claude/skills/draft-issue/SKILL.md` — issue drafting skill
+- `.claude/skills/personality-audit/SKILL.md` — tone and voice audit skill
 - `.claude/skills/shared/issue-quality-checklist.md` — shared quality template
 
 ## Lessons Learned

@@ -6,7 +6,7 @@
 //
 // Data collected: installation ID (random UUID), mine version, OS/arch,
 // command name (not arguments), and date (day granularity). No PII is ever sent.
-// Pings are fire-and-forget: non-blocking, fail silently, and deduplicated daily.
+// Pings are synchronous with a short timeout, fail silently, and are deduplicated daily.
 package analytics
 
 import (
@@ -42,9 +42,8 @@ var client = &http.Client{
 }
 
 // Ping sends an analytics event for the given command.
-// It is designed to be called in a goroutine, for example:
-//
-//	go analytics.Ping(db, cmd, enabled, analytics.DefaultEndpoint)
+// Called synchronously from PersistentPostRun; the 2s HTTP timeout and
+// daily dedup keep latency near zero for most invocations.
 //
 // Ping is a no-op when:
 //   - analytics is disabled in config

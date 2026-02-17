@@ -61,7 +61,7 @@ func init() {
 	rootCmd.AddCommand(aboutCmd)
 }
 
-// fireAnalytics sends an anonymous analytics ping in the background.
+// fireAnalytics sends an anonymous analytics ping synchronously.
 // It's a no-op if config is not initialized, analytics are disabled,
 // or the store can't be opened.
 func fireAnalytics(command string) {

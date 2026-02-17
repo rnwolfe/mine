@@ -6,25 +6,25 @@
 - **Agent:** Mine CLI
 - **Project:** /home/rnwolfe/dev/mine
 - **Auto Run Folder:** /home/rnwolfe/dev/mine/maestro
-- **Loop:** 00001
+- **Loop:** 00002
 
 ## Objective
 
-Execute the implementation plan from `/home/rnwolfe/dev/mine/maestro/LOOP_00001_PLAN.md`. Write code, write tests, and verify everything builds and passes. All work happens in the worktree.
+Execute the implementation plan from `/home/rnwolfe/dev/mine/maestro/LOOP_00002_PLAN.md`. Write code, write tests, and verify everything builds and passes. All work happens in the worktree.
 
 ## Tasks
 
-- [x] **Read the plan and locate worktree**: Plan at `LOOP_00001_PLAN.md`, worktree at `/home/rnwolfe/dev/mine-worktrees/issue-19`.
+- [x] **Read the plan and locate worktree**: Plan at `LOOP_00002_PLAN.md`, worktree at `/home/rnwolfe/dev/mine-worktrees/issue-28`. Worktree exists on branch `maestro/issue-28-user-local-hooks`. Plan confirms all functional code is already implemented — remaining work is documentation only.
 
-- [x] **Implement the feature**: Created `internal/analytics/` package (analytics.go, id.go) with fire-and-forget Ping(), daily dedup via kv table, installation ID persistence. Added `AnalyticsConfig` to config with `*bool` pointer semantics (nil = enabled). Added `config set/get` subcommands. Integrated analytics ping via `PersistentPostRun` on rootCmd. Added one-time privacy notice. Added privacy docs page to site. Generated analytics ID during `mine init`.
+- [x] **Implement the feature**: All functional hook code was pre-existing (discover.go, exec.go, hook.go, pipeline.go, registry.go, cmd/hook.go). Created documentation: `site/src/content/docs/commands/hook.md` (user-facing command reference with filename conventions, stages, modes, JSON protocol, and CLI usage). Created 3 example hook scripts in `docs/examples/hooks/`: `todo.add.preexec.sh` (auto-tag transform hook), `todo.done.notify.sh` (completion logging notify hook), `all-commands.notify.py` (Python command logger). Updated `CLAUDE.md` with architecture pattern #11 (user-local hooks), added `registry.go` and `cmd/hook.go` to Key Files table.
 
-- [x] **Write tests**: Created analytics_test.go (9 tests) and id_test.go (5 tests) covering: payload construction, no-extra-fields audit, opt-out behavior, HTTP send verification, daily dedup, dedup reset across days, network failure silence, ShowNotice first-time/only-once, UUID generation/persistence/corruption/empty-file, UUID validation.
+- [x] **Write tests**: No new tests needed — documentation-only changes. Existing 524 lines of tests across `hook_test.go` (353 lines) and `discover_test.go` (171 lines) comprehensively cover all acceptance criteria. Example scripts validated via `bash -n` and `python3 -c py_compile`.
 
-- [x] **Run tests**: All 17 packages pass with race detector enabled. 14 new analytics tests + all existing tests green.
+- [x] **Run tests**: All 15 packages pass with race detector (`go test ./... -count=1 -race`). All existing tests green.
 
-- [x] **Run build**: Binary builds successfully with ldflags.
+- [x] **Run build**: Binary builds successfully with `-ldflags="-s -w"`.
 
-- [x] **Verify protected files**: `git diff --name-only` shows only: cmd/config.go, cmd/init.go, cmd/root.go, go.mod, internal/config/config.go, site/src/config/sidebar.json. No protected files modified.
+- [x] **Verify protected files**: `git diff --name-only` shows only: CLAUDE.md (planned update). New untracked files: `site/src/content/docs/commands/hook.md`, `docs/examples/hooks/` (3 scripts). No workflows, autodev scripts, or other protected files modified.
 
 ## Guidelines
 

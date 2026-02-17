@@ -2,7 +2,7 @@
 set -e
 
 # Restore internal docs that should not be deleted
-mkdir -p docs/internal docs/plans docs/examples/plugins
+mkdir -p docs/internal/specs docs/plans docs/examples/plugins
 
 git show HEAD:docs/internal/DECISIONS.md > docs/internal/DECISIONS.md
 git show HEAD:docs/internal/STATUS.md > docs/internal/STATUS.md

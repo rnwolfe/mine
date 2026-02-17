@@ -28,7 +28,7 @@ Output:
 ⛏ Hey Ryan!
 
   📋 Todos      3 open (1 overdue!)
-  📅 Today      Friday, February 14
+  📅 Today      Monday, January 15
   ⚙️  Mine      0.1.0
 
   tip: `mine todo` to tackle that overdue task.

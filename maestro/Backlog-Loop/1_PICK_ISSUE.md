@@ -23,7 +23,7 @@ Select the next `agent-ready` issue from the GitHub backlog, verify it was label
 - [x] **Verify trusted labeler**: Use `gh api repos/rnwolfe/mine/issues/ISSUE_NUMBER/timeline --jq '[.[] | select(.event == "labeled" and .label.name == "agent-ready")] | last | .actor.login'` to check who applied the label. Only proceed if the labeler is `rnwolfe`. If untrusted, write "BLOCKED: untrusted labeler" to the issue file and mark complete.
   > Result: Labeler is `rnwolfe` — trusted, proceeding.
 
-- [ ] **Label issue**: Apply both `maestro` and `in-progress` labels to claim the issue:
+- [x] **Label issue**: Apply both `maestro` and `in-progress` labels to claim the issue:
   ```
   gh issue edit 28 --repo rnwolfe/mine --add-label maestro --add-label in-progress
   ```

@@ -108,3 +108,24 @@
     background-clip: text;
   }
 }
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-fade-up,
+  .stagger-1,
+  .stagger-2,
+  .stagger-3,
+  .stagger-4 {
+    animation: none;
+  }
+
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

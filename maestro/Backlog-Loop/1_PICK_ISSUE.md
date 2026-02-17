@@ -30,7 +30,7 @@ Select the next `agent-ready` issue from the GitHub backlog, verify it was label
   This prevents other parallel instances from picking the same issue.
   > Result: Labels applied successfully.
 
-- [ ] **Read issue details**: Run `gh issue view 28 --repo rnwolfe/mine --json title,body,labels` and save the full output to `/home/rnwolfe/dev/mine/maestro/LOOP_00002_ISSUE.md` in this format:
+- [x] **Read issue details**: Run `gh issue view 28 --repo rnwolfe/mine --json title,body,labels` and save the full output to `/home/rnwolfe/dev/mine/maestro/LOOP_00002_ISSUE.md` in this format:
 
 ```markdown
 # Issue #N: Title
@@ -49,8 +49,8 @@ label1, label2
 ```
   > Result: Saved to `/home/rnwolfe/dev/mine/maestro/LOOP_00002_ISSUE.md`.
 
-- [ ] **Create worktree**: Create a fresh git worktree for this issue so multiple instances can work in parallel without conflicts:
-  > Result: Worktree created at `/home/rnwolfe/dev/mine-worktrees/issue-28` on branch `maestro/issue-28-user-local-hooks` tracking `origin/main` (HEAD at f537e82).
+- [x] **Create worktree**: Create a fresh git worktree for this issue so multiple instances can work in parallel without conflicts:
+  > Result: Worktree created at `/home/rnwolfe/dev/mine-worktrees/issue-28` on branch `maestro/issue-28-user-local-hooks` (existing branch attached; HEAD at e4d994e).
   ```
   mkdir -p /home/rnwolfe/dev/mine-worktrees
   git -C /home/rnwolfe/dev/mine fetch origin main

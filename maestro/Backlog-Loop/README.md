@@ -12,7 +12,7 @@ A looping Auto Run playbook that picks issues from the GitHub backlog, implement
 
 This playbook automates the full issue-to-PR lifecycle, including code review and documentation. It uses git worktrees for isolation, enabling multiple instances to run in parallel without conflicts.
 
-Each loop:
+Each loop runs 9 steps then re-checks for more work:
 1. **Picks** the next `agent-ready` issue (excludes `in-progress` and `maestro` labeled issues)
 2. **Labels** the issue with `maestro` + `in-progress` to claim it
 3. **Plans** the implementation approach in a fresh worktree
@@ -22,7 +22,8 @@ Each loop:
 7. **Self-reviews** with a fresh-context subagent, iterating until clean
 8. **Updates documentation** (Starlight site, internal docs) and creates follow-up issues
 9. **Finalizes** by labeling PR/issue `maestro/review-ready` and cleaning up the worktree
-10. **Checks progress** and loops if more issues are available
+
+After step 9, `9_PROGRESS.md` checks if more issues are available and resets steps 1–8 for the next loop iteration.
 
 ## Document Chain
 
@@ -58,7 +59,7 @@ Documents:
 
 This playbook supports multiple instances running simultaneously:
 
-- **Worktree isolation**: Each issue gets its own git worktree at `<project>-worktrees/issue-N`, so parallel instances don't conflict on disk
+- **Worktree isolation**: Each issue gets its own git worktree at `{{AGENT_PATH}}-worktrees/issue-ISSUE_NUMBER`, so parallel instances don't conflict on disk
 - **Label-based claiming**: Issues are labeled `maestro` + `in-progress` immediately after selection, preventing other instances from picking the same issue
 - **Concurrency limit**: Maximum 3 open `maestro` PRs at once (configurable in `1_PICK_ISSUE.md` and `9_PROGRESS.md`)
 - **Independent state**: Each loop iteration writes to `LOOP_{{LOOP_NUMBER}}_*` files, so parallel loops don't overwrite each other's state

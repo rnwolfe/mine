@@ -18,7 +18,7 @@ Select the next `agent-ready` issue from the GitHub backlog, verify it was label
 
 - [ ] **Find candidate issue**: Run `gh issue list --repo rnwolfe/mine --label agent-ready --state open --json number,title,labels --jq '[.[] | select(.labels | map(.name) | (index("in-progress") | not) and (index("maestro") | not))] | sort_by(.number) | first'`. This excludes issues already labeled `in-progress` or `maestro` (being worked by another instance). If no issues found, write "BLOCKED: no agent-ready issues available" to `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md` and mark complete.
 
-- [ ] **Verify trusted labeler**: Use `gh api repos/rnwolfe/mine/issues/ISSUE_NUMBER/timeline --jq '[.[] | select(.event == "labeled" and .label.name == "agent-ready")] | last | .actor.login'` to check who applied the label. Only proceed if the labeler is `rnwolfe`. If untrusted, write "BLOCKED: untrusted labeler" to the issue file and mark complete.
+- [ ] **Verify trusted labeler**: Use `gh api repos/rnwolfe/mine/issues/ISSUE_NUMBER/timeline --paginate --jq '[.[] | select(.event == "labeled" and .label.name == "agent-ready")] | last | .actor.login // empty'` to check who applied the label. Only proceed if the labeler is `rnwolfe`. If the result is empty or the labeler is untrusted, write "BLOCKED: untrusted labeler" to the issue file and mark complete.
 
 - [ ] **Label issue**: Apply both `maestro` and `in-progress` labels to claim the issue:
   ```
@@ -38,7 +38,7 @@ READY
 label1, label2
 
 ## Worktree
-{{AGENT_PATH}}-worktrees/issue-N
+{{AGENT_PATH}}-worktrees/issue-ISSUE_NUMBER
 
 ## Body
 <full issue body>

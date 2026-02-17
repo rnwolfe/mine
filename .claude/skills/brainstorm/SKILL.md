@@ -1,4 +1,5 @@
 ---
+name: brainstorm
 description: "Generate feature and enhancement ideas for the mine CLI through codebase exploration and interactive discussion"
 disable-model-invocation: true
 ---

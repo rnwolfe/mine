@@ -1,4 +1,5 @@
 ---
+name: refine-issue
 description: "Iteratively refine a GitHub issue to the gold-standard quality bar through targeted Q&A"
 disable-model-invocation: true
 ---

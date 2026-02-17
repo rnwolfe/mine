@@ -1,0 +1,151 @@
+---
+/**
+ * Landing page — composed from Velocity-style components.
+ * Layout: LandingLayout → Header + Hero + Sections + Footer.
+ */
+import LandingLayout from "@/layouts/LandingLayout.astro";
+import LandingHeader from "@/components/landing/LandingHeader.astro";
+import Hero from "@/components/landing/Hero.astro";
+import Section from "@/components/landing/Section.astro";
+import FeatureCard from "@/components/landing/FeatureCard.astro";
+import TerminalWindow from "@/components/landing/TerminalWindow.astro";
+import InstallCommand from "@/components/landing/InstallCommand.astro";
+import LandingFooter from "@/components/landing/LandingFooter.astro";
+
+const features = [
+  { icon: "📋", title: "Task Management", desc: "Priorities, due dates, and tags. Your todo list lives where you work.", cmd: "mine todo" },
+  { icon: "⏱", title: "Focus Timer", desc: "Pomodoro sessions with streak tracking. Deep work, measured and celebrated.", cmd: "mine dig" },
+  { icon: "🚀", title: "Project Scaffolding", desc: "Bootstrap Go, Node, and Python projects in seconds. Templates that actually work.", cmd: "mine craft" },
+  { icon: "📦", title: "Dotfile Tracking", desc: "Track, diff, and sync your config files. Version your dots without the headache.", cmd: "mine stash" },
+  { icon: "🐚", title: "Shell Integration", desc: "Completions for bash, zsh, and fish. Smart alias suggestions included.", cmd: "mine shell" },
+  { icon: "🤖", title: "AI-Powered", desc: "Claude integration for intelligent assistance right in your terminal.", cmd: "mine ai" },
+];
+
+const installCmd = "curl -fsSL https://mine.rwolfe.io/install | bash";
+---
+
+<LandingLayout
+  title="mine — Your personal developer supercharger"
+  description="A single Go binary that replaces the sprawl of productivity tools with one fast, delightful, opinionated companion. Todos, focus timer, scaffolding, dotfiles, and more."
+>
+  <LandingHeader slot="header" />
+
+  <Hero>
+    <div slot="icon" class="animate-fade-up mb-8 text-[4.5rem]" style="filter: drop-shadow(0 0 40px rgba(212,160,23,0.25))">⛏️</div>
+    <h1 slot="title" class="font-display animate-fade-up stagger-1 mb-6 text-[clamp(2.5rem,6vw,4.25rem)] font-extrabold leading-[1.08] tracking-tight">
+      Your terminal,<br />
+      <span class="text-gold-gradient">supercharged.</span>
+    </h1>
+    <p slot="description" class="animate-fade-up stagger-2 mx-auto mb-10 max-w-[540px] text-[clamp(1rem,2vw,1.15rem)] leading-relaxed text-[var(--l-text-2)]">
+      One binary. Zero deps. Todos, focus sessions, scaffolding, dotfiles &mdash; everything a developer needs, nothing they don't.
+    </p>
+    <div slot="install" class="animate-fade-up stagger-3 mb-8">
+      <InstallCommand command={installCmd} />
+    </div>
+    <div slot="actions" class="animate-fade-up stagger-4 flex flex-wrap justify-center gap-4">
+      <a
+        href="/getting-started/installation/"
+        class="inline-flex items-center gap-1.5 rounded-[10px] bg-[var(--l-gold)] px-7 py-3 text-[0.95rem] font-semibold text-black no-underline transition-all hover:-translate-y-px hover:bg-[var(--l-gold-bright)] hover:no-underline hover:shadow-[0_0_24px_rgba(212,160,23,0.3)]"
+      >
+        Get Started &rarr;
+      </a>
+      <a
+        href="https://github.com/rnwolfe/mine"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1.5 rounded-[10px] border border-white/12 px-7 py-3 text-[0.95rem] font-semibold text-[var(--l-text-1)] no-underline transition-all hover:border-white/25 hover:bg-white/[0.04] hover:no-underline"
+      >
+        View on GitHub
+      </a>
+    </div>
+  </Hero>
+
+  <Section>
+    <h2 class="font-display mb-14 text-center text-[clamp(1.75rem,4vw,2.5rem)] font-bold tracking-tight" data-reveal>
+      All yours.
+    </h2>
+    <div class="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+      {features.map((f, i) => (
+        <FeatureCard
+          icon={f.icon}
+          title={f.title}
+          description={f.desc}
+          command={f.cmd}
+          data-reveal
+          data-reveal-delay={String((i % 3) + 1)}
+        />
+      ))}
+    </div>
+  </Section>
+
+  <Section>
+    <h2 class="font-display mb-14 text-center text-[clamp(1.75rem,4vw,2.5rem)] font-bold tracking-tight" data-reveal>
+      See it in action.
+    </h2>
+    <TerminalWindow data-reveal>
+      <div><span class="text-[var(--l-text-3)]">$</span> <span class="font-medium text-[var(--l-text-1)]">mine</span></div>
+      <div class="text-[var(--l-gold)]">⛏ Hey there!</div>
+      <br />
+      <div class="text-[var(--l-text-2)]">&nbsp; 📋 Todos &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-[var(--l-text-1)]">3 open</span> <span class="text-[var(--l-gold)]">(1 overdue!)</span></div>
+      <div class="text-[var(--l-text-2)]">&nbsp; 📅 Today &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-[var(--l-text-1)]">Today</span></div>
+      <div class="text-[var(--l-text-2)]">&nbsp; ⚙️&nbsp; Mine &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-[var(--l-text-1)]">latest</span></div>
+      <br />
+      <div class="text-[var(--l-text-3)]">&nbsp; 💡 tip: <span class="text-[var(--l-text-2)]">mine todo</span> to tackle that overdue task.</div>
+      <br />
+      <div><span class="text-[var(--l-text-3)]">$</span> <span class="font-medium text-[var(--l-text-1)]">mine todo add "ship it" -p high -d tomorrow</span></div>
+      <div class="text-[#28c840]">✅ Added: ship it (due tomorrow)</div>
+    </TerminalWindow>
+  </Section>
+
+  <Section borderTop>
+    <h2 class="font-display mb-14 text-center text-[clamp(1.75rem,4vw,2.5rem)] font-bold tracking-tight" data-reveal>
+      Built different.
+    </h2>
+    <div class="mt-14 grid grid-cols-1 gap-12 md:grid-cols-3">
+      <div data-reveal data-reveal-delay="1">
+        <div class="mb-4 text-3xl">⚡</div>
+        <div class="font-display mb-3 text-lg font-bold">Radically Fast</div>
+        <p class="text-sm leading-relaxed text-[var(--l-text-2)]">Every command responds in under 50&thinsp;ms. Single static binary. Zero runtime dependencies.</p>
+      </div>
+      <div data-reveal data-reveal-delay="2">
+        <div class="mb-4 text-3xl">🔒</div>
+        <div class="font-display mb-3 text-lg font-bold">Local-First</div>
+        <p class="text-sm leading-relaxed text-[var(--l-text-2)]">Your data stays on your machine. SQLite with WAL mode. No cloud. No accounts. No telemetry.</p>
+      </div>
+      <div data-reveal data-reveal-delay="3">
+        <div class="mb-4 text-3xl">🎯</div>
+        <div class="font-display mb-3 text-lg font-bold">Opinionated</div>
+        <p class="text-sm leading-relaxed text-[var(--l-text-2)]">Smart defaults that just work. Escape hatches when you need them. Convention over configuration.</p>
+      </div>
+    </div>
+  </Section>
+
+  <Section class="relative text-center">
+    <div
+      class="pointer-events-none absolute inset-0"
+      style="background: radial-gradient(ellipse 60% 80% at 50% 80%, rgba(212,160,23,0.04) 0%, transparent 70%)"
+      aria-hidden="true"
+    ></div>
+    <div class="relative">
+      <h2 class="font-display mb-14 text-[clamp(1.75rem,4vw,2.5rem)] font-bold tracking-tight" data-reveal>
+        Get started in seconds.
+      </h2>
+      <div data-reveal class="mb-6">
+        <InstallCommand command={installCmd} />
+      </div>
+      <p class="font-mono text-sm text-[var(--l-text-3)]" data-reveal>
+        or <code class="rounded border border-[var(--l-border)] bg-[var(--l-surface)] px-2 py-0.5 text-xs text-[var(--l-text-2)]">go install github.com/rnwolfe/mine@latest</code>
+      </p>
+      <div class="mt-8 flex justify-center" data-reveal>
+        <a
+          href="/getting-started/installation/"
+          class="inline-flex items-center gap-1.5 rounded-[10px] bg-[var(--l-gold)] px-7 py-3 text-[0.95rem] font-semibold text-black no-underline transition-all hover:-translate-y-px hover:bg-[var(--l-gold-bright)] hover:no-underline hover:shadow-[0_0_24px_rgba(212,160,23,0.3)]"
+        >
+          Read the Docs &rarr;
+        </a>
+      </div>
+    </div>
+  </Section>
+
+  <LandingFooter slot="footer" />
+</LandingLayout>

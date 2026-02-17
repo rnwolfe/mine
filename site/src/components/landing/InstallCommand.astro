@@ -1,0 +1,87 @@
+---
+/**
+ * Install command with copy-to-clipboard (Velocity NpmCopyButton pattern).
+ * Shows a terminal-style command box with a copy button.
+ */
+import { cn } from "@/lib/cn";
+
+interface Props {
+  command: string;
+  class?: string;
+}
+
+const { command, class: className } = Astro.props;
+---
+
+<div
+  class={cn(
+    "font-mono inline-flex items-center gap-4 rounded-xl border border-[var(--l-border)] bg-[var(--l-surface)] py-3.5 pl-6 pr-4 text-sm",
+    "transition-colors hover:border-[var(--l-border-gold)]",
+    className,
+  )}
+>
+  <span class="text-[var(--l-gold)] opacity-60 select-none">$</span>
+  <span class="text-[var(--l-text-1)]">{command}</span>
+  <button
+    class="cursor-pointer rounded-md border border-[var(--l-border)] bg-white/5 px-3 py-1.5 font-mono text-xs text-[var(--l-text-2)] whitespace-nowrap transition-all hover:bg-white/10 hover:text-[var(--l-text-1)]"
+    data-copy={command}
+    aria-label="Copy install command"
+  >
+    Copy
+  </button>
+</div>
+
+<script>
+  function setCopied(btn: Element) {
+    btn.textContent = "Copied!";
+    btn.classList.add("!text-[var(--l-gold)]", "!border-[var(--l-border-gold)]");
+    btn.classList.remove("!text-red-400");
+    setTimeout(() => {
+      btn.textContent = "Copy";
+      btn.classList.remove("!text-[var(--l-gold)]", "!border-[var(--l-border-gold)]");
+    }, 2000);
+  }
+
+  function setCopyFailed(btn: Element) {
+    btn.textContent = "Failed";
+    btn.classList.add("!text-red-400");
+    btn.classList.remove("!text-[var(--l-gold)]", "!border-[var(--l-border-gold)]");
+    setTimeout(() => {
+      btn.textContent = "Copy";
+      btn.classList.remove("!text-red-400");
+    }, 2000);
+  }
+
+  function fallbackCopy(text: string, btn: Element) {
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.top = "-9999px";
+      textarea.setAttribute("readonly", "");
+      document.body.appendChild(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+      const ok = document.execCommand && document.execCommand("copy");
+      document.body.removeChild(textarea);
+      if (ok) {
+        setCopied(btn);
+      } else {
+        setCopyFailed(btn);
+      }
+    } catch {
+      setCopyFailed(btn);
+    }
+  }
+
+  document.querySelectorAll("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const text = btn.getAttribute("data-copy") || "";
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => setCopied(btn)).catch(() => fallbackCopy(text, btn));
+      } else {
+        fallbackCopy(text, btn);
+      }
+    });
+  });
+</script>

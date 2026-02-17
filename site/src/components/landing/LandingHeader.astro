@@ -1,0 +1,49 @@
+---
+/**
+ * Landing page header (Velocity Header pattern).
+ * Fixed position with glass-morphism backdrop blur.
+ */
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<nav
+  class:list={[
+    "sticky top-0 z-50 w-full",
+    "bg-[var(--l-bg)]/75 backdrop-blur-xl",
+    "border-b border-[var(--l-border)]",
+    className,
+  ]}
+>
+  <div class="mx-auto flex max-w-[1100px] items-center justify-between px-6 py-4">
+    <a
+      href="/"
+      class="font-display flex items-center gap-2 text-xl font-bold text-[var(--l-text-1)] no-underline hover:no-underline"
+    >
+      <span>mine</span>
+    </a>
+    <ul class="flex list-none gap-7">
+      <li>
+        <a
+          href="/getting-started/installation/"
+          class="text-sm font-medium text-[var(--l-text-2)] no-underline transition-colors hover:text-[var(--l-text-1)] hover:no-underline"
+        >
+          Docs
+        </a>
+      </li>
+      <li>
+        <a
+          href="https://github.com/rnwolfe/mine"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-sm font-medium text-[var(--l-text-2)] no-underline transition-colors hover:text-[var(--l-text-1)] hover:no-underline"
+        >
+          GitHub
+        </a>
+      </li>
+    </ul>
+  </div>
+</nav>

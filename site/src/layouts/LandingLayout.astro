@@ -1,0 +1,76 @@
+---
+/**
+ * Standalone layout for landing/marketing pages.
+ * Follows Velocity's BaseLayout → LandingLayout pattern.
+ * Provides HTML skeleton, SEO meta, font loading, and named slots.
+ * Isolated from Starlight — does not inherit Starlight styles.
+ */
+import config from "@/config/config.json";
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const canonicalUrl = Astro.site
+  ? new URL(Astro.url.pathname, Astro.site).toString()
+  : Astro.url.href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:site_name" content={config.site.title} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <slot name="header" />
+    <main>
+      <slot />
+    </main>
+    <slot name="footer" />
+
+    <script>
+      // Velocity-style IntersectionObserver for scroll reveals
+      const revealEls = document.querySelectorAll("[data-reveal]");
+      if ("IntersectionObserver" in window) {
+        const obs = new IntersectionObserver(
+          (es) => {
+            es.forEach((e) => {
+              if (e.isIntersecting) {
+                e.target.classList.add("visible");
+                obs.unobserve(e.target);
+              }
+            });
+          },
+          { threshold: 0.1, rootMargin: "0px 0px -30px 0px" },
+        );
+        revealEls.forEach((el) => obs.observe(el));
+      } else {
+        // Fallback: immediately show all reveal elements
+        revealEls.forEach((el) => el.classList.add("visible"));
+      }
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  @import "../styles/landing.css";
+</style>

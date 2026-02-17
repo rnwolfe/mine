@@ -1,0 +1,131 @@
+/*
+ * Landing page design tokens and utilities.
+ * Follows Velocity's token architecture: primitives → semantic → component.
+ * Isolated from Starlight — only loaded by LandingLayout.
+ *
+ * IMPORTANT: All custom styles MUST be in @layer base so Tailwind's
+ * @layer utilities takes precedence in the CSS cascade.
+ */
+
+@import "tailwindcss";
+
+/* ── Primitives (theme layer so Tailwind can reference them) ── */
+@layer base {
+  :root {
+    --l-gold: #D4A017;
+    --l-gold-bright: #FFD700;
+    --l-gold-dim: #8B6914;
+    --l-bg: #0a0a0a;
+    --l-surface: #111;
+    --l-border: rgba(255, 255, 255, 0.06);
+    --l-border-gold: rgba(212, 160, 23, 0.2);
+    --l-text-1: #f0f0f0;
+    --l-text-2: #999;
+    --l-text-3: #555;
+  }
+
+  html {
+    font-family: "Figtree", sans-serif;
+    background: var(--l-bg);
+    color: var(--l-text-1);
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    background: var(--l-bg);
+  }
+
+  a {
+    color: var(--l-gold);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+}
+
+/* ── Typography tokens ── */
+@layer utilities {
+  .font-display {
+    font-family: "Bricolage Grotesque", sans-serif;
+  }
+  .font-mono {
+    font-family: "JetBrains Mono", monospace;
+  }
+}
+
+/* ── Animations (Velocity pattern) ── */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .animate-fade-up {
+    animation: fade-up 0.7s ease-out both;
+  }
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+}
+
+/* ── Scroll reveal (Velocity IntersectionObserver pattern) ── */
+@layer base {
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  [data-reveal].visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  [data-reveal-delay="1"] { transition-delay: 0.08s; }
+  [data-reveal-delay="2"] { transition-delay: 0.16s; }
+  [data-reveal-delay="3"] { transition-delay: 0.24s; }
+  [data-reveal-delay="4"] { transition-delay: 0.32s; }
+  [data-reveal-delay="5"] { transition-delay: 0.4s; }
+}
+
+/* ── Gold gradient text ── */
+@layer utilities {
+  .text-gold-gradient {
+    background: linear-gradient(135deg, #8B6914 0%, #D4A017 35%, #FFD700 55%, #D4A017 80%, #8B6914 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-fade-up,
+  .stagger-1,
+  .stagger-2,
+  .stagger-3,
+  .stagger-4 {
+    animation: none;
+  }
+
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

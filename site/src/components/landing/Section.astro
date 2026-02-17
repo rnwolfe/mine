@@ -1,0 +1,26 @@
+---
+/**
+ * Generic landing section wrapper (Velocity Section pattern).
+ * Provides consistent padding, container width, and optional border.
+ */
+import { cn } from "@/lib/cn";
+
+interface Props {
+  class?: string;
+  borderTop?: boolean;
+}
+
+const { class: className, borderTop = false } = Astro.props;
+---
+
+<section
+  class={cn(
+    "py-16 md:py-20",
+    borderTop && "border-t border-[var(--l-border)]",
+    className,
+  )}
+>
+  <div class="mx-auto max-w-[1100px] px-6">
+    <slot />
+  </div>
+</section>

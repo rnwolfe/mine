@@ -28,7 +28,7 @@ func init() {
 		}
 		return &OpenAIProvider{
 			apiKey:       apiKey,
-			defaultModel: "gpt-4o",
+			defaultModel: "gpt-5.2",
 			client:       &http.Client{},
 		}, nil
 	})

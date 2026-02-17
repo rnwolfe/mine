@@ -28,7 +28,7 @@ func init() {
 		}
 		return &GeminiProvider{
 			apiKey:       apiKey,
-			defaultModel: "gemini-2.0-flash-exp",
+			defaultModel: "gemini-3-flash-preview",
 			client:       &http.Client{},
 		}, nil
 	})

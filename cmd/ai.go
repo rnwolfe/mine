@@ -536,13 +536,13 @@ func runAIModels(_ *cobra.Command, _ []string) error {
 		},
 		"openai": {
 			envVar:         "OPENAI_API_KEY",
-			models:         []string{"gpt-4o", "gpt-4o-mini", "o3-mini"},
+			models:         []string{"gpt-5.2", "gpt-4o", "o3-mini"},
 			apiKeyURL:      "https://platform.openai.com/api-keys",
 			requiresAPIKey: true,
 		},
 		"gemini": {
 			envVar:         "GEMINI_API_KEY",
-			models:         []string{"gemini-2.0-flash-exp", "gemini-1.5-pro"},
+			models:         []string{"gemini-3-flash-preview", "gemini-3-pro-preview"},
 			apiKeyURL:      "https://aistudio.google.com/app/apikey",
 			requiresAPIKey: true,
 		},
@@ -608,7 +608,7 @@ func runAIModels(_ *cobra.Command, _ []string) error {
 	fmt.Println(ui.Accent.Render("  Examples:"))
 	fmt.Println()
 	fmt.Printf("    %s\n", ui.Muted.Render("mine ai config --provider claude --key sk-..."))
-	fmt.Printf("    %s\n", ui.Muted.Render("mine ai ask \"explain Go interfaces\" --model gemini-2.0-flash-exp"))
+	fmt.Printf("    %s\n", ui.Muted.Render("mine ai ask \"explain Go interfaces\" --model gemini-3-flash-preview"))
 	fmt.Printf("    %s\n", ui.Muted.Render("export ANTHROPIC_API_KEY=sk-...  # Zero-config setup"))
 	fmt.Println()
 

@@ -186,8 +186,8 @@ func getEnvVarForProvider(provider string) string {
 func getDefaultModelForProvider(provider string) string {
 	defaults := map[string]string{
 		"claude":     "claude-sonnet-4-5-20250929",
-		"openai":     "gpt-4",
-		"gemini":     "gemini-pro",
+		"openai":     "gpt-5.2",
+		"gemini":     "gemini-3-flash-preview",
 		"openrouter": "z-ai/glm-4.5-air:free",
 	}
 	return defaults[provider]

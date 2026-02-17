@@ -60,10 +60,10 @@ func runAIHelp(_ *cobra.Command, _ []string) error {
 	fmt.Printf("    %s       Google Gemini (env: %s)\n",
 		ui.KeyStyle.Render("gemini"), ui.Muted.Render("GEMINI_API_KEY"))
 	fmt.Printf("              %s\n", ui.Muted.Render("Get key: https://aistudio.google.com/app/apikey"))
-	fmt.Printf("    %s  OpenRouter with free access (env: %s)\n",
+	fmt.Printf("    %s  OpenRouter with free models (env: %s)\n",
 		ui.KeyStyle.Render("openrouter"), ui.Muted.Render("OPENROUTER_API_KEY"))
-	fmt.Printf("              %s\n", ui.Muted.Render("Free model: z-ai/glm-4.5-air:free (hardcoded key)"))
-	fmt.Printf("              %s\n", ui.Muted.Render("Get key: https://openrouter.ai/keys (optional)"))
+	fmt.Printf("              %s\n", ui.Muted.Render("Free models available: z-ai/glm-4.5-air:free"))
+	fmt.Printf("              %s\n", ui.Muted.Render("Get key: https://openrouter.ai/keys"))
 	fmt.Println()
 	fmt.Println(ui.Accent.Render("  Zero-Config Setup:"))
 	fmt.Println()
@@ -461,11 +461,11 @@ Options:
 		case "openrouter":
 			helpMsg = fmt.Sprintf(`API key not found for OpenRouter.
 
-Note: OpenRouter has free access enabled (uses hardcoded key).
-This should work automatically. If you're seeing this error, try:
-  • Use a different model: mine ai ask "test" --model z-ai/glm-4.5-air:free
-  • Or provide your own key: export OPENROUTER_API_KEY=sk-...
-  • Get a key: https://openrouter.ai/keys`)
+OpenRouter provides access to free AI models. Get your free API key:
+  • Visit: https://openrouter.ai/keys (sign up free, no credit card)
+  • Set: export OPENROUTER_API_KEY=sk-or-v1-...
+  • Or run: mine ai config --provider openrouter --key <your-key>
+  • Free models: z-ai/glm-4.5-air:free, google/gemini-flash-1.5`)
 		default:
 			helpMsg = fmt.Sprintf("Run: mine ai config --provider %s --key <your-key>", cfg.AI.Provider)
 		}
@@ -548,9 +548,9 @@ func runAIModels(_ *cobra.Command, _ []string) error {
 		},
 		"openrouter": {
 			envVar:         "OPENROUTER_API_KEY",
-			models:         []string{"z-ai/glm-4.5-air:free (no key required)", "google/gemini-flash-1.5", "anthropic/claude-3.5-sonnet"},
+			models:         []string{"z-ai/glm-4.5-air:free (free model)", "google/gemini-flash-1.5", "anthropic/claude-3.5-sonnet"},
 			apiKeyURL:      "https://openrouter.ai/keys",
-			requiresAPIKey: false,
+			requiresAPIKey: true,
 		},
 	}
 
@@ -563,7 +563,7 @@ func runAIModels(_ *cobra.Command, _ []string) error {
 		// Determine status
 		status := ""
 		isDefault := cfg.AI.Provider == provider
-		hasKey := configuredMap[provider] || envProviders[provider] || !info.requiresAPIKey
+		hasKey := configuredMap[provider] || envProviders[provider]
 
 		if isDefault {
 			status = ui.Success.Render("✓ DEFAULT")
@@ -581,8 +581,6 @@ func runAIModels(_ *cobra.Command, _ []string) error {
 			fmt.Printf("    %s\n", ui.Success.Render(fmt.Sprintf("API key detected in %s", info.envVar)))
 		} else if configuredMap[provider] {
 			fmt.Printf("    %s\n", ui.Muted.Render("API key stored in keystore"))
-		} else if !info.requiresAPIKey {
-			fmt.Printf("    %s\n", ui.Success.Render("Free access enabled (hardcoded key)"))
 		} else {
 			fmt.Printf("    %s %s\n",
 				ui.Muted.Render(fmt.Sprintf("No API key (set %s or use:", info.envVar)),

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/rnwolfe/mine/internal/ai"
 	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/store"
@@ -95,23 +96,49 @@ func runInit(_ *cobra.Command, _ []string) error {
 			fmt.Println()
 		}
 	} else {
-		// No API keys detected, offer free fallback
+		// No API keys detected, offer OpenRouter with free models
 		fmt.Println(ui.Muted.Render("  No API keys detected in environment."))
 		fmt.Println()
-		fmt.Printf("  Would you like to use a free AI model via OpenRouter? %s ", ui.Muted.Render("(y/N)"))
+		fmt.Printf("  Would you like to use OpenRouter for free AI models? %s ", ui.Muted.Render("(y/N, or 's' to skip)"))
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
 		fmt.Println()
 
 		if input == "y" || input == "yes" {
-			cfg.AI.Provider = "openrouter"
-			cfg.AI.Model = "z-ai/glm-4.5-air:free"
-			fmt.Println(ui.Success.Render("  ✓ Configured to use free OpenRouter model"))
-			fmt.Println(ui.Muted.Render("    (No API key required for free models)"))
+			// Guide user through getting OpenRouter API key
+			fmt.Println(ui.Muted.Render("  OpenRouter provides access to free AI models, but requires an API key."))
 			fmt.Println()
+			fmt.Println(ui.Muted.Render("  Steps to get your free API key:"))
+			fmt.Printf("    1. Visit: %s\n", ui.Accent.Render("https://openrouter.ai/keys"))
+			fmt.Println(ui.Muted.Render("    2. Sign up (free, no credit card required)"))
+			fmt.Println(ui.Muted.Render("    3. Copy your API key"))
+			fmt.Println()
+			fmt.Printf("  Paste your OpenRouter API key (or press Enter to skip): ")
+			keyInput, _ := reader.ReadString('\n')
+			keyInput = strings.TrimSpace(keyInput)
+			fmt.Println()
+
+			if keyInput != "" {
+				// Store the API key
+				ks, err := ai.NewKeystore()
+				if err == nil {
+					if err := ks.Set("openrouter", keyInput); err == nil {
+						cfg.AI.Provider = "openrouter"
+						cfg.AI.Model = "z-ai/glm-4.5-air:free"
+						fmt.Println(ui.Success.Render("  ✓ OpenRouter API key saved and configured"))
+						fmt.Println(ui.Muted.Render("    Using free model: z-ai/glm-4.5-air:free"))
+						fmt.Println()
+					}
+				}
+			} else {
+				fmt.Println(ui.Muted.Render("  Skipped. You can configure AI later with:"))
+				fmt.Printf("    %s\n", ui.Accent.Render("mine ai config --provider openrouter --key <your-key>"))
+				fmt.Println()
+			}
 		} else {
 			fmt.Println(ui.Muted.Render("  You can configure AI later with:"))
 			fmt.Printf("    %s\n", ui.Accent.Render("mine ai config --provider claude --key sk-..."))
+			fmt.Printf("    %s\n", ui.Muted.Render("Or visit https://openrouter.ai/keys for a free OpenRouter key"))
 			fmt.Println()
 		}
 	}

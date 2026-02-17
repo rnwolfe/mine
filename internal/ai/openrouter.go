@@ -23,27 +23,12 @@ type OpenRouterProvider struct {
 
 func init() {
 	Register("openrouter", func(apiKey string) (Provider, error) {
-		// SECURITY NOTE: This hardcoded API key provides free-tier access to OpenRouter
-		// without requiring user signup. This enables "zero-config" AI features.
-		//
-		// Tradeoffs:
-		// - Key is visible in source code and extractable from compiled binary
-		// - Subject to OpenRouter's free-tier rate limits (shared across all users)
-		// - Could be revoked if abused
-		//
-		// Users can override by setting OPENROUTER_API_KEY or using:
-		//   mine ai config --provider openrouter --key <your-key>
-		//
-		// This is acceptable for v1 because:
-		// 1. The key only accesses free models (no cost exposure)
-		// 2. Rate limits are per-key (impacts all users equally, not individual abuse)
-		// 3. Usability benefit outweighs risk (enables instant AI features)
 		if apiKey == "" {
-			apiKey = "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"
+			return nil, fmt.Errorf("API key required for OpenRouter (set OPENROUTER_API_KEY or use: mine ai config --provider openrouter --key <your-key>)")
 		}
 		return &OpenRouterProvider{
 			apiKey:       apiKey,
-			defaultModel: "z-ai/glm-4.5-air:free", // Free model fallback
+			defaultModel: "z-ai/glm-4.5-air:free", // Free model (no cost)
 			client:       &http.Client{},
 		}, nil
 	})

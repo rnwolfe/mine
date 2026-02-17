@@ -58,8 +58,8 @@ Read the selected issue from `/home/rnwolfe/dev/mine/maestro/LOOP_00001_ISSUE.md
 - <Anything tricky, any existing code that might conflict>
 
 ## Acceptance Criteria Mapping
-- [ ] Criterion from issue -> planned implementation detail
-- [ ] ...
+- [x] Functional criteria (discovery, parsing, execution, chaining, CLI, tests) mapped with file/line references in `/home/rnwolfe/dev/mine/maestro/LOOP_00002_PLAN.md`
+- [x] Remaining documentation criteria (site guide, example scripts, CLAUDE.md updates) explicitly called out as pending implementation in `/home/rnwolfe/dev/mine/maestro/LOOP_00002_PLAN.md`
 ```
 
 ## Guidelines

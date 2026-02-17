@@ -1,0 +1,65 @@
+{
+  "main": [
+    {
+      "name": "Home",
+      "url": "/"
+    },
+    {
+      "name": "Docs",
+      "url": "/getting-started/installation/"
+    },
+    {
+      "name": "Commands",
+      "url": "/commands/todo/"
+    }
+  ],
+  "footer": {
+    "community": {
+      "title": "Community",
+      "links": [
+        {
+          "name": "GitHub",
+          "url": "https://github.com/rnwolfe/mine"
+        },
+        {
+          "name": "Issues",
+          "url": "https://github.com/rnwolfe/mine/issues"
+        },
+        {
+          "name": "Contributing",
+          "url": "/contributors/architecture/"
+        }
+      ]
+    },
+    "help_links": {
+      "title": "Documentation",
+      "links": [
+        {
+          "name": "Getting Started",
+          "url": "/getting-started/installation/"
+        },
+        {
+          "name": "Commands",
+          "url": "/commands/todo/"
+        },
+        {
+          "name": "Plugin Protocol",
+          "url": "/contributors/plugin-protocol/"
+        }
+      ]
+    },
+    "company": {
+      "title": "Resources",
+      "links": [
+        {
+          "name": "Install Script",
+          "url": "/install"
+        },
+        {
+          "name": "Releases",
+          "url": "https://github.com/rnwolfe/mine/releases"
+        }
+      ]
+    }
+  }
+}

@@ -41,3 +41,6 @@ site/.vercel/
 # Node (site deps if any)
 node_modules/
 .vercel
+
+# Astro
+.astro/

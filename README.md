@@ -114,6 +114,16 @@ Data: `~/.local/share/mine/mine.db` (SQLite)
 - **SQLite** — pure Go, WAL mode, no CGo
 - **TOML** — human-friendly config
 
+## Documentation
+
+Full documentation available at **[mine.rwolfe.io](https://mine.rwolfe.io)**:
+
+- [Installation Guide](https://mine.rwolfe.io/getting-started/installation/)
+- [Quick Start](https://mine.rwolfe.io/getting-started/quick-start/)
+- [Command Reference](https://mine.rwolfe.io/commands/todo/)
+- [Architecture](https://mine.rwolfe.io/contributors/architecture/)
+- [Plugin Protocol](https://mine.rwolfe.io/contributors/plugin-protocol/)
+
 ## Development
 
 ```bash
@@ -122,6 +132,8 @@ make test     # run tests
 make lint     # go vet
 make dev ARGS="todo"  # quick dev cycle
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full development workflow.
 
 ## License
 

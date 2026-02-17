@@ -73,5 +73,15 @@
 2. Write tests: `internal/myfeature/myfeature_test.go`
 3. Create the command: `cmd/myfeature.go`
 4. Register in `cmd/root.go`: `rootCmd.AddCommand(myFeatureCmd)`
-5. Add to `docs/COMMANDS.md`
+5. Add documentation to `site/src/content/docs/commands/myfeature.md`
 6. Update `CHANGELOG.md`
+
+## Documentation
+
+User-facing documentation lives in `site/src/content/docs/`. To update the docs:
+
+1. Edit the relevant markdown file in `site/src/content/docs/`
+2. Run `npm run dev` in the `site/` directory to preview locally
+3. Documentation is automatically deployed to [mine.rwolfe.io](https://mine.rwolfe.io) when merged to main
+
+Internal/agentic documentation (vision, decisions, specs) lives in `docs/internal/`.

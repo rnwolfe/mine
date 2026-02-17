@@ -51,11 +51,20 @@ mine/
 │   ├── craft/       # Scaffolding recipe engine (data-driven, embed.FS)
 │   ├── version/     # Build-time version info
 │   └── ...          # New domains go here
-├── docs/            # User-facing documentation (install, commands, architecture)
-│   └── internal/    # Agentic docs (vision, decisions, status — NOT user-facing)
+├── docs/            # Agentic/internal docs only (vision, decisions, status, specs, plans)
+│   ├── internal/    # Agentic docs (vision, decisions, status — NOT user-facing)
+│   ├── plans/       # Implementation plans and design docs
+│   └── examples/    # Example plugin manifests and configs
 ├── scripts/         # Install, release, CI helpers
 │   └── autodev/     # Autonomous dev workflow scripts
-├── site/            # Landing page (Vercel, auto-deploys)
+├── site/            # Documentation site (Astro Starlight, Vercel, auto-deploys)
+│   ├── src/
+│   │   ├── content/docs/  # User-facing documentation (markdown)
+│   │   ├── styles/        # Custom CSS (gold/amber theme)
+│   │   └── assets/        # Logos, images
+│   ├── astro.config.mjs   # Astro + Starlight config (sidebar, plugins)
+│   ├── package.json       # npm dependencies
+│   └── vercel.json        # Vercel deployment config
 └── .github/         # CI/CD workflows, CODEOWNERS, PR template
 ```
 
@@ -65,8 +74,8 @@ Rules:
 - Keep files under 500 lines
 - Tests live next to the code they test (`_test.go` suffix)
 - Core OSS docs (README, CONTRIBUTING, CHANGELOG, LICENSE) live at repo root
-- User-facing docs live in `docs/`
-- Agentic/internal docs live in `docs/internal/`
+- User-facing docs live in `site/src/content/docs/` (Starlight markdown)
+- Agentic/internal docs live in `docs/internal/`, `docs/plans/`
 
 ## Architecture Patterns
 
@@ -475,3 +484,10 @@ users allowlist (`AUTODEV_TRUSTED_USERS` in config.sh).
 | `scripts/autodev/check-gates.sh` | Quality gate verification (CI, iterations, mergeable) |
 | `scripts/autodev/open-pr.sh` | PR creation with auto-merge and iteration tracking |
 | `scripts/autodev/agent-exec.sh` | Model-agnostic agent execution abstraction |
+| `site/astro.config.mjs` | Astro + Starlight config (sidebar, social links, plugins) |
+| `site/src/content/docs/index.mdx` | Landing page (hero, features, quick start) |
+| `site/src/content/docs/getting-started/` | Installation and quick start guides |
+| `site/src/content/docs/commands/` | Command reference pages |
+| `site/src/content/docs/contributors/` | Architecture and plugin protocol docs |
+| `site/src/styles/custom.css` | Gold/amber brand theming |
+| `site/vercel.json` | Vercel deployment config (Astro preset, rewrites) |

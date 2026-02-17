@@ -1,0 +1,35 @@
+---
+/**
+ * Terminal window chrome (Velocity TerminalDemo pattern).
+ * Provides macOS-style window frame with title bar and traffic lights.
+ * Content is passed via the default slot.
+ */
+import { cn } from "@/lib/cn";
+
+interface Props {
+  title?: string;
+  class?: string;
+}
+
+const { title = "mine", class: className } = Astro.props;
+---
+
+<div
+  class={cn(
+    "mx-auto max-w-[680px] overflow-hidden rounded-xl border border-white/[0.08]",
+    "bg-[#0c0c0c] shadow-[0_25px_60px_rgba(0,0,0,0.5),0_0_80px_rgba(212,160,23,0.03)]",
+    className,
+  )}
+>
+  <div class="flex items-center gap-2 bg-[#1a1a1a] px-4 py-3">
+    <div class="h-3 w-3 rounded-full bg-[#ff5f57]"></div>
+    <div class="h-3 w-3 rounded-full bg-[#febc2e]"></div>
+    <div class="h-3 w-3 rounded-full bg-[#28c840]"></div>
+    <div class="font-mono mr-9 flex-1 text-center text-xs text-[var(--l-text-3)]">
+      {title}
+    </div>
+  </div>
+  <div class="font-mono px-8 py-6 text-[0.84rem] leading-[1.85]">
+    <slot />
+  </div>
+</div>

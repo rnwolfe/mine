@@ -1,0 +1,31 @@
+---
+/**
+ * Feature card (Velocity Card pattern).
+ * Displays a feature with icon, title, description, and command.
+ */
+import { cn } from "@/lib/cn";
+
+interface Props {
+  icon: string;
+  title: string;
+  description: string;
+  command: string;
+  class?: string;
+}
+
+const { icon, title, description, command, class: className } = Astro.props;
+---
+
+<div
+  class={cn(
+    "rounded-2xl border border-[var(--l-border)] bg-[var(--l-surface)] p-8",
+    "transition-all duration-300",
+    "hover:-translate-y-0.5 hover:border-[var(--l-border-gold)] hover:shadow-[0_0_40px_rgba(212,160,23,0.04)]",
+    className,
+  )}
+>
+  <div class="mb-4 text-[1.75rem]">{icon}</div>
+  <div class="font-display mb-2 text-[1.05rem] font-bold">{title}</div>
+  <p class="mb-3 text-sm leading-relaxed text-[var(--l-text-2)]">{description}</p>
+  <div class="font-mono text-xs text-[var(--l-gold)] opacity-70">{command}</div>
+</div>

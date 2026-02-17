@@ -1,0 +1,47 @@
+---
+/**
+ * Install command with copy-to-clipboard (Velocity NpmCopyButton pattern).
+ * Shows a terminal-style command box with a copy button.
+ */
+import { cn } from "@/lib/cn";
+
+interface Props {
+  command: string;
+  class?: string;
+}
+
+const { command, class: className } = Astro.props;
+---
+
+<div
+  class={cn(
+    "font-mono inline-flex items-center gap-4 rounded-xl border border-[var(--l-border)] bg-[var(--l-surface)] py-3.5 pl-6 pr-4 text-sm",
+    "transition-colors hover:border-[var(--l-border-gold)]",
+    className,
+  )}
+>
+  <span class="text-[var(--l-gold)] opacity-60 select-none">$</span>
+  <span class="text-[var(--l-text-1)]">{command}</span>
+  <button
+    class="cursor-pointer rounded-md border border-[var(--l-border)] bg-white/5 px-3 py-1.5 font-mono text-xs text-[var(--l-text-2)] whitespace-nowrap transition-all hover:bg-white/10 hover:text-[var(--l-text-1)]"
+    data-copy={command}
+  >
+    Copy
+  </button>
+</div>
+
+<script>
+  document.querySelectorAll("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const text = btn.getAttribute("data-copy") || "";
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = "Copied!";
+        btn.classList.add("!text-[var(--l-gold)]", "!border-[var(--l-border-gold)]");
+        setTimeout(() => {
+          btn.textContent = "Copy";
+          btn.classList.remove("!text-[var(--l-gold)]", "!border-[var(--l-border-gold)]");
+        }, 2000);
+      });
+    });
+  });
+</script>

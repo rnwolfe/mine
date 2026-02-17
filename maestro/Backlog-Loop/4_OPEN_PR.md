@@ -16,9 +16,11 @@ Commit all changes in the worktree, push the branch, and create a detailed PR. T
 
 - [x] **Locate worktree and issue**: Read `/home/rnwolfe/dev/mine/maestro/LOOP_00001_ISSUE.md` to get the worktree path (from `## Worktree`) and issue number. Read `/home/rnwolfe/dev/mine/maestro/LOOP_00001_PLAN.md` for the implementation plan.
   - Worktree: `/home/rnwolfe/dev/mine-worktrees/issue-19`, Issue: #19, Branch: `maestro/issue-19-anonymous-usage-analytics-opt-out`
+  - **Loop 00002**: Worktree: `/home/rnwolfe/dev/mine-worktrees/issue-28`, Issue: #28, Branch: `maestro/issue-28-user-local-hooks`
 
 - [x] **Check for changes**: Run `git -C WORKTREE_PATH diff --stat` and `git -C WORKTREE_PATH diff --cached --stat`. If there are no changes (both empty), write "SKIPPED: no changes to commit" to `/home/rnwolfe/dev/mine/maestro/BACKLOG_LOG_2026-02-17.md` and mark complete without proceeding.
   - No unstaged/staged changes — commit `0b09e29` already exists with all implementation (1 commit ahead of main, 14 files changed)
+  - **Loop 00002**: No uncommitted changes — commit `79e3d2f` already exists with docs/examples (1 commit ahead of main, 5 files changed)
 
 - [x] **Commit changes**: Stage and commit all changes from the worktree:
   ```
@@ -26,11 +28,13 @@ Commit all changes in the worktree, push the branch, and create a detailed PR. T
   git -C WORKTREE_PATH commit -m "feat: implement #ISSUE_NUMBER — <short description>"
   ```
   Do NOT commit files that contain secrets or credentials.
+  - **Loop 00002**: SKIPPED — all changes already committed in `79e3d2f`
 
 - [x] **Push branch**: Push the branch to origin:
   ```
   git -C WORKTREE_PATH push -u origin BRANCH_NAME
   ```
+  - **Loop 00002**: Branch already pushed and up to date with `origin/maestro/issue-28-user-local-hooks`
 
 - [x] **Create PR with detailed description**: Create the PR using `gh pr create` with a comprehensive body. The PR must include:
 
@@ -68,13 +72,15 @@ Commit all changes in the worktree, push the branch, and create a detailed PR. T
   ## Acceptance Criteria
 
   <Verified against issue #N:>
-  - [x] Criterion — how it was met
+  - [ ] Criterion — how it was met
   - [ ] Criterion — why it wasn't met (if any)
   ```
 
   Add the `maestro` label: `--label maestro`
 
   Run the `gh pr create` command from the worktree directory so it picks up the correct branch.
+
+  - **Loop 00002**: PR #111 created at https://github.com/rnwolfe/mine/pull/111 with `maestro` label, comprehensive body including Summary, Changes, CLI Surface, Test Coverage, and Acceptance Criteria sections. All 16 acceptance criteria verified.
 
 - [x] **Record PR details**: Append the PR number, URL, and branch to `/home/rnwolfe/dev/mine/maestro/LOOP_00001_ISSUE.md` under a new section:
 
@@ -87,6 +93,8 @@ Commit all changes in the worktree, push the branch, and create a detailed PR. T
 
   This allows downstream documents (Copilot review, self-review, finalize) to reference the PR.
 
+  - **Loop 00002**: PR details recorded in `LOOP_00002_ISSUE.md`: PR #111, URL, branch name
+
 - [x] **Log the PR**: Append to `/home/rnwolfe/dev/mine/maestro/BACKLOG_LOG_2026-02-17.md`:
   ```markdown
   ## Loop 00001 — Issue #N: Title
@@ -95,6 +103,8 @@ Commit all changes in the worktree, push the branch, and create a detailed PR. T
   - **Status:** PR opened
   - **Files changed:** N
   ```
+
+  - **Loop 00002**: Logged to `BACKLOG_LOG_2026-02-17.md` — PR #111, 5 files changed, status: PR opened
 
 ## Guidelines
 

@@ -16,3 +16,12 @@
 - **PR:** #107
 - **Status:** maestro/review-ready — awaiting human review
 - **Worktree:** cleaned up
+
+---
+Loop 00001 complete. More issues available — continuing to next loop.
+
+## Loop 00002 — Issue #28: User-local hooks (~/.config/mine/hooks/)
+- **Branch:** maestro/issue-28-user-local-hooks
+- **PR:** https://github.com/rnwolfe/mine/pull/111
+- **Status:** PR opened
+- **Files changed:** 5

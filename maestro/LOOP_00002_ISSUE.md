@@ -84,3 +84,8 @@ echo "$input"
 ## Agentic Knowledge Base
 
 - [ ] Update `CLAUDE.md` (symlinked as `agents.md`) with any new architecture patterns, key files, domain packages, or lessons learned introduced by this work
+
+## PR
+- **Number:** 111
+- **URL:** https://github.com/rnwolfe/mine/pull/111
+- **Branch:** maestro/issue-28-user-local-hooks

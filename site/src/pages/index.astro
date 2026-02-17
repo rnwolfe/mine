@@ -1147,20 +1147,66 @@ import Landing from "../layouts/Landing.astro";
 
 <script>
   // Copy-to-clipboard for install buttons
+  const originalContentMap = new WeakMap<HTMLElement, Node[]>();
+
   document.querySelectorAll(".install-copy").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const text = (btn as HTMLElement).dataset.copy;
+    const button = btn as HTMLElement;
+
+    // Store a cloned snapshot of the original child nodes for safe restoration
+    if (!originalContentMap.has(button)) {
+      const originalNodes = Array.from(button.childNodes).map((node) =>
+        node.cloneNode(true)
+      );
+      originalContentMap.set(button, originalNodes);
+    }
+
+    button.addEventListener("click", () => {
+      const text = button.dataset.copy;
       if (!text) return;
-      navigator.clipboard.writeText(text).then(() => {
-        btn.classList.add("copied");
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML =
-          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-        setTimeout(() => {
-          btn.classList.remove("copied");
-          btn.innerHTML = originalHTML;
-        }, 2000);
-      });
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          button.classList.add("copied");
+
+          // Remove all existing child nodes
+          while (button.firstChild) {
+            button.removeChild(button.firstChild);
+          }
+
+          // Create the checkmark SVG safely using DOM methods
+          const svgNS = "http://www.w3.org/2000/svg";
+          const svg = document.createElementNS(svgNS, "svg");
+          svg.setAttribute("width", "16");
+          svg.setAttribute("height", "16");
+          svg.setAttribute("viewBox", "0 0 24 24");
+          svg.setAttribute("fill", "none");
+          svg.setAttribute("stroke", "currentColor");
+          svg.setAttribute("stroke-width", "2.5");
+
+          const polyline = document.createElementNS(svgNS, "polyline");
+          polyline.setAttribute("points", "20 6 9 17 4 12");
+          svg.appendChild(polyline);
+          button.appendChild(svg);
+
+          setTimeout(() => {
+            button.classList.remove("copied");
+
+            // Restore original content from the stored snapshot
+            while (button.firstChild) {
+              button.removeChild(button.firstChild);
+            }
+            const originalNodes = originalContentMap.get(button) || [];
+            originalNodes.forEach((node) => {
+              button.appendChild(node.cloneNode(true));
+            });
+          }, 2000);
+        })
+        .catch((error) => {
+          console.error("Failed to copy text to clipboard:", error);
+          alert(
+            "Sorry, copying to clipboard failed. Please copy the command manually."
+          );
+        });
     });
   });
 </script>

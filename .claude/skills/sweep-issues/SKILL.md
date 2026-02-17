@@ -16,7 +16,7 @@ The user may provide a label filter as an argument: `$ARGUMENTS`
 Examples:
 - `/sweep-issues` — sweep all open issues
 - `/sweep-issues feature` — only sweep issues labeled `feature`
-- `/sweep-issues phase:2` — only sweep issues in phase 2
+- `/sweep-issues phase/2` — only sweep issues in phase 2
 
 ## Process
 
@@ -40,7 +40,7 @@ The 10-item checklist is your scoring rubric:
 
 ### 2. Fetch Open Issues
 
-Fetch the issue list, excluding issues already labeled `needs-refinement` or `agent-ready`:
+Fetch the issue list:
 
 ```bash
 gh issue list --state open --limit 100 --json number,title,labels,body
@@ -48,8 +48,8 @@ gh issue list --state open --limit 100 --json number,title,labels,body
 
 If the user provided a label filter, add `--label "<filter>"` to narrow the set.
 
-Filter out issues that already have `needs-refinement` or `agent-ready` labels — these
-are already in the pipeline.
+After fetching, manually filter out issues that already have `needs-refinement` or
+`agent-ready` labels — these are already in the pipeline.
 
 ### 3. Assess Each Issue
 

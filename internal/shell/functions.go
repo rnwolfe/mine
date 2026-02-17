@@ -281,6 +281,208 @@ end`,
   tree -L (test (count $argv) -gt 0; and echo $argv[1]; or echo 2) -I 'node_modules|vendor|.git|__pycache__|.venv' --dirsfirst
 end`,
 		},
+		// --- tmux helpers ---
+		{
+			Name: "tn",
+			Desc: "Quick tmux new-session (defaults to dirname)",
+			Bash: `tn() {
+  if [ "$1" = "--help" ]; then
+    echo "tn — Quick tmux new-session (defaults to dirname)"
+    echo "Usage: tn [name]"
+    echo "Example: tn myproject"
+    return 0
+  fi
+  local name="${1:-$(basename "$PWD")}"
+  tmux new-session -d -s "$name" 2>/dev/null && echo "Session '$name' created" || tmux attach-session -t "$name"
+}`,
+			Zsh: `tn() {
+  if [[ "$1" == "--help" ]]; then
+    echo "tn — Quick tmux new-session (defaults to dirname)"
+    echo "Usage: tn [name]"
+    echo "Example: tn myproject"
+    return 0
+  fi
+  local name="${1:-$(basename "$PWD")}"
+  tmux new-session -d -s "$name" 2>/dev/null && echo "Session '$name' created" || tmux attach-session -t "$name"
+}`,
+			Fish: `function tn
+  if test "$argv[1]" = "--help"
+    echo "tn — Quick tmux new-session (defaults to dirname)"
+    echo "Usage: tn [name]"
+    echo "Example: tn myproject"
+    return 0
+  end
+  set -l name (test (count $argv) -gt 0; and echo $argv[1]; or basename $PWD)
+  tmux new-session -d -s $name 2>/dev/null; and echo "Session '$name' created"; or tmux attach-session -t $name
+end`,
+		},
+		{
+			Name: "ta",
+			Desc: "Attach or switch to a tmux session",
+			Bash: `ta() {
+  if [ "$1" = "--help" ]; then
+    echo "ta — Attach or switch to a tmux session"
+    echo "Usage: ta [name]"
+    echo "Example: ta myproject"
+    return 0
+  fi
+  if [ -n "$TMUX" ]; then
+    tmux switch-client -t "$1"
+  else
+    tmux attach-session -t "$1"
+  fi
+}`,
+			Zsh: `ta() {
+  if [[ "$1" == "--help" ]]; then
+    echo "ta — Attach or switch to a tmux session"
+    echo "Usage: ta [name]"
+    echo "Example: ta myproject"
+    return 0
+  fi
+  if [[ -n "$TMUX" ]]; then
+    tmux switch-client -t "$1"
+  else
+    tmux attach-session -t "$1"
+  fi
+}`,
+			Fish: `function ta
+  if test "$argv[1]" = "--help"
+    echo "ta — Attach or switch to a tmux session"
+    echo "Usage: ta [name]"
+    echo "Example: ta myproject"
+    return 0
+  end
+  if set -q TMUX
+    tmux switch-client -t $argv[1]
+  else
+    tmux attach-session -t $argv[1]
+  end
+end`,
+		},
+		{
+			Name: "tls",
+			Desc: "List tmux sessions (compact)",
+			Bash: `tls() {
+  if [ "$1" = "--help" ]; then
+    echo "tls — List tmux sessions (compact)"
+    echo "Usage: tls"
+    echo "Example: tls"
+    return 0
+  fi
+  tmux list-sessions 2>/dev/null || echo "No tmux sessions running."
+}`,
+			Zsh: `tls() {
+  if [[ "$1" == "--help" ]]; then
+    echo "tls — List tmux sessions (compact)"
+    echo "Usage: tls"
+    echo "Example: tls"
+    return 0
+  fi
+  tmux list-sessions 2>/dev/null || echo "No tmux sessions running."
+}`,
+			Fish: `function tls
+  if test "$argv[1]" = "--help"
+    echo "tls — List tmux sessions (compact)"
+    echo "Usage: tls"
+    echo "Example: tls"
+    return 0
+  end
+  tmux list-sessions 2>/dev/null; or echo "No tmux sessions running."
+end`,
+		},
+		{
+			Name: "tk",
+			Desc: "Kill a tmux session by name",
+			Bash: `tk() {
+  if [ "$1" = "--help" ]; then
+    echo "tk — Kill a tmux session by name"
+    echo "Usage: tk <name>"
+    echo "Example: tk myproject"
+    return 0
+  fi
+  tmux kill-session -t "$1"
+}`,
+			Zsh: `tk() {
+  if [[ "$1" == "--help" ]]; then
+    echo "tk — Kill a tmux session by name"
+    echo "Usage: tk <name>"
+    echo "Example: tk myproject"
+    return 0
+  fi
+  tmux kill-session -t "$1"
+}`,
+			Fish: `function tk
+  if test "$argv[1]" = "--help"
+    echo "tk — Kill a tmux session by name"
+    echo "Usage: tk <name>"
+    echo "Example: tk myproject"
+    return 0
+  end
+  tmux kill-session -t $argv[1]
+end`,
+		},
+		{
+			Name: "tsp",
+			Desc: "Split tmux pane horizontally",
+			Bash: `tsp() {
+  if [ "$1" = "--help" ]; then
+    echo "tsp — Split tmux pane horizontally"
+    echo "Usage: tsp"
+    echo "Example: tsp"
+    return 0
+  fi
+  tmux split-window -h
+}`,
+			Zsh: `tsp() {
+  if [[ "$1" == "--help" ]]; then
+    echo "tsp — Split tmux pane horizontally"
+    echo "Usage: tsp"
+    echo "Example: tsp"
+    return 0
+  fi
+  tmux split-window -h
+}`,
+			Fish: `function tsp
+  if test "$argv[1]" = "--help"
+    echo "tsp — Split tmux pane horizontally"
+    echo "Usage: tsp"
+    echo "Example: tsp"
+    return 0
+  end
+  tmux split-window -h
+end`,
+		},
+		{
+			Name: "tsv",
+			Desc: "Split tmux pane vertically",
+			Bash: `tsv() {
+  if [ "$1" = "--help" ]; then
+    echo "tsv — Split tmux pane vertically"
+    echo "Usage: tsv"
+    echo "Example: tsv"
+    return 0
+  fi
+  tmux split-window -v
+}`,
+			Zsh: `tsv() {
+  if [[ "$1" == "--help" ]]; then
+    echo "tsv — Split tmux pane vertically"
+    echo "Usage: tsv"
+    echo "Example: tsv"
+    return 0
+  fi
+  tmux split-window -v
+}`,
+			Fish: `function tsv
+  if test "$argv[1]" = "--help"
+    echo "tsv — Split tmux pane vertically"
+    echo "Usage: tsv"
+    echo "Example: tsv"
+    return 0
+  end
+  tmux split-window -v
+end`,
+		},
 	}
 }
 

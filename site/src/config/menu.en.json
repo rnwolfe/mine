@@ -6,11 +6,11 @@
     },
     {
       "name": "Docs",
-      "url": "/getting-started/installation/"
+      "url": "/docs/getting-started/installation/"
     },
     {
       "name": "Commands",
-      "url": "/commands/todo/"
+      "url": "/docs/commands/todo/"
     }
   ],
   "footer": {
@@ -27,7 +27,7 @@
         },
         {
           "name": "Contributing",
-          "url": "/contributors/architecture/"
+          "url": "/docs/contributors/architecture/"
         }
       ]
     },
@@ -36,15 +36,15 @@
       "links": [
         {
           "name": "Getting Started",
-          "url": "/getting-started/installation/"
+          "url": "/docs/getting-started/installation/"
         },
         {
           "name": "Commands",
-          "url": "/commands/todo/"
+          "url": "/docs/commands/todo/"
         },
         {
           "name": "Plugin Protocol",
-          "url": "/contributors/plugin-protocol/"
+          "url": "/docs/contributors/plugin-protocol/"
         }
       ]
     },

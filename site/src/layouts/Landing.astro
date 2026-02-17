@@ -1,0 +1,116 @@
+---
+export interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "mine — your personal developer supercharger",
+  description = "A single Go binary that replaces the sprawl of productivity tools with one fast, delightful, opinionated companion.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/src/assets/logo-dark.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --color-primary: #d4a017;
+    --color-primary-light: #ffe082;
+    --color-primary-dark: #6b4c00;
+    --color-body: #0d0d0d;
+    --color-dark: #151515;
+    --color-dark-2: #1a1a1a;
+    --color-dark-3: #222222;
+    --color-light: #f6f6f6;
+    --color-text: #999999;
+    --color-text-muted: #666666;
+    --color-border: rgba(212, 160, 23, 0.15);
+    --color-border-subtle: rgba(255, 255, 255, 0.06);
+
+    --gradient-primary: linear-gradient(
+      35.65deg,
+      #6b4c00 -10.94%,
+      var(--color-primary) 61.04%,
+      #ffe082 133.01%
+    );
+
+    --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+    --font-mono: "Fira Code", "Fira Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-body);
+    color: var(--color-text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  code,
+  pre {
+    font-family: var(--font-mono);
+  }
+
+  img,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-dark);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-primary-dark);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-primary);
+  }
+</style>

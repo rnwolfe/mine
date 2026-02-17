@@ -24,6 +24,6 @@
   "navigation_button": {
     "enable": true,
     "label": "Get Started",
-    "link": "/getting-started/installation/"
+    "link": "/docs/getting-started/installation/"
   }
 }

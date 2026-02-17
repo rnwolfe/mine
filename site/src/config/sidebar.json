@@ -5,28 +5,28 @@
       "items": [
         {
           "label": "Installation",
-          "slug": "getting-started/installation"
+          "slug": "docs/getting-started/installation"
         },
         {
           "label": "Quick Start",
-          "slug": "getting-started/quick-start"
+          "slug": "docs/getting-started/quick-start"
         }
       ]
     },
     {
       "label": "Commands",
-      "autogenerate": { "directory": "commands" }
+      "autogenerate": { "directory": "docs/commands" }
     },
     {
       "label": "For Contributors",
       "items": [
         {
           "label": "Architecture",
-          "slug": "contributors/architecture"
+          "slug": "docs/contributors/architecture"
         },
         {
           "label": "Plugin Protocol",
-          "slug": "contributors/plugin-protocol"
+          "slug": "docs/contributors/plugin-protocol"
         }
       ]
     }

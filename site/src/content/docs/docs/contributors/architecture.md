@@ -160,4 +160,4 @@ graph LR
     F --> G[notify]
 ```
 
-Plugins are standalone binaries that communicate via JSON-over-stdin. See the [Plugin Protocol](/contributors/plugin-protocol/) for details.
+Plugins are standalone binaries that communicate via JSON-over-stdin. See the [Plugin Protocol](/docs/contributors/plugin-protocol/) for details.

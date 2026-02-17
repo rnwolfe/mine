@@ -135,6 +135,6 @@ alias md='mine dig'
 
 ## Next Steps
 
-- Explore the [command reference](/commands/todo/) for all available commands
-- Check out the [architecture docs](/contributors/architecture/) if you want to contribute
+- Explore the [command reference](/docs/commands/todo/) for all available commands
+- Check out the [architecture docs](/docs/contributors/architecture/) if you want to contribute
 - Join the [GitHub discussions](https://github.com/rnwolfe/mine/discussions) to share feedback

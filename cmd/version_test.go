@@ -37,7 +37,6 @@ func TestVersionCommand(t *testing.T) {
 			versionCmd.Flags().BoolVar(&versionShort, "short", false, "Print only the version number")
 
 			// Parse the args to set the flag value through cobra
-			versionCmd.SetArgs(tt.args)
 			err := versionCmd.ParseFlags(tt.args)
 			if err != nil {
 				t.Fatalf("flag parsing failed: %v", err)
@@ -45,7 +44,10 @@ func TestVersionCommand(t *testing.T) {
 
 			// Capture stdout
 			old := os.Stdout
-			r, w, _ := os.Pipe()
+			r, w, err := os.Pipe()
+			if err != nil {
+				t.Fatalf("failed to create pipe: %v", err)
+			}
 			os.Stdout = w
 
 			// Run the command directly (flag is already set by ParseFlags)
@@ -57,7 +59,9 @@ func TestVersionCommand(t *testing.T) {
 
 			// Read captured output
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			if _, err := io.Copy(&buf, r); err != nil {
+				t.Fatalf("failed to read captured output: %v", err)
+			}
 			output := strings.TrimSpace(buf.String())
 
 			// Assert exact output

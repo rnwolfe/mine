@@ -16,7 +16,7 @@ The user may provide a label filter as an argument: `$ARGUMENTS`
 Examples:
 - `/sweep-issues` — sweep all open issues
 - `/sweep-issues feature` — only sweep issues labeled `feature`
-- `/sweep-issues phase/2` — only sweep issues in phase 2
+- `/sweep-issues phase:2` — only sweep issues in phase 2
 
 ## Process
 

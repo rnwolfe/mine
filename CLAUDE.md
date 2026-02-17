@@ -313,7 +313,7 @@ Overall: 2/3 criteria met. Criterion 3 should be tracked separately.
 Feature backlog is tracked via GitHub Issues with labels:
 - `feature` — new feature requests
 - `enhancement` — improvements to existing features
-- `phase/1`, `phase/2`, `phase/3` — roadmap phase
+- `phase:1`, `phase:2`, `phase:3` — roadmap phase
 - `good-first-issue` — approachable for new contributors
 - `spec` — has a spec document in `docs/internal/specs/`
 

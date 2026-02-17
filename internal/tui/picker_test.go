@@ -178,6 +178,25 @@ func TestPicker_BackspaceRemovesChar(t *testing.T) {
 	}
 }
 
+func TestPicker_BackspaceUTF8(t *testing.T) {
+	p := NewPicker(items("alpha"))
+	// Set a query with multi-byte UTF-8 characters (e.g. "café")
+	p.query = "caf\u00e9"
+	p.applyFilter()
+
+	p.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	if p.query != "caf" {
+		t.Fatalf("backspace should remove last rune 'é', got %q", p.query)
+	}
+
+	// Also test with CJK character
+	p.query = "ab\u4e16"
+	p.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	if p.query != "ab" {
+		t.Fatalf("backspace should remove last rune '世', got %q", p.query)
+	}
+}
+
 func TestPicker_TypingFilters(t *testing.T) {
 	p := NewPicker(items("alpha", "beta", "gamma"))
 

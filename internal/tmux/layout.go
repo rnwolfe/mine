@@ -192,34 +192,46 @@ func applyLayout(layout *Layout) error {
 	for i, w := range layout.Windows {
 		if i == 0 {
 			// Rename the current window rather than creating a new one.
-			tmuxCmd("rename-window", w.Name)
+			if _, err := tmuxCmd("rename-window", w.Name); err != nil {
+				return fmt.Errorf("renaming window to %q: %w", w.Name, err)
+			}
 		} else {
-			tmuxCmd("new-window", "-n", w.Name)
+			if _, err := tmuxCmd("new-window", "-n", w.Name); err != nil {
+				return fmt.Errorf("creating window %q: %w", w.Name, err)
+			}
 		}
 
 		// Create additional panes.
 		for j := 1; j < w.PaneCount; j++ {
-			tmuxCmd("split-window", "-t", w.Name)
+			if _, err := tmuxCmd("split-window", "-t", w.Name); err != nil {
+				return fmt.Errorf("splitting pane %d in window %q: %w", j, w.Name, err)
+			}
 		}
 
 		// Apply the layout string.
 		if w.Layout != "" {
-			tmuxCmd("select-layout", "-t", w.Name, w.Layout)
+			if _, err := tmuxCmd("select-layout", "-t", w.Name, w.Layout); err != nil {
+				return fmt.Errorf("applying layout to window %q: %w", w.Name, err)
+			}
 		}
 
 		// Set pane directories.
 		for j, p := range w.Panes {
 			if p.Dir != "" {
 				paneTarget := fmt.Sprintf("%s.%d", w.Name, j)
-				tmuxCmd("send-keys", "-t", paneTarget,
-					fmt.Sprintf("cd %s && clear", p.Dir), "Enter")
+				if _, err := tmuxCmd("send-keys", "-t", paneTarget,
+					fmt.Sprintf("cd %q && clear", p.Dir), "Enter"); err != nil {
+					return fmt.Errorf("sending cd to pane %s: %w", paneTarget, err)
+				}
 			}
 		}
 	}
 
 	// Select the first window.
 	if len(layout.Windows) > 0 {
-		tmuxCmd("select-window", "-t", layout.Windows[0].Name)
+		if _, err := tmuxCmd("select-window", "-t", layout.Windows[0].Name); err != nil {
+			return fmt.Errorf("selecting window %q: %w", layout.Windows[0].Name, err)
+		}
 	}
 
 	return nil

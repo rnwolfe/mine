@@ -1,8 +1,10 @@
 package tmux
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -162,5 +164,163 @@ func TestDeleteLayout(t *testing.T) {
 	err = DeleteLayout("todelete")
 	if err == nil {
 		t.Fatal("expected error for double delete")
+	}
+}
+
+func TestCaptureLayout_Stubbed(t *testing.T) {
+	tmp := t.TempDir()
+	orig := os.Getenv("XDG_CONFIG_HOME")
+	os.Setenv("XDG_CONFIG_HOME", tmp)
+	defer os.Setenv("XDG_CONFIG_HOME", orig)
+
+	origCmd := tmuxCmd
+	defer func() { tmuxCmd = origCmd }()
+
+	tmuxCmd = func(args ...string) (string, error) {
+		if len(args) == 0 {
+			return "", fmt.Errorf("no args")
+		}
+		switch args[0] {
+		case "list-windows":
+			return "editor\tmain-vertical\t2\nserver\teven-horizontal\t1", nil
+		case "list-panes":
+			// Return panes for the target window.
+			if len(args) >= 3 && args[2] == "editor" {
+				return "/home/user/project\tvim\n/home/user/project\tbash", nil
+			}
+			return "/var/log\ttail -f syslog", nil
+		default:
+			return "", fmt.Errorf("unexpected command: %s", args[0])
+		}
+	}
+
+	// SaveLayout calls captureLayout internally.
+	if err := SaveLayout("test-layout"); err != nil {
+		t.Fatalf("SaveLayout failed: %v", err)
+	}
+
+	// Verify persisted file.
+	got, err := ReadLayout("test-layout")
+	if err != nil {
+		t.Fatalf("ReadLayout failed: %v", err)
+	}
+	if got.Name != "test-layout" {
+		t.Fatalf("expected name 'test-layout', got %q", got.Name)
+	}
+	if len(got.Windows) != 2 {
+		t.Fatalf("expected 2 windows, got %d", len(got.Windows))
+	}
+	if got.Windows[0].Name != "editor" {
+		t.Fatalf("expected window 'editor', got %q", got.Windows[0].Name)
+	}
+	if len(got.Windows[0].Panes) != 2 {
+		t.Fatalf("expected 2 panes in editor, got %d", len(got.Windows[0].Panes))
+	}
+	if got.Windows[0].Panes[0].Command != "vim" {
+		t.Fatalf("expected command 'vim', got %q", got.Windows[0].Panes[0].Command)
+	}
+}
+
+func TestApplyLayout_Stubbed(t *testing.T) {
+	origCmd := tmuxCmd
+	defer func() { tmuxCmd = origCmd }()
+
+	var commands []string
+	tmuxCmd = func(args ...string) (string, error) {
+		commands = append(commands, strings.Join(args, " "))
+		return "", nil
+	}
+
+	layout := &Layout{
+		Name: "dev",
+		Windows: []WindowLayout{
+			{
+				Name:      "editor",
+				Layout:    "main-vertical",
+				PaneCount: 2,
+				Panes: []PaneLayout{
+					{Dir: "/home/user/project"},
+					{Dir: "/tmp/logs"},
+				},
+			},
+			{
+				Name:      "server",
+				Layout:    "even-horizontal",
+				PaneCount: 1,
+				Panes:     []PaneLayout{{Dir: "/var/www"}},
+			},
+		},
+	}
+
+	if err := applyLayout(layout); err != nil {
+		t.Fatalf("applyLayout failed: %v", err)
+	}
+
+	// Verify the commands issued.
+	expected := []string{
+		"rename-window editor",
+		"split-window -t editor",
+		"select-layout -t editor main-vertical",
+	}
+	for _, exp := range expected {
+		found := false
+		for _, cmd := range commands {
+			if cmd == exp {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected command %q not found in: %v", exp, commands)
+		}
+	}
+
+	// Verify cd commands use %q quoting.
+	cdCount := 0
+	for _, cmd := range commands {
+		if strings.HasPrefix(cmd, "send-keys") && strings.Contains(cmd, "cd ") {
+			cdCount++
+			// The dir should be quoted (Go %q produces "..." with escapes).
+			if !strings.Contains(cmd, `cd "`) {
+				t.Errorf("cd command should use quoted path, got: %s", cmd)
+			}
+		}
+	}
+	if cdCount != 3 {
+		t.Errorf("expected 3 cd send-keys commands, got %d: %v", cdCount, commands)
+	}
+
+	// Verify select-window at end.
+	last := commands[len(commands)-1]
+	if last != "select-window -t editor" {
+		t.Errorf("last command should be select-window, got: %s", last)
+	}
+}
+
+func TestApplyLayout_ErrorPropagation(t *testing.T) {
+	origCmd := tmuxCmd
+	defer func() { tmuxCmd = origCmd }()
+
+	tmuxCmd = func(args ...string) (string, error) {
+		if args[0] == "new-window" {
+			return "", fmt.Errorf("tmux: session not found")
+		}
+		return "", nil
+	}
+
+	layout := &Layout{
+		Name: "fail",
+		Windows: []WindowLayout{
+			{Name: "first", PaneCount: 1},
+			{Name: "second", PaneCount: 1},
+		},
+	}
+
+	err := applyLayout(layout)
+	if err == nil {
+		t.Fatal("expected error from applyLayout")
+	}
+	if !strings.Contains(err.Error(), "creating window") {
+		t.Fatalf("error should mention creating window, got: %v", err)
 	}
 }

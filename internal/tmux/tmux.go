@@ -73,12 +73,12 @@ func listSessionsReal() ([]Session, error) {
 }
 
 // NewSession creates a new tmux session. If name is empty, it auto-names
-// from the current working directory basename.
-func NewSession(name string) error {
+// from the current working directory basename. Returns the resolved session name.
+func NewSession(name string) (string, error) {
 	if name == "" {
 		dir, err := os.Getwd()
 		if err != nil {
-			return err
+			return "", err
 		}
 		name = filepath.Base(dir)
 	}
@@ -86,9 +86,9 @@ func NewSession(name string) error {
 	args := []string{"new-session", "-d", "-s", name}
 	_, err := tmuxCmd(args...)
 	if err != nil {
-		return fmt.Errorf("creating session %q: %w", name, err)
+		return "", fmt.Errorf("creating session %q: %w", name, err)
 	}
-	return nil
+	return name, nil
 }
 
 // AttachSession attaches to (or switches to) the named session.
@@ -137,7 +137,10 @@ func FuzzyFindSession(query string, sessions []Session) (*Session, error) {
 // --- internal helpers ---
 
 // tmuxCmd runs tmux with args and returns combined output.
-func tmuxCmd(args ...string) (string, error) {
+// It is a package-level var so tests can inject stubs.
+var tmuxCmd = tmuxCmdReal
+
+func tmuxCmdReal(args ...string) (string, error) {
 	cmd := exec.Command("tmux", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

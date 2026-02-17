@@ -146,7 +146,8 @@ func (p *Picker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "backspace":
 			if len(p.query) > 0 {
-				p.query = p.query[:len(p.query)-1]
+				runes := []rune(p.query)
+				p.query = string(runes[:len(runes)-1])
 				p.applyFilter()
 			}
 			return p, nil

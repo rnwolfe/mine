@@ -98,15 +98,13 @@ func runTmuxNew(_ *cobra.Command, args []string) error {
 		name = args[0]
 	}
 
-	if err := tmux.NewSession(name); err != nil {
+	resolved, err := tmux.NewSession(name)
+	if err != nil {
 		return err
 	}
 
-	if name == "" {
-		name = "(auto-named from cwd)"
-	}
-	ui.Ok(fmt.Sprintf("Session %s created", ui.Accent.Render(name)))
-	fmt.Printf("  Attach: %s\n", ui.Muted.Render("mine tmux attach "+name))
+	ui.Ok(fmt.Sprintf("Session %s created", ui.Accent.Render(resolved)))
+	fmt.Printf("  Attach: %s\n", ui.Muted.Render("mine tmux attach "+resolved))
 	fmt.Println()
 	return nil
 }

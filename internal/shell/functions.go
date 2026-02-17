@@ -313,7 +313,7 @@ end`,
     return 0
   end
   set -l name (test (count $argv) -gt 0; and echo $argv[1]; or basename $PWD)
-  tmux new-session -d -s $name 2>/dev/null; and echo "Session '$name' created"; or tmux attach-session -t $name
+  tmux new-session -d -s "$name" 2>/dev/null; and echo "Session '$name' created"; or tmux attach-session -t "$name"
 end`,
 		},
 		{

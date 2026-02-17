@@ -104,9 +104,10 @@ func Ping(conn *sql.DB, command string, enabled bool, endpoint string) {
 	)
 }
 
-// ShowNotice records that the one-time privacy notice has been shown.
-// It returns true if the notice should be displayed now (first time), false if it was already shown.
-func ShowNotice(conn *sql.DB) bool {
+// ShouldShowNotice checks whether the one-time privacy notice needs to be displayed.
+// Returns true if the notice has not been shown yet, false if it was already shown.
+// Call MarkNoticeShown after actually displaying the notice.
+func ShouldShowNotice(conn *sql.DB) bool {
 	const noticeKey = "analytics:notice_shown"
 
 	var shown string
@@ -115,14 +116,19 @@ func ShowNotice(conn *sql.DB) bool {
 		return false
 	}
 
-	// Mark as shown (even if display fails, don't nag)
+	return true
+}
+
+// MarkNoticeShown records that the privacy notice has been displayed.
+// Call this after actually printing the notice to avoid marking it shown
+// before the user sees it.
+func MarkNoticeShown(conn *sql.DB) {
+	const noticeKey = "analytics:notice_shown"
 	_, _ = conn.Exec(
 		`INSERT INTO kv (key, value, updated_at) VALUES (?, 'true', CURRENT_TIMESTAMP)
 		 ON CONFLICT(key) DO UPDATE SET value = 'true', updated_at = CURRENT_TIMESTAMP`,
 		noticeKey,
 	)
-
-	return true
 }
 
 // BuildPayload constructs an analytics payload without sending it.

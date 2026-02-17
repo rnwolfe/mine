@@ -240,20 +240,78 @@ func TestPing_NetworkFailureSilent(t *testing.T) {
 	Ping(db, "todo", true, "http://127.0.0.1:1") // port 1 will refuse
 }
 
-func TestShowNotice_FirstTime(t *testing.T) {
+func TestPing_ServerErrorNoDedupWrite(t *testing.T) {
+	var callCount atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	if err := os.MkdirAll(filepath.Join(tmp, "mine"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
 	db := testDB(t)
 
-	if !ShowNotice(db) {
-		t.Error("expected ShowNotice to return true on first call")
+	// First call — server returns 500
+	Ping(db, "todo", true, srv.URL)
+	if callCount.Load() != 1 {
+		t.Fatalf("first call: expected 1 HTTP call, got %d", callCount.Load())
+	}
+
+	// Verify dedup key was NOT written
+	var val string
+	err := db.QueryRow("SELECT value FROM kv WHERE key = 'analytics:last_ping:todo'").Scan(&val)
+	if err == nil {
+		t.Fatalf("dedup key should not be set after server error, but got %q", val)
+	}
+
+	// Second call should retry (not deduped)
+	Ping(db, "todo", true, srv.URL)
+	if callCount.Load() != 2 {
+		t.Fatalf("second call: expected 2 HTTP calls (no dedup after error), got %d", callCount.Load())
 	}
 }
 
-func TestShowNotice_OnlyOnce(t *testing.T) {
+func TestShouldShowNotice_FirstTime(t *testing.T) {
 	db := testDB(t)
 
-	ShowNotice(db) // first time
+	if !ShouldShowNotice(db) {
+		t.Error("expected ShouldShowNotice to return true on first call")
+	}
+}
 
-	if ShowNotice(db) {
-		t.Error("expected ShowNotice to return false on second call")
+func TestShouldShowNotice_OnlyOnceAfterMark(t *testing.T) {
+	db := testDB(t)
+
+	if !ShouldShowNotice(db) {
+		t.Error("expected ShouldShowNotice to return true before marking")
+	}
+
+	MarkNoticeShown(db)
+
+	if ShouldShowNotice(db) {
+		t.Error("expected ShouldShowNotice to return false after MarkNoticeShown")
+	}
+}
+
+func TestShouldShowNotice_TrueUntilMarked(t *testing.T) {
+	db := testDB(t)
+
+	// Multiple calls before marking should all return true
+	if !ShouldShowNotice(db) {
+		t.Error("expected true on first call")
+	}
+	if !ShouldShowNotice(db) {
+		t.Error("expected true on second call (not yet marked)")
+	}
+
+	MarkNoticeShown(db)
+
+	if ShouldShowNotice(db) {
+		t.Error("expected false after marking")
 	}
 }

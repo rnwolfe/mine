@@ -62,6 +62,29 @@ The following SSH helper functions are included in `mine shell init`:
 
 All functions include `--help` for usage documentation and work in bash, zsh, and fish.
 
+## Env Shell Functions
+
+The following env helper function is included in `mine shell init`:
+
+| Function | Description |
+|----------|-------------|
+| `menv` | Load the active `mine env` profile into your current shell session |
+
+Implementation details:
+
+- Bash/Zsh: evaluates `mine env export` output
+- Fish: evaluates `mine env export --shell fish` output
+- All variants return a non-zero exit code if export fails
+
+Example:
+
+```bash
+eval "$(mine shell init)"
+mine env switch staging
+menv
+echo "$API_URL"
+```
+
 ## Examples
 
 ```bash
@@ -70,4 +93,8 @@ mine shell completions zsh
 
 # View recommended aliases
 mine shell aliases
+
+# Load active env profile into current shell
+eval "$(mine shell init)"
+menv
 ```

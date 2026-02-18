@@ -49,6 +49,17 @@ The following git helper functions are included in `mine shell init`:
 | `gpl` | `git pull --rebase` |
 | `gsw <branch>` | `git switch` shorthand |
 
+## SSH Shell Functions
+
+The following SSH helper functions are included in `mine shell init`:
+
+| Function | Description |
+|----------|-------------|
+| `sc <alias>` | Quick connect: `ssh <alias>` |
+| `scp2 <src> <dest>` | Resumable copy: `rsync -avzP --partial` over SSH |
+| `stun <alias> <L:R>` | Quick tunnel shorthand |
+| `skey [file]` | Copy default public key to clipboard |
+
 All functions include `--help` for usage documentation and work in bash, zsh, and fish.
 
 ## Examples

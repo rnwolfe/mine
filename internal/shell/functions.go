@@ -639,6 +639,223 @@ end`,
   git switch $argv[1]
 end`,
 		},
+		// --- ssh helpers ---
+		{
+			Name: "sc",
+			Desc: "Quick SSH connect (sc <alias>)",
+			Bash: `sc() {
+  if [ "$1" = "--help" ]; then
+    echo "sc — Quick SSH connect"
+    echo "Usage: sc <alias>"
+    echo "Example: sc myserver"
+    return 0
+  fi
+  if [ -z "$1" ]; then echo "sc: alias required" >&2; return 1; fi
+  ssh "$1"
+}`,
+			Zsh: `sc() {
+  if [[ "$1" == "--help" ]]; then
+    echo "sc — Quick SSH connect"
+    echo "Usage: sc <alias>"
+    echo "Example: sc myserver"
+    return 0
+  fi
+  if [[ -z "$1" ]]; then echo "sc: alias required" >&2; return 1; fi
+  ssh "$1"
+}`,
+			Fish: `function sc
+  if test "$argv[1]" = "--help"
+    echo "sc — Quick SSH connect"
+    echo "Usage: sc <alias>"
+    echo "Example: sc myserver"
+    return 0
+  end
+  if test (count $argv) -eq 0
+    echo "sc: alias required" >&2; return 1
+  end
+  ssh "$argv[1]"
+end`,
+		},
+		{
+			Name: "scp2",
+			Desc: "scp wrapper with progress and resume (rsync over SSH)",
+			Bash: `scp2() {
+  if [ "$1" = "--help" ]; then
+    echo "scp2 — scp wrapper with progress and resume"
+    echo "Usage: scp2 <src> <dest>"
+    echo "Example: scp2 myserver:/remote/file ./local/"
+    return 0
+  fi
+  if [ $# -lt 2 ]; then echo "scp2: usage: scp2 <src> <dest>" >&2; return 1; fi
+  rsync -avzP --partial "$1" "$2"
+}`,
+			Zsh: `scp2() {
+  if [[ "$1" == "--help" ]]; then
+    echo "scp2 — scp wrapper with progress and resume"
+    echo "Usage: scp2 <src> <dest>"
+    echo "Example: scp2 myserver:/remote/file ./local/"
+    return 0
+  fi
+  if [[ $# -lt 2 ]]; then echo "scp2: usage: scp2 <src> <dest>" >&2; return 1; fi
+  rsync -avzP --partial "$1" "$2"
+}`,
+			Fish: `function scp2
+  if test "$argv[1]" = "--help"
+    echo "scp2 — scp wrapper with progress and resume"
+    echo "Usage: scp2 <src> <dest>"
+    echo "Example: scp2 myserver:/remote/file ./local/"
+    return 0
+  end
+  if test (count $argv) -lt 2
+    echo "scp2: usage: scp2 <src> <dest>" >&2; return 1
+  end
+  rsync -avzP --partial "$argv[1]" "$argv[2]"
+end`,
+		},
+		{
+			Name: "stun",
+			Desc: "Quick SSH tunnel shorthand (stun <alias> <local:remote>)",
+			Bash: `stun() {
+  if [ "$1" = "--help" ]; then
+    echo "stun — Quick SSH tunnel shorthand"
+    echo "Usage: stun <alias> <local:remote> or stun <alias> <local:remotehost:remote>"
+    echo "Example: stun myserver 8080:80"
+    echo "Example: stun myserver 5433:db.internal:5432"
+    return 0
+  fi
+  if [ $# -lt 2 ]; then echo "stun: usage: stun <alias> <local:remote>" >&2; return 1; fi
+  local _alias="$1"
+  local _spec="$2"
+  local _local="${_spec%%:*}"
+  local _rest="${_spec#*:}"
+  # If _rest contains a colon, it's "remoteHost:remotePort"; otherwise default host to localhost.
+  if echo "$_rest" | grep -q ":"; then
+    ssh -N -o ExitOnForwardFailure=yes -L "${_local}:${_rest}" "$_alias"
+  else
+    ssh -N -o ExitOnForwardFailure=yes -L "${_local}:localhost:${_rest}" "$_alias"
+  fi
+}`,
+			Zsh: `stun() {
+  if [[ "$1" == "--help" ]]; then
+    echo "stun — Quick SSH tunnel shorthand"
+    echo "Usage: stun <alias> <local:remote> or stun <alias> <local:remotehost:remote>"
+    echo "Example: stun myserver 8080:80"
+    echo "Example: stun myserver 5433:db.internal:5432"
+    return 0
+  fi
+  if [[ $# -lt 2 ]]; then echo "stun: usage: stun <alias> <local:remote>" >&2; return 1; fi
+  local _alias="$1"
+  local _spec="$2"
+  local _local="${_spec%%:*}"
+  local _rest="${_spec#*:}"
+  # If _rest contains a colon, it's "remoteHost:remotePort"; otherwise default host to localhost.
+  if [[ "$_rest" == *:* ]]; then
+    ssh -N -o ExitOnForwardFailure=yes -L "${_local}:${_rest}" "$_alias"
+  else
+    ssh -N -o ExitOnForwardFailure=yes -L "${_local}:localhost:${_rest}" "$_alias"
+  fi
+}`,
+			Fish: `function stun
+  if test "$argv[1]" = "--help"
+    echo "stun — Quick SSH tunnel shorthand"
+    echo "Usage: stun <alias> <local:remote> or stun <alias> <local:remotehost:remote>"
+    echo "Example: stun myserver 8080:80"
+    echo "Example: stun myserver 5433:db.internal:5432"
+    return 0
+  end
+  if test (count $argv) -lt 2
+    echo "stun: usage: stun <alias> <local:remote>" >&2; return 1
+  end
+  set -l _alias "$argv[1]"
+  set -l _spec "$argv[2]"
+  set -l _parts (string split ":" -- "$_spec")
+  if test (count $_parts) -ge 3
+    # local:remoteHost:remotePort — pass rest verbatim after local port
+    set -l _local "$_parts[1]"
+    set -l _rest (string join ":" -- $_parts[2..-1])
+    ssh -N -o ExitOnForwardFailure=yes -L "$_local:$_rest" "$_alias"
+  else
+    # local:remotePort — default remote host to localhost
+    ssh -N -o ExitOnForwardFailure=yes -L "$_parts[1]:localhost:$_parts[2]" "$_alias"
+  end
+end`,
+		},
+		{
+			Name: "skey",
+			Desc: "Copy default public key to clipboard",
+			Bash: `skey() {
+  if [ "$1" = "--help" ]; then
+    echo "skey — Copy default public key to clipboard"
+    echo "Usage: skey [keyfile]"
+    echo "Example: skey ~/.ssh/id_ed25519.pub"
+    return 0
+  fi
+  local keyfile="${1:-$HOME/.ssh/id_ed25519.pub}"
+  if [ ! -f "$keyfile" ]; then keyfile="$HOME/.ssh/id_rsa.pub"; fi
+  if [ ! -f "$keyfile" ]; then
+    echo "skey: no public key found" >&2; return 1
+  fi
+  if command -v pbcopy >/dev/null 2>&1; then
+    pbcopy < "$keyfile" && echo "Copied (pbcopy): $keyfile"
+  elif command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard < "$keyfile" && echo "Copied (xclip): $keyfile"
+  elif command -v xsel >/dev/null 2>&1; then
+    xsel --clipboard --input < "$keyfile" && echo "Copied (xsel): $keyfile"
+  else
+    echo "skey: no clipboard tool found (pbcopy/xclip/xsel)" >&2; cat "$keyfile"; return 1
+  fi
+}`,
+			Zsh: `skey() {
+  if [[ "$1" == "--help" ]]; then
+    echo "skey — Copy default public key to clipboard"
+    echo "Usage: skey [keyfile]"
+    echo "Example: skey ~/.ssh/id_ed25519.pub"
+    return 0
+  fi
+  local keyfile="${1:-$HOME/.ssh/id_ed25519.pub}"
+  if [[ ! -f "$keyfile" ]]; then keyfile="$HOME/.ssh/id_rsa.pub"; fi
+  if [[ ! -f "$keyfile" ]]; then
+    echo "skey: no public key found" >&2; return 1
+  fi
+  if command -v pbcopy >/dev/null 2>&1; then
+    pbcopy < "$keyfile" && echo "Copied (pbcopy): $keyfile"
+  elif command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard < "$keyfile" && echo "Copied (xclip): $keyfile"
+  elif command -v xsel >/dev/null 2>&1; then
+    xsel --clipboard --input < "$keyfile" && echo "Copied (xsel): $keyfile"
+  else
+    echo "skey: no clipboard tool found (pbcopy/xclip/xsel)" >&2; cat "$keyfile"; return 1
+  fi
+}`,
+			Fish: `function skey
+  if test "$argv[1]" = "--help"
+    echo "skey — Copy default public key to clipboard"
+    echo "Usage: skey [keyfile]"
+    echo "Example: skey ~/.ssh/id_ed25519.pub"
+    return 0
+  end
+  if test (count $argv) -gt 0
+    set -l keyfile "$argv[1]"
+  else
+    set -l keyfile "$HOME/.ssh/id_ed25519.pub"
+  end
+  if not test -f "$keyfile"
+    set keyfile "$HOME/.ssh/id_rsa.pub"
+  end
+  if not test -f "$keyfile"
+    echo "skey: no public key found" >&2; return 1
+  end
+  if command -v pbcopy >/dev/null 2>&1
+    pbcopy < "$keyfile"; and echo "Copied (pbcopy): $keyfile"
+  else if command -v xclip >/dev/null 2>&1
+    xclip -selection clipboard < "$keyfile"; and echo "Copied (xclip): $keyfile"
+  else if command -v xsel >/dev/null 2>&1
+    xsel --clipboard --input < "$keyfile"; and echo "Copied (xsel): $keyfile"
+  else
+    echo "skey: no clipboard tool found (pbcopy/xclip/xsel)" >&2; cat "$keyfile"; return 1
+  end
+end`,
+		},
 	}
 }
 

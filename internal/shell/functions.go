@@ -281,6 +281,92 @@ end`,
   tree -L (test (count $argv) -gt 0; and echo $argv[1]; or echo 2) -I 'node_modules|vendor|.git|__pycache__|.venv' --dirsfirst
 end`,
 		},
+		// --- project switch helpers ---
+		{
+			Name: "p",
+			Desc: "Quick project switch (name or fuzzy picker)",
+			Bash: `p() {
+  if [ "$1" = "--help" ]; then
+    echo "p — Quick project switch (name or fuzzy picker)"
+    echo "Usage: p [name]"
+    echo "Example: p mine"
+    return 0
+  fi
+  local target=""
+  if [ -n "$1" ]; then
+    target="$(mine proj open "$1" --print-path 2>/dev/null)" || return 1
+  else
+    target="$(mine proj --print-path 2>/dev/null)" || return 1
+  fi
+  [ -n "$target" ] && cd "$target"
+}`,
+			Zsh: `p() {
+  if [[ "$1" == "--help" ]]; then
+    echo "p — Quick project switch (name or fuzzy picker)"
+    echo "Usage: p [name]"
+    echo "Example: p mine"
+    return 0
+  fi
+  local target=""
+  if [[ -n "$1" ]]; then
+    target="$(mine proj open "$1" --print-path 2>/dev/null)" || return 1
+  else
+    target="$(mine proj --print-path 2>/dev/null)" || return 1
+  fi
+  [[ -n "$target" ]] && cd "$target"
+}`,
+			Fish: `function p
+  if test "$argv[1]" = "--help"
+    echo "p — Quick project switch (name or fuzzy picker)"
+    echo "Usage: p [name]"
+    echo "Example: p mine"
+    return 0
+  end
+  set -l target
+  if test (count $argv) -gt 0
+    set target (mine proj open $argv[1] --print-path 2>/dev/null)
+  else
+    set target (mine proj --print-path 2>/dev/null)
+  end
+  test -n "$target"; and cd "$target"
+end`,
+		},
+		{
+			Name: "pp",
+			Desc: "Switch to previous project",
+			Bash: `pp() {
+  if [ "$1" = "--help" ]; then
+    echo "pp — Switch to previous project"
+    echo "Usage: pp"
+    echo "Example: pp"
+    return 0
+  fi
+  local target
+  target="$(mine proj open --previous --print-path 2>/dev/null)" || return 1
+  [ -n "$target" ] && cd "$target"
+}`,
+			Zsh: `pp() {
+  if [[ "$1" == "--help" ]]; then
+    echo "pp — Switch to previous project"
+    echo "Usage: pp"
+    echo "Example: pp"
+    return 0
+  fi
+  local target
+  target="$(mine proj open --previous --print-path 2>/dev/null)" || return 1
+  [[ -n "$target" ]] && cd "$target"
+}`,
+			Fish: `function pp
+  if test "$argv[1]" = "--help"
+    echo "pp — Switch to previous project"
+    echo "Usage: pp"
+    echo "Example: pp"
+    return 0
+  end
+  set -l target (mine proj open --previous --print-path 2>/dev/null)
+  test -n "$target"; and cd "$target"
+end`,
+		},
 		// --- tmux helpers ---
 		{
 			Name: "tn",

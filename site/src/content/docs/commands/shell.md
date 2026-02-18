@@ -85,6 +85,17 @@ menv
 echo "$API_URL"
 ```
 
+## Project Shell Functions
+
+The following project helper functions are included in `mine shell init`:
+
+| Function | Description |
+|----------|-------------|
+| `p [name]` | Quick project switch. With no args, opens picker. |
+| `pp` | Switch to the previously active project |
+
+These wrappers call `mine proj` / `mine proj open --print-path` and perform the `cd` in your shell process.
+
 ## Examples
 
 ```bash

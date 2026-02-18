@@ -11,6 +11,7 @@ import (
 	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/plugin"
+	"github.com/rnwolfe/mine/internal/proj"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/todo"
 	"github.com/rnwolfe/mine/internal/ui"
@@ -164,6 +165,16 @@ func runDashboard(_ *cobra.Command, _ []string) error {
 		todoSummary += ui.Error.Render(fmt.Sprintf(" (%d overdue!)", overdue))
 	}
 	ui.Kv(ui.IconTodo+" Todos", todoSummary)
+
+	ps := proj.NewStore(db.Conn())
+	currentProject, err := ps.Current()
+	if err == nil && currentProject != nil {
+		projectSummary := currentProject.Name
+		if currentProject.Branch != "" {
+			projectSummary += fmt.Sprintf(" (%s)", currentProject.Branch)
+		}
+		ui.Kv("  📁 Project", projectSummary)
+	}
 
 	// Date/time
 	now := time.Now()

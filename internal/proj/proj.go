@@ -108,8 +108,8 @@ func (s *Store) Add(path string) (*Project, error) {
 	}
 
 	name := filepath.Base(abs)
-	if strings.TrimSpace(name) == "" {
-		return nil, fmt.Errorf("invalid project name")
+	if err := validateProjectName(name); err != nil {
+		return nil, err
 	}
 
 	var existing string
@@ -164,6 +164,9 @@ func (s *Store) List() ([]Project, error) {
 		p.Branch = gitBranchAtPath(p.Path)
 		projects = append(projects, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate projects: %w", err)
+	}
 	return projects, nil
 }
 
@@ -194,9 +197,14 @@ func (s *Store) Open(name string) (*OpenResult, error) {
 		return nil, err
 	}
 
-	current, _ := s.getKV("proj.current")
+	current, err := s.getKV("proj.current")
+	if err != nil {
+		return nil, err
+	}
 	if current != "" && current != p.Name {
-		_ = s.setKV("proj.previous", current)
+		if err := s.setKV("proj.previous", current); err != nil {
+			return nil, err
+		}
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
@@ -303,6 +311,10 @@ func SupportedConfigKeys() []string {
 }
 
 func (s *Store) GetSetting(projectName, key string) (string, error) {
+	if _, err := settingValue(Settings{}, key); err != nil {
+		return "", err
+	}
+
 	sf, err := s.readSettingsFile()
 	if err != nil {
 		return "", err
@@ -414,6 +426,16 @@ func parseTime(raw string) time.Time {
 		}
 	}
 	return time.Time{}
+}
+
+func validateProjectName(name string) error {
+	if strings.TrimSpace(name) == "" || name == "." || name == ".." || name == string(filepath.Separator) {
+		return fmt.Errorf("invalid project name")
+	}
+	if strings.ContainsRune(name, filepath.Separator) {
+		return fmt.Errorf("invalid project name")
+	}
+	return nil
 }
 
 func depthFromRel(rel string) int {

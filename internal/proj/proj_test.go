@@ -227,6 +227,14 @@ func TestAddRejectsFilePath(t *testing.T) {
 	}
 }
 
+func TestAddRejectsRootPathName(t *testing.T) {
+	s, _ := setupStore(t)
+
+	if _, err := s.Add(string(filepath.Separator)); err == nil {
+		t.Fatal("expected error for root path project name")
+	}
+}
+
 func TestScanRejectsNegativeDepth(t *testing.T) {
 	s, _ := setupStore(t)
 
@@ -240,6 +248,22 @@ func TestOpenPreviousWithoutState(t *testing.T) {
 
 	if _, err := s.OpenPrevious(); err == nil {
 		t.Fatal("expected error when previous project is not tracked")
+	}
+}
+
+func TestOpenPropagatesKVStateErrors(t *testing.T) {
+	s, db := setupStore(t)
+	p, err := s.Add(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := db.Exec(`DROP TABLE kv`); err != nil {
+		t.Fatalf("drop kv: %v", err)
+	}
+
+	if _, err := s.Open(p.Name); err == nil {
+		t.Fatal("expected error when kv table is unavailable")
 	}
 }
 
@@ -275,5 +299,13 @@ func TestGetSettingUnknownKey(t *testing.T) {
 
 	if _, err := s.GetSetting(p.Name, "not_a_key"); err == nil {
 		t.Fatal("expected error for unknown key")
+	}
+}
+
+func TestGetSettingUnknownKeyWithoutProjectConfig(t *testing.T) {
+	s, _ := setupStore(t)
+
+	if _, err := s.GetSetting("missing", "not_a_key"); err == nil {
+		t.Fatal("expected error for unknown key even when project has no settings")
 	}
 }

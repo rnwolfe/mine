@@ -20,7 +20,9 @@ func TestMetaHelp_ContainsContrib(t *testing.T) {
 	os.Stdout = old
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("failed to copy output: %v", err)
+	}
 	output := buf.String()
 
 	for _, want := range []string{"mine meta fr", "mine meta bug", "mine meta contrib"} {

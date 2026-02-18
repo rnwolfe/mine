@@ -14,26 +14,53 @@ type Tunnel struct {
 	Remote string
 }
 
-// ParsePortSpec parses a "local:remote" port spec into local and remote parts.
-// Accepts "8080:80", "8080:host:80", etc.
+// PortSpec holds the parsed components of a port-forwarding spec.
+type PortSpec struct {
+	Local      string // local port
+	RemoteHost string // remote host (defaults to "localhost")
+	RemotePort string // remote port
+}
+
+// ParsePortSpec parses a port spec into its components.
+// Accepted formats:
+//   - "8080:80"          → local 8080, remote localhost:80
+//   - "8080:host:80"     → local 8080, remote host:80
 func ParsePortSpec(spec string) (local, remote string, err error) {
 	if spec == "" {
 		return "", "", fmt.Errorf("port spec is empty; use format local:remote (e.g. 8080:80)")
 	}
-	idx := strings.Index(spec, ":")
-	if idx < 0 {
-		return "", "", fmt.Errorf("invalid port spec %q: expected local:remote (e.g. 8080:80)", spec)
+	ps, parseErr := parsePortSpec(spec)
+	if parseErr != nil {
+		return "", "", parseErr
 	}
-	local = spec[:idx]
-	remote = spec[idx+1:]
-	if local == "" || remote == "" {
-		return "", "", fmt.Errorf("invalid port spec %q: both local and remote required", spec)
+	return ps.Local, ps.RemotePort, nil
+}
+
+// parsePortSpec parses a port spec into a PortSpec struct.
+func parsePortSpec(spec string) (PortSpec, error) {
+	parts := strings.SplitN(spec, ":", 3)
+	switch len(parts) {
+	case 2:
+		// "local:remotePort"
+		local, remotePort := parts[0], parts[1]
+		if local == "" || remotePort == "" {
+			return PortSpec{}, fmt.Errorf("invalid port spec %q: both local and remote required", spec)
+		}
+		return PortSpec{Local: local, RemoteHost: "localhost", RemotePort: remotePort}, nil
+	case 3:
+		// "local:remoteHost:remotePort"
+		local, remoteHost, remotePort := parts[0], parts[1], parts[2]
+		if local == "" || remoteHost == "" || remotePort == "" {
+			return PortSpec{}, fmt.Errorf("invalid port spec %q: local, remote host, and remote port all required", spec)
+		}
+		return PortSpec{Local: local, RemoteHost: remoteHost, RemotePort: remotePort}, nil
+	default:
+		return PortSpec{}, fmt.Errorf("invalid port spec %q: expected local:remote or local:host:remote", spec)
 	}
-	return local, remote, nil
 }
 
 // StartTunnel starts an SSH port-forwarding tunnel in the foreground.
-// alias is the SSH config alias; portSpec is "localPort:remotePort".
+// alias is the SSH config alias; portSpec is "localPort:remotePort" or "localPort:remoteHost:remotePort".
 func StartTunnel(alias, portSpec string) error {
 	return StartTunnelFunc(alias, portSpec)
 }
@@ -42,18 +69,18 @@ func StartTunnel(alias, portSpec string) error {
 var StartTunnelFunc = startTunnelReal
 
 func startTunnelReal(alias, portSpec string) error {
-	local, remote, err := ParsePortSpec(portSpec)
+	ps, err := parsePortSpec(portSpec)
 	if err != nil {
 		return err
 	}
 
 	// -N: don't execute remote command, just forward
-	// -L: local port forward local:remote
+	// -L: local port forward local:remoteHost:remotePort
 	// -o ExitOnForwardFailure: exit if the port can't be forwarded
 	cmd := exec.Command("ssh",
 		"-N",
 		"-o", "ExitOnForwardFailure=yes",
-		"-L", fmt.Sprintf("%s:localhost:%s", local, remote),
+		"-L", fmt.Sprintf("%s:%s:%s", ps.Local, ps.RemoteHost, ps.RemotePort),
 		alias,
 	)
 	cmd.Stdin = os.Stdin
@@ -61,7 +88,7 @@ func startTunnelReal(alias, portSpec string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("tunnel %s → %s via %s: %w", local, remote, alias, err)
+		return fmt.Errorf("tunnel %s → %s:%s via %s: %w", ps.Local, ps.RemoteHost, ps.RemotePort, alias, err)
 	}
 	return nil
 }

@@ -170,6 +170,11 @@ func runSSHAdd(_ *cobra.Command, args []string) error {
 		}
 	}
 
+	// Validate alias: must not contain whitespace or wildcard characters.
+	if strings.ContainsAny(alias, " \t\n?*") {
+		return fmt.Errorf("invalid alias %q: must not contain whitespace or wildcard characters", alias)
+	}
+
 	hostname, err := prompt("HostName (IP or FQDN)", alias)
 	if err != nil {
 		return err

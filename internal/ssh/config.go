@@ -96,12 +96,30 @@ func parseConfig(r io.Reader) ([]Host, error) {
 			if current != nil {
 				hosts = append(hosts, *current)
 			}
-			// Skip wildcard entries
-			if value == "*" || strings.ContainsAny(value, "?*") {
+			// SSH config allows multiple patterns on one Host line.
+			// Use the first non-wildcard alias as canonical; skip entire entry if
+			// any alias is a wildcard pattern.
+			aliases := strings.Fields(value)
+			if len(aliases) == 0 {
 				current = nil
 				continue
 			}
-			current = &Host{Alias: value}
+			skip := false
+			for _, alias := range aliases {
+				if strings.ContainsAny(alias, "?*") {
+					skip = true
+					break
+				}
+			}
+			if skip {
+				current = nil
+				continue
+			}
+			current = &Host{Alias: aliases[0]}
+
+		case "INCLUDE":
+			// Include directives are not expanded; hosts in included files are not listed.
+			continue
 
 		default:
 			if current == nil {
@@ -147,9 +165,19 @@ func parseKeyValue(line string) (string, string) {
 	}
 	key := line[:idx]
 	rest := strings.TrimLeft(line[idx:], " \t=")
-	// Strip inline comments
-	if ci := strings.Index(rest, " #"); ci >= 0 {
-		rest = strings.TrimSpace(rest[:ci])
+	// Strip inline comments: '#' starts a comment when preceded by whitespace.
+	runes := []rune(rest)
+	commentIdx := -1
+	prevIsWS := true // treat start-of-string as whitespace for leading '#' comments
+	for i, r := range runes {
+		if r == '#' && prevIsWS {
+			commentIdx = i
+			break
+		}
+		prevIsWS = r == ' ' || r == '\t'
+	}
+	if commentIdx >= 0 {
+		rest = strings.TrimSpace(string(runes[:commentIdx]))
 	}
 	return key, rest
 }

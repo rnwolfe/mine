@@ -20,7 +20,7 @@ func TestParsePortSpec_Simple(t *testing.T) {
 }
 
 func TestParsePortSpec_WithHost(t *testing.T) {
-	local, remote, err := ParsePortSpec("5433:5432")
+	local, remote, err := ParsePortSpec("5433:db.internal:5432")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -28,7 +28,15 @@ func TestParsePortSpec_WithHost(t *testing.T) {
 		t.Fatalf("expected local '5433', got %q", local)
 	}
 	if remote != "5432" {
-		t.Fatalf("expected remote '5432', got %q", remote)
+		t.Fatalf("expected remote port '5432', got %q", remote)
+	}
+	// Verify that the full PortSpec is constructed correctly.
+	ps, err := parsePortSpec("5433:db.internal:5432")
+	if err != nil {
+		t.Fatalf("unexpected error from parsePortSpec: %v", err)
+	}
+	if ps.RemoteHost != "db.internal" {
+		t.Fatalf("expected remote host 'db.internal', got %q", ps.RemoteHost)
 	}
 }
 

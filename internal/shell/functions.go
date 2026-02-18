@@ -673,7 +673,7 @@ end`,
   if test (count $argv) -eq 0
     echo "sc: alias required" >&2; return 1
   end
-  ssh $argv[1]
+  ssh "$argv[1]"
 end`,
 		},
 		{
@@ -709,7 +709,7 @@ end`,
   if test (count $argv) -lt 2
     echo "scp2: usage: scp2 <src> <dest>" >&2; return 1
   end
-  rsync -avzP --partial $argv[1] $argv[2]
+  rsync -avzP --partial "$argv[1]" "$argv[2]"
 end`,
 		},
 		{
@@ -753,11 +753,11 @@ end`,
   if test (count $argv) -lt 2
     echo "stun: usage: stun <alias> <local:remote>" >&2; return 1
   end
-  set -l _alias $argv[1]
-  set -l _spec $argv[2]
-  set -l _local (string split -m1 ":" -- $_spec)[1]
-  set -l _remote (string split -m1 ":" -- $_spec)[2]
-  ssh -N -o ExitOnForwardFailure=yes -L "$_local:localhost:$_remote" $_alias
+  set -l _alias "$argv[1]"
+  set -l _spec "$argv[2]"
+  set -l _local (string split -m1 ":" -- "$_spec")[1]
+  set -l _remote (string split -m1 ":" -- "$_spec")[2]
+  ssh -N -o ExitOnForwardFailure=yes -L "$_local:localhost:$_remote" "$_alias"
 end`,
 		},
 		{
@@ -814,21 +814,21 @@ end`,
     echo "Example: skey ~/.ssh/id_ed25519.pub"
     return 0
   end
-  set -l keyfile (test (count $argv) -gt 0; and echo $argv[1]; or echo "$HOME/.ssh/id_ed25519.pub")
-  if not test -f $keyfile
+  set -l keyfile (test (count $argv) -gt 0; and echo "$argv[1]"; or echo "$HOME/.ssh/id_ed25519.pub")
+  if not test -f "$keyfile"
     set keyfile "$HOME/.ssh/id_rsa.pub"
   end
-  if not test -f $keyfile
+  if not test -f "$keyfile"
     echo "skey: no public key found" >&2; return 1
   end
   if command -v pbcopy >/dev/null 2>&1
-    cat $keyfile | pbcopy; and echo "Copied (pbcopy): $keyfile"
+    cat "$keyfile" | pbcopy; and echo "Copied (pbcopy): $keyfile"
   else if command -v xclip >/dev/null 2>&1
-    cat $keyfile | xclip -selection clipboard; and echo "Copied (xclip): $keyfile"
+    cat "$keyfile" | xclip -selection clipboard; and echo "Copied (xclip): $keyfile"
   else if command -v xsel >/dev/null 2>&1
-    cat $keyfile | xsel --clipboard --input; and echo "Copied (xsel): $keyfile"
+    cat "$keyfile" | xsel --clipboard --input; and echo "Copied (xsel): $keyfile"
   else
-    echo "skey: no clipboard tool found (pbcopy/xclip/xsel)" >&2; cat $keyfile; return 1
+    echo "skey: no clipboard tool found (pbcopy/xclip/xsel)" >&2; cat "$keyfile"; return 1
   end
 end`,
 		},

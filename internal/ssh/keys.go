@@ -50,19 +50,26 @@ func keygenReal(name, comment string) (string, error) {
 
 	keyPath := filepath.Join(sshDir, name)
 
+	// Refuse to overwrite an existing key to avoid silent data loss.
+	if _, err := os.Stat(keyPath); err == nil {
+		return "", fmt.Errorf("key file already exists: %s (remove it first or choose a different name)", keyPath)
+	}
+
 	if comment == "" {
 		comment = name
 	}
 
+	// Wire stdin/stdout so the user is prompted for a passphrase by ssh-keygen.
 	cmd := exec.Command("ssh-keygen",
 		"-t", "ed25519",
 		"-C", comment,
 		"-f", keyPath,
-		"-N", "", // no passphrase
 	)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("ssh-keygen: %s: %w", strings.TrimSpace(string(out)), err)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("ssh-keygen failed: %w", err)
 	}
 
 	pubPath := keyPath + ".pub"
@@ -103,8 +110,12 @@ func ListKeysFrom(sshDir, configPath string) ([]Key, error) {
 		return nil, fmt.Errorf("reading ~/.ssh: %w", err)
 	}
 
-	// Build a map of key path → hosts that use it
-	hosts, _ := ReadHostsFrom(configPath)
+	// Build a map of key path → hosts that use it.
+	// Ignore os.IsNotExist (no config file yet) but surface other errors.
+	hosts, cfgErr := ReadHostsFrom(configPath)
+	if cfgErr != nil && !os.IsNotExist(cfgErr) {
+		return nil, fmt.Errorf("reading ssh config for key associations: %w", cfgErr)
+	}
 	keyToHosts := make(map[string][]string)
 	for _, h := range hosts {
 		if h.KeyFile != "" {
@@ -133,6 +144,11 @@ func ListKeysFrom(sshDir, configPath string) ([]Key, error) {
 			continue
 		}
 		seen[privPath] = true
+
+		// Only include the key if the private key file actually exists.
+		if fi, err := os.Stat(privPath); err != nil || !fi.Mode().IsRegular() {
+			continue
+		}
 
 		k := Key{
 			Name:        privName,

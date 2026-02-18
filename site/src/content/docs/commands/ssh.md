@@ -50,7 +50,7 @@ mine ssh keygen                # creates ~/.ssh/id_ed25519
 mine ssh keygen deploy         # creates ~/.ssh/deploy
 ```
 
-Generates an ed25519 SSH key pair with sensible defaults (no passphrase). Uses `ssh-keygen` under the hood.
+Generates an ed25519 SSH key pair with secure defaults and uses `ssh-keygen` under the hood. You'll be prompted for a passphrase; using a strong passphrase is recommended to protect your private key at rest (leaving it empty is possible but discouraged).
 
 ## Copy Key to Remote
 

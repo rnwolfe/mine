@@ -20,6 +20,9 @@ func TestGetPaths(t *testing.T) {
 	if paths.DBFile == "" {
 		t.Fatal("DBFile should not be empty")
 	}
+	if paths.EnvDir == "" {
+		t.Fatal("EnvDir should not be empty")
+	}
 }
 
 func TestGetPathsRespectsXDG(t *testing.T) {
@@ -33,6 +36,9 @@ func TestGetPathsRespectsXDG(t *testing.T) {
 	}
 	if paths.DataDir != "/tmp/testxdg/data/mine" {
 		t.Fatalf("expected /tmp/testxdg/data/mine, got %s", paths.DataDir)
+	}
+	if paths.EnvDir != "/tmp/testxdg/data/mine/envs" {
+		t.Fatalf("expected /tmp/testxdg/data/mine/envs, got %s", paths.EnvDir)
 	}
 }
 

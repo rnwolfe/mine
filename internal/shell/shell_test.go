@@ -67,7 +67,7 @@ func TestFunctions(t *testing.T) {
 	}
 
 	// Verify expected functions exist.
-	expected := []string{"mkcd", "extract", "ports", "gitroot", "serve", "backup", "tre"}
+	expected := []string{"mkcd", "extract", "ports", "gitroot", "serve", "backup", "tre", "menv"}
 	for _, name := range expected {
 		if !names[name] {
 			t.Errorf("expected function %q not found", name)
@@ -237,6 +237,30 @@ func TestFunctionsHelpFlag(t *testing.T) {
 				t.Errorf("fish %s --help missing example line", fn.Name)
 			}
 		})
+	}
+}
+
+func TestMenvPropagatesExportFailures(t *testing.T) {
+	funcs := Functions()
+	var menv *ShellFunc
+	for i := range funcs {
+		if funcs[i].Name == "menv" {
+			menv = &funcs[i]
+			break
+		}
+	}
+	if menv == nil {
+		t.Fatal("menv function not found")
+	}
+
+	if !strings.Contains(menv.Bash, `out="$(mine env export)" || return $?`) {
+		t.Fatalf("bash menv should return export failure, got:\n%s", menv.Bash)
+	}
+	if !strings.Contains(menv.Zsh, `out="$(mine env export)" || return $?`) {
+		t.Fatalf("zsh menv should return export failure, got:\n%s", menv.Zsh)
+	}
+	if !strings.Contains(menv.Fish, `set -l out (mine env export --shell fish); or return $status`) {
+		t.Fatalf("fish menv should return export failure, got:\n%s", menv.Fish)
 	}
 }
 

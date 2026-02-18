@@ -429,6 +429,45 @@ func TestRemoveHostBlock_NotFound(t *testing.T) {
 	}
 }
 
+func TestRemoveHostBlock_MultiAlias(t *testing.T) {
+	content := `
+Host web web-prod
+    HostName web.example.com
+    User deploy
+
+Host db
+    HostName 10.0.0.5
+`
+	// Removing by first alias should work.
+	result, removed := removeHostBlock(content, "web")
+	if !removed {
+		t.Fatal("expected removed=true when alias matches first alias in multi-alias Host line")
+	}
+	hosts, err := parseConfig(strings.NewReader(result))
+	if err != nil {
+		t.Fatalf("parsing after remove: %v", err)
+	}
+	if len(hosts) != 1 {
+		t.Fatalf("expected 1 host after removing 'web', got %d", len(hosts))
+	}
+	if hosts[0].Alias != "db" {
+		t.Fatalf("expected remaining host 'db', got %q", hosts[0].Alias)
+	}
+
+	// Removing by second alias on same line should also work.
+	result2, removed2 := removeHostBlock(content, "web-prod")
+	if !removed2 {
+		t.Fatal("expected removed=true when alias matches second alias in multi-alias Host line")
+	}
+	hosts2, err := parseConfig(strings.NewReader(result2))
+	if err != nil {
+		t.Fatalf("parsing after second remove: %v", err)
+	}
+	if len(hosts2) != 1 || hosts2[0].Alias != "db" {
+		t.Fatalf("expected only 'db' to remain after removing 'web-prod', got %v", hosts2)
+	}
+}
+
 // --- ReadHostsFrom missing file ---
 
 func TestReadHostsFrom_MissingFile(t *testing.T) {

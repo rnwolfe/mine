@@ -25,7 +25,9 @@ type PortSpec struct {
 // Accepted formats:
 //   - "8080:80"          → local 8080, remote localhost:80
 //   - "8080:host:80"     → local 8080, remote host:80
-func ParsePortSpec(spec string) (local, remote string, err error) {
+//
+// Returns (local, remoteHost:remotePort, err) so callers get the full remote address.
+func ParsePortSpec(spec string) (local, remoteAddr string, err error) {
 	if spec == "" {
 		return "", "", fmt.Errorf("port spec is empty; use format local:remote (e.g. 8080:80)")
 	}
@@ -33,7 +35,7 @@ func ParsePortSpec(spec string) (local, remote string, err error) {
 	if parseErr != nil {
 		return "", "", parseErr
 	}
-	return ps.Local, ps.RemotePort, nil
+	return ps.Local, ps.RemoteHost + ":" + ps.RemotePort, nil
 }
 
 // parsePortSpec parses a port spec into a PortSpec struct.

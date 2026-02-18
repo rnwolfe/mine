@@ -74,11 +74,16 @@ Lists all SSH key pairs in `~/.ssh/` with:
 ## Start a Tunnel
 
 ```bash
-mine ssh tunnel myserver 8080:80      # local 8080 → remote 80
-mine ssh tunnel db 5433:5432          # local 5433 → remote 5432
+mine ssh tunnel myserver 8080:80               # local 8080 → remote 80
+mine ssh tunnel db 5433:5432                   # local 5433 → remote 5432
+mine ssh tunnel db 5433:db.internal:5432       # local 5433 → db.internal:5432 via db
 ```
 
 Starts an SSH port-forwarding tunnel in the foreground. Press `Ctrl+C` to stop. Uses `ssh -N -L` with `ExitOnForwardFailure=yes`.
+
+The port spec supports two forms:
+- `local:remotePort` — forwards to `localhost:remotePort` on the remote host
+- `local:remoteHost:remotePort` — forwards to a specific host reachable from the SSH server
 
 ## Shell Functions
 
@@ -88,7 +93,7 @@ The following SSH helper functions are included in `mine shell init`:
 |----------|-------------|
 | `sc <alias>` | Quick connect: `ssh <alias>` |
 | `scp2 <src> <dest>` | Resumable copy: `rsync -avzP --partial` over SSH |
-| `stun <alias> <L:R>` | Quick tunnel: `ssh -N -L local:localhost:remote alias` |
+| `stun <alias> <L:R>` or `stun <alias> <L:H:R>` | Quick tunnel: `ssh -N -L` shorthand; supports `local:remote` and `local:remoteHost:remote` |
 | `skey [file]` | Copy default public key to clipboard |
 
 All functions include `--help` for usage documentation and work in bash, zsh, and fish.
@@ -104,6 +109,8 @@ scp2 myserver:/var/log/app.log ./logs/
 
 # Start a tunnel (local 8080 → remote 80)
 stun myserver 8080:80
+# Or with explicit remote host (local 5433 → db.internal:5432 via myserver)
+stun myserver 5433:db.internal:5432
 
 # Copy your public key to clipboard
 skey

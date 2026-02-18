@@ -353,7 +353,7 @@ func runSSHTunnel(_ *cobra.Command, args []string) error {
 	alias := args[0]
 	portSpec := args[1]
 
-	local, remote, err := ssh.ParsePortSpec(portSpec)
+	local, remoteAddr, err := ssh.ParsePortSpec(portSpec)
 	if err != nil {
 		return err
 	}
@@ -361,7 +361,7 @@ func runSSHTunnel(_ *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Printf("  Tunnel: %s → %s via %s\n",
 		ui.Accent.Render("localhost:"+local),
-		ui.Accent.Render("remote:"+remote),
+		ui.Accent.Render(remoteAddr),
 		ui.Accent.Render(alias),
 	)
 	fmt.Println(ui.Muted.Render("  Press Ctrl+C to stop."))

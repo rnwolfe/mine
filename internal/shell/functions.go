@@ -718,36 +718,49 @@ end`,
 			Bash: `stun() {
   if [ "$1" = "--help" ]; then
     echo "stun — Quick SSH tunnel shorthand"
-    echo "Usage: stun <alias> <local:remote>"
+    echo "Usage: stun <alias> <local:remote> or stun <alias> <local:remotehost:remote>"
     echo "Example: stun myserver 8080:80"
+    echo "Example: stun myserver 5433:db.internal:5432"
     return 0
   fi
   if [ $# -lt 2 ]; then echo "stun: usage: stun <alias> <local:remote>" >&2; return 1; fi
   local _alias="$1"
   local _spec="$2"
   local _local="${_spec%%:*}"
-  local _remote="${_spec#*:}"
-  ssh -N -o ExitOnForwardFailure=yes -L "${_local}:localhost:${_remote}" "$_alias"
+  local _rest="${_spec#*:}"
+  # If _rest contains a colon, it's "remoteHost:remotePort"; otherwise default host to localhost.
+  if echo "$_rest" | grep -q ":"; then
+    ssh -N -o ExitOnForwardFailure=yes -L "${_local}:${_rest}" "$_alias"
+  else
+    ssh -N -o ExitOnForwardFailure=yes -L "${_local}:localhost:${_rest}" "$_alias"
+  fi
 }`,
 			Zsh: `stun() {
   if [[ "$1" == "--help" ]]; then
     echo "stun — Quick SSH tunnel shorthand"
-    echo "Usage: stun <alias> <local:remote>"
+    echo "Usage: stun <alias> <local:remote> or stun <alias> <local:remotehost:remote>"
     echo "Example: stun myserver 8080:80"
+    echo "Example: stun myserver 5433:db.internal:5432"
     return 0
   fi
   if [[ $# -lt 2 ]]; then echo "stun: usage: stun <alias> <local:remote>" >&2; return 1; fi
   local _alias="$1"
   local _spec="$2"
   local _local="${_spec%%:*}"
-  local _remote="${_spec#*:}"
-  ssh -N -o ExitOnForwardFailure=yes -L "${_local}:localhost:${_remote}" "$_alias"
+  local _rest="${_spec#*:}"
+  # If _rest contains a colon, it's "remoteHost:remotePort"; otherwise default host to localhost.
+  if [[ "$_rest" == *:* ]]; then
+    ssh -N -o ExitOnForwardFailure=yes -L "${_local}:${_rest}" "$_alias"
+  else
+    ssh -N -o ExitOnForwardFailure=yes -L "${_local}:localhost:${_rest}" "$_alias"
+  fi
 }`,
 			Fish: `function stun
   if test "$argv[1]" = "--help"
     echo "stun — Quick SSH tunnel shorthand"
-    echo "Usage: stun <alias> <local:remote>"
+    echo "Usage: stun <alias> <local:remote> or stun <alias> <local:remotehost:remote>"
     echo "Example: stun myserver 8080:80"
+    echo "Example: stun myserver 5433:db.internal:5432"
     return 0
   end
   if test (count $argv) -lt 2
@@ -755,9 +768,16 @@ end`,
   end
   set -l _alias "$argv[1]"
   set -l _spec "$argv[2]"
-  set -l _local (string split -m1 ":" -- "$_spec")[1]
-  set -l _remote (string split -m1 ":" -- "$_spec")[2]
-  ssh -N -o ExitOnForwardFailure=yes -L "$_local:localhost:$_remote" "$_alias"
+  set -l _parts (string split ":" -- "$_spec")
+  if test (count $_parts) -ge 3
+    # local:remoteHost:remotePort — pass rest verbatim after local port
+    set -l _local "$_parts[1]"
+    set -l _rest (string join ":" -- $_parts[2..-1])
+    ssh -N -o ExitOnForwardFailure=yes -L "$_local:$_rest" "$_alias"
+  else
+    # local:remotePort — default remote host to localhost
+    ssh -N -o ExitOnForwardFailure=yes -L "$_parts[1]:localhost:$_parts[2]" "$_alias"
+  end
 end`,
 		},
 		{
@@ -776,11 +796,11 @@ end`,
     echo "skey: no public key found" >&2; return 1
   fi
   if command -v pbcopy >/dev/null 2>&1; then
-    cat "$keyfile" | pbcopy && echo "Copied (pbcopy): $keyfile"
+    pbcopy < "$keyfile" && echo "Copied (pbcopy): $keyfile"
   elif command -v xclip >/dev/null 2>&1; then
-    cat "$keyfile" | xclip -selection clipboard && echo "Copied (xclip): $keyfile"
+    xclip -selection clipboard < "$keyfile" && echo "Copied (xclip): $keyfile"
   elif command -v xsel >/dev/null 2>&1; then
-    cat "$keyfile" | xsel --clipboard --input && echo "Copied (xsel): $keyfile"
+    xsel --clipboard --input < "$keyfile" && echo "Copied (xsel): $keyfile"
   else
     echo "skey: no clipboard tool found (pbcopy/xclip/xsel)" >&2; cat "$keyfile"; return 1
   fi
@@ -798,11 +818,11 @@ end`,
     echo "skey: no public key found" >&2; return 1
   fi
   if command -v pbcopy >/dev/null 2>&1; then
-    cat "$keyfile" | pbcopy && echo "Copied (pbcopy): $keyfile"
+    pbcopy < "$keyfile" && echo "Copied (pbcopy): $keyfile"
   elif command -v xclip >/dev/null 2>&1; then
-    cat "$keyfile" | xclip -selection clipboard && echo "Copied (xclip): $keyfile"
+    xclip -selection clipboard < "$keyfile" && echo "Copied (xclip): $keyfile"
   elif command -v xsel >/dev/null 2>&1; then
-    cat "$keyfile" | xsel --clipboard --input && echo "Copied (xsel): $keyfile"
+    xsel --clipboard --input < "$keyfile" && echo "Copied (xsel): $keyfile"
   else
     echo "skey: no clipboard tool found (pbcopy/xclip/xsel)" >&2; cat "$keyfile"; return 1
   fi
@@ -814,7 +834,11 @@ end`,
     echo "Example: skey ~/.ssh/id_ed25519.pub"
     return 0
   end
-  set -l keyfile (test (count $argv) -gt 0; and echo "$argv[1]"; or echo "$HOME/.ssh/id_ed25519.pub")
+  if test (count $argv) -gt 0
+    set -l keyfile "$argv[1]"
+  else
+    set -l keyfile "$HOME/.ssh/id_ed25519.pub"
+  end
   if not test -f "$keyfile"
     set keyfile "$HOME/.ssh/id_rsa.pub"
   end
@@ -822,11 +846,11 @@ end`,
     echo "skey: no public key found" >&2; return 1
   end
   if command -v pbcopy >/dev/null 2>&1
-    cat "$keyfile" | pbcopy; and echo "Copied (pbcopy): $keyfile"
+    pbcopy < "$keyfile"; and echo "Copied (pbcopy): $keyfile"
   else if command -v xclip >/dev/null 2>&1
-    cat "$keyfile" | xclip -selection clipboard; and echo "Copied (xclip): $keyfile"
+    xclip -selection clipboard < "$keyfile"; and echo "Copied (xclip): $keyfile"
   else if command -v xsel >/dev/null 2>&1
-    cat "$keyfile" | xsel --clipboard --input; and echo "Copied (xsel): $keyfile"
+    xsel --clipboard --input < "$keyfile"; and echo "Copied (xsel): $keyfile"
   else
     echo "skey: no clipboard tool found (pbcopy/xclip/xsel)" >&2; cat "$keyfile"; return 1
   end

@@ -7,36 +7,41 @@ import (
 // --- ParsePortSpec ---
 
 func TestParsePortSpec_Simple(t *testing.T) {
-	local, remote, err := ParsePortSpec("8080:80")
+	local, remoteAddr, err := ParsePortSpec("8080:80")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if local != "8080" {
 		t.Fatalf("expected local '8080', got %q", local)
 	}
-	if remote != "80" {
-		t.Fatalf("expected remote '80', got %q", remote)
+	// For "local:port" form, remoteAddr should be "localhost:port".
+	if remoteAddr != "localhost:80" {
+		t.Fatalf("expected remoteAddr 'localhost:80', got %q", remoteAddr)
 	}
 }
 
 func TestParsePortSpec_WithHost(t *testing.T) {
-	local, remote, err := ParsePortSpec("5433:db.internal:5432")
+	local, remoteAddr, err := ParsePortSpec("5433:db.internal:5432")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if local != "5433" {
 		t.Fatalf("expected local '5433', got %q", local)
 	}
-	if remote != "5432" {
-		t.Fatalf("expected remote port '5432', got %q", remote)
+	// For "local:host:port" form, remoteAddr should be "host:port".
+	if remoteAddr != "db.internal:5432" {
+		t.Fatalf("expected remoteAddr 'db.internal:5432', got %q", remoteAddr)
 	}
-	// Verify that the full PortSpec is constructed correctly.
+	// Verify that the full PortSpec is constructed correctly via internal parser.
 	ps, err := parsePortSpec("5433:db.internal:5432")
 	if err != nil {
 		t.Fatalf("unexpected error from parsePortSpec: %v", err)
 	}
 	if ps.RemoteHost != "db.internal" {
 		t.Fatalf("expected remote host 'db.internal', got %q", ps.RemoteHost)
+	}
+	if ps.RemotePort != "5432" {
+		t.Fatalf("expected remote port '5432', got %q", ps.RemotePort)
 	}
 }
 

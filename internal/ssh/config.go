@@ -199,21 +199,46 @@ func AppendHost(h Host) error {
 }
 
 // AppendHostTo adds a new Host block to the given config file.
+// Uses a write-to-temp + atomic rename to prevent partial writes on failure.
 func AppendHostTo(path string, h Host) error {
 	if err := ensureSSHDir(filepath.Dir(path)); err != nil {
 		return err
 	}
 
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
-	if err != nil {
-		return fmt.Errorf("opening ssh config: %w", err)
+	// Read existing content (tolerate missing file).
+	existing, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("reading ssh config: %w", err)
 	}
-	defer f.Close()
 
 	block := formatHostBlock(h)
-	_, err = f.WriteString(block)
+	newContent := append(existing, []byte(block)...)
+
+	// Write atomically: temp file in the same directory, then rename.
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".ssh_config_tmp_*")
 	if err != nil {
+		return fmt.Errorf("creating temp file: %w", err)
+	}
+	tmpName := tmp.Name()
+
+	if _, err := tmp.Write(newContent); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
 		return fmt.Errorf("writing ssh config: %w", err)
+	}
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return fmt.Errorf("setting ssh config permissions: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("closing temp file: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("updating ssh config: %w", err)
 	}
 	return nil
 }
@@ -279,7 +304,15 @@ func removeHostBlock(content string, alias string) (string, bool) {
 		key, value := parseKeyValue(trimmed)
 
 		if strings.ToUpper(key) == "HOST" {
-			if strings.ToLower(value) == lower {
+			// Multi-alias Host lines (e.g. "Host web web-prod") — check each alias.
+			match := false
+			for _, a := range strings.Fields(value) {
+				if strings.ToLower(a) == lower {
+					match = true
+					break
+				}
+			}
+			if match {
 				// Skip this block until next Host or EOF
 				inBlock = true
 				removed = true

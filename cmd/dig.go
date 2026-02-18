@@ -9,9 +9,12 @@ import (
 
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/store"
+	"github.com/rnwolfe/mine/internal/tui"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
 )
+
+var digSimple bool
 
 var digCmd = &cobra.Command{
 	Use:   "dig [duration]",
@@ -19,7 +22,13 @@ var digCmd = &cobra.Command{
 	Long: `Start a timed focus session. Tracks your deep work streaks.
 
 Duration examples: 25m, 1h, 45m, 2h
-Default: 25m (pomodoro)`,
+Default: 25m (pomodoro)
+
+In an interactive terminal, launches a full-screen focus timer.
+Use --simple to keep the original inline progress output.
+
+Keyboard shortcuts (full-screen mode):
+  q / Ctrl+C   End session early`,
 	RunE: hook.Wrap("dig", runDig),
 }
 
@@ -32,6 +41,7 @@ var digStatsCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(digCmd)
 	digCmd.AddCommand(digStatsCmd)
+	digCmd.Flags().BoolVar(&digSimple, "simple", false, "Use simple inline timer output instead of full-screen TUI")
 }
 
 func runDig(_ *cobra.Command, args []string) error {
@@ -47,6 +57,38 @@ func runDig(_ *cobra.Command, args []string) error {
 		label = args[0]
 	}
 
+	// Use full-screen TUI when connected to a terminal and --simple not set.
+	if tui.IsTTY() && !digSimple {
+		return runDigTUI(duration, label)
+	}
+
+	return runDigSimple(duration, label)
+}
+
+func runDigTUI(duration time.Duration, label string) error {
+	result, err := tui.RunDig(duration, label)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println()
+	if result.Completed {
+		fmt.Printf("  %s %s of focused work. Nice.\n", ui.IconGem, ui.Accent.Render(label))
+		recordDigSession(duration)
+	} else if result.Canceled {
+		fmt.Printf("  %s Session ended early after %s\n", ui.IconPick, result.Elapsed)
+		if result.Elapsed >= 5*time.Minute {
+			recordDigSession(result.Elapsed)
+			ui.Ok(fmt.Sprintf("Still counts! %s logged.", result.Elapsed))
+		} else {
+			fmt.Println(ui.Muted.Render("  Too short to count. Try again!"))
+		}
+	}
+	fmt.Println()
+	return nil
+}
+
+func runDigSimple(duration time.Duration, label string) error {
 	fmt.Println()
 	fmt.Printf("  %s Deep work session: %s\n", ui.IconDig, ui.Accent.Render(label))
 	fmt.Println(ui.Muted.Render("  Focus. You've got this. Ctrl+C to end early."))

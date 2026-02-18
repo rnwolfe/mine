@@ -174,3 +174,80 @@ func TestValidateHelpers(t *testing.T) {
 		t.Fatalf("unexpected mask result: %q", got)
 	}
 }
+
+func TestCurrentProfileDefaultMissingReturnsEmpty(t *testing.T) {
+	mgr, projectPath, done := setupTestManager(t, "secret-pass")
+	defer done()
+
+	name, vars, err := mgr.CurrentProfile(projectPath)
+	if err != nil {
+		t.Fatalf("CurrentProfile: %v", err)
+	}
+	if name != "local" {
+		t.Fatalf("expected local, got %q", name)
+	}
+	if len(vars) != 0 {
+		t.Fatalf("expected empty vars, got %#v", vars)
+	}
+}
+
+func TestUnsetVarAndListProfiles(t *testing.T) {
+	mgr, projectPath, done := setupTestManager(t, "secret-pass")
+	defer done()
+
+	if err := mgr.SaveProfile(projectPath, "local", map[string]string{"KEEP": "1", "DROP": "2"}); err != nil {
+		t.Fatalf("SaveProfile local: %v", err)
+	}
+	if err := mgr.SaveProfile(projectPath, "staging", map[string]string{"A": "1"}); err != nil {
+		t.Fatalf("SaveProfile staging: %v", err)
+	}
+
+	if err := mgr.UnsetVar(projectPath, "local", "DROP"); err != nil {
+		t.Fatalf("UnsetVar: %v", err)
+	}
+
+	got, err := mgr.LoadProfile(projectPath, "local")
+	if err != nil {
+		t.Fatalf("LoadProfile local: %v", err)
+	}
+	if _, ok := got["DROP"]; ok {
+		t.Fatalf("expected DROP to be removed, got %#v", got)
+	}
+	if got["KEEP"] != "1" {
+		t.Fatalf("expected KEEP=1, got %#v", got)
+	}
+
+	profiles, err := mgr.ListProfiles(projectPath)
+	if err != nil {
+		t.Fatalf("ListProfiles: %v", err)
+	}
+	if strings.Join(profiles, ",") != "local,staging" {
+		t.Fatalf("unexpected profiles: %#v", profiles)
+	}
+}
+
+func TestSwitchProfileRequiresExistingProfile(t *testing.T) {
+	mgr, projectPath, done := setupTestManager(t, "secret-pass")
+	defer done()
+
+	if err := mgr.SwitchProfile(projectPath, "missing"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected os.ErrNotExist, got %v", err)
+	}
+}
+
+func TestCorruptedProfile(t *testing.T) {
+	mgr, projectPath, done := setupTestManager(t, "secret-pass")
+	defer done()
+
+	if err := os.MkdirAll(filepath.Dir(mgr.profilePath(projectPath, "local")), 0o700); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(mgr.profilePath(projectPath, "local"), []byte("not-age-data"), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	_, err := mgr.LoadProfile(projectPath, "local")
+	if !errors.Is(err, ErrCorruptedProfile) {
+		t.Fatalf("expected ErrCorruptedProfile, got %v", err)
+	}
+}

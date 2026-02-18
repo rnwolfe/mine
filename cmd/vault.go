@@ -378,11 +378,7 @@ func copyToClipboard(text string) error {
 
 // validateExportPath checks the export destination path is valid.
 func validateExportPath(path string) error {
-	// Prevent directory traversal.
 	clean := filepath.Clean(path)
-	if strings.Contains(clean, "..") {
-		return fmt.Errorf("invalid export path: directory traversal not allowed")
-	}
 	// Check parent directory exists.
 	dir := filepath.Dir(clean)
 	if _, err := os.Stat(dir); err != nil {
@@ -394,9 +390,6 @@ func validateExportPath(path string) error {
 // validateImportPath checks the import source path is valid and exists.
 func validateImportPath(path string) error {
 	clean := filepath.Clean(path)
-	if strings.Contains(clean, "..") {
-		return fmt.Errorf("invalid import path: directory traversal not allowed")
-	}
 	info, err := os.Stat(clean)
 	if err != nil {
 		if os.IsNotExist(err) {

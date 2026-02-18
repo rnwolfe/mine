@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -483,7 +484,7 @@ func aiVaultKey(provider string) string {
 	return "ai." + provider + ".api_key"
 }
 
-// getAIKey retrieves an AI provider API key, checking vault then env vars.
+// getAIKey retrieves an AI provider API key, checking env vars first, then vault.
 func getAIKey(provider string) (string, error) {
 	// Check env vars first (zero-config setup).
 	envVars := map[string]string{
@@ -508,6 +509,10 @@ func getAIKey(provider string) (string, error) {
 	key, err := v.Get(aiVaultKey(provider))
 	if err == nil {
 		return key, nil
+	}
+	// Surface vault-specific errors directly so users get actionable feedback.
+	if errors.Is(err, vault.ErrWrongPassphrase) || errors.Is(err, vault.ErrCorruptedVault) {
+		return "", err
 	}
 
 	return vaultFallback(provider)

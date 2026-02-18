@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rnwolfe/mine/internal/ai"
 	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/ui"
+	"github.com/rnwolfe/mine/internal/vault"
 	"github.com/spf13/cobra"
 )
 
@@ -119,10 +119,11 @@ func runInit(_ *cobra.Command, _ []string) error {
 			fmt.Println()
 
 			if keyInput != "" {
-				// Store the API key
-				ks, err := ai.NewKeystore()
+				// Store the API key in vault.
+				passphrase, err := readPassphrase(false)
 				if err == nil {
-					if err := ks.Set("openrouter", keyInput); err == nil {
+					v := vault.New(passphrase)
+					if err := v.Set(aiVaultKey("openrouter"), keyInput); err == nil {
 						cfg.AI.Provider = "openrouter"
 						cfg.AI.Model = "z-ai/glm-4.5-air:free"
 						fmt.Println(ui.Success.Render("  ✓ OpenRouter API key saved and configured"))

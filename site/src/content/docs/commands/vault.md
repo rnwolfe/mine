@@ -92,15 +92,24 @@ Import **replaces** the existing vault entirely. There is no merge. Back up your
 
 ## AI Key Integration
 
-When you configure an AI provider with `mine ai config`, the API key is stored in the vault under `ai.<provider>.api_key`:
+You can store AI provider API keys in the vault in two ways:
+
+**Option 1: Use `mine ai config` (stores key and sets provider in one step)**
+
+```bash
+mine ai config --provider claude --key sk-ant-...
+# key stored in vault, provider set as default
+```
+
+**Option 2: Store manually, then set the provider**
 
 ```bash
 mine vault set ai.claude.api_key sk-ant-...
 mine ai config --provider claude
-# provider set, key read from vault
+# provider set as default; key is read from vault when using AI commands
 ```
 
-AI commands check:
+When AI commands run (e.g. `mine ai ask`), they check for keys in this order:
 1. Standard environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.)
 2. Vault (requires `MINE_VAULT_PASSPHRASE` or interactive prompt)
 

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/rnwolfe/mine/internal/analytics"
 	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/plugin"
@@ -21,6 +23,12 @@ var rootCmd = &cobra.Command{
 	Short: "Your personal developer supercharger",
 	Long:  `mine — everything you need, nothing you don't. Radically yours.`,
 	RunE:  hook.Wrap("mine", runDashboard),
+	// NOTE: Cobra's PersistentPostRun on rootCmd fires for ALL subcommands.
+	// If any subcommand defines its own PersistentPostRun, it will shadow this one
+	// and analytics will not fire for that subtree. Avoid this pattern on subcommands.
+	PersistentPostRun: func(cmd *cobra.Command, _ []string) {
+		fireAnalytics(topLevelCommand(cmd))
+	},
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true,
 	},
@@ -52,6 +60,65 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(aboutCmd)
+}
+
+// fireAnalytics sends an anonymous analytics ping synchronously.
+// It's a no-op if config is not initialized, analytics are disabled,
+// or the store can't be opened.
+func fireAnalytics(command string) {
+	if !config.Initialized() {
+		return
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return
+	}
+
+	if !cfg.Analytics.IsEnabled() {
+		return
+	}
+
+	db, err := store.Open()
+	if err != nil {
+		return
+	}
+
+	endpoint := os.Getenv("MINE_ANALYTICS_ENDPOINT")
+	if endpoint == "" {
+		endpoint = analytics.DefaultEndpoint
+	}
+
+	// Show one-time privacy notice if needed (stderr to avoid contaminating stdout)
+	if analytics.ShouldShowNotice(db.Conn()) {
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, ui.Muted.Render("  mine sends anonymous usage stats (command names, version, OS) to help"))
+		fmt.Fprintln(os.Stderr, ui.Muted.Render("  improve the tool. No personal data is ever collected."))
+		fmt.Fprintf(os.Stderr, "  Opt out anytime: %s\n", ui.Accent.Render("mine config set analytics false"))
+		fmt.Fprintln(os.Stderr)
+		analytics.MarkNoticeShown(db.Conn())
+	}
+
+	// Synchronous call — Ping uses a 2s HTTP timeout and daily dedup means it
+	// almost never hits the network. Running synchronously avoids a race between
+	// the goroutine and process exit that could lose the dedup write or leave
+	// the SQLite connection in a bad state.
+	analytics.Ping(db.Conn(), command, cfg.Analytics.IsEnabled(), endpoint)
+	db.Close()
+}
+
+// topLevelCommand extracts the top-level command name from a Cobra command.
+// For example, "mine todo add" returns "todo", and "mine" returns "mine".
+func topLevelCommand(cmd *cobra.Command) string {
+	parts := strings.Fields(cmd.CommandPath())
+	switch {
+	case len(parts) >= 2:
+		return parts[1] // First word after "mine"
+	case len(parts) == 1:
+		return parts[0] // Root command itself
+	default:
+		return "unknown"
+	}
 }
 
 // runDashboard shows the at-a-glance status when you just type `mine`.

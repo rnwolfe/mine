@@ -9,9 +9,26 @@ import (
 
 // Config holds the top-level mine configuration.
 type Config struct {
-	User  UserConfig  `toml:"user"`
-	Shell ShellConfig `toml:"shell"`
-	AI    AIConfig    `toml:"ai"`
+	User      UserConfig      `toml:"user"`
+	Shell     ShellConfig     `toml:"shell"`
+	AI        AIConfig        `toml:"ai"`
+	Analytics AnalyticsConfig `toml:"analytics"`
+}
+
+// AnalyticsConfig controls anonymous usage analytics.
+type AnalyticsConfig struct {
+	// Enabled controls whether anonymous analytics are sent.
+	// Defaults to true when not set in config (opt-out model).
+	Enabled *bool `toml:"enabled,omitempty"`
+}
+
+// IsEnabled returns whether analytics are enabled.
+// Treats nil (missing from config) as true — opt-out, not opt-in.
+func (a AnalyticsConfig) IsEnabled() bool {
+	if a.Enabled == nil {
+		return true
+	}
+	return *a.Enabled
 }
 
 type UserConfig struct {
@@ -114,6 +131,11 @@ func Initialized() bool {
 	return err == nil
 }
 
+// BoolPtr returns a pointer to a bool value.
+func BoolPtr(v bool) *bool {
+	return &v
+}
+
 func defaultConfig() *Config {
 	return &Config{
 		Shell: ShellConfig{
@@ -122,6 +144,9 @@ func defaultConfig() *Config {
 		AI: AIConfig{
 			Provider: "claude",
 			Model:    "claude-sonnet-4-5-20250929",
+		},
+		Analytics: AnalyticsConfig{
+			Enabled: BoolPtr(true),
 		},
 	}
 }

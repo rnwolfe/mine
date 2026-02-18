@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/rnwolfe/mine/internal/analytics"
 	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/store"
@@ -152,6 +153,9 @@ func runInit(_ *cobra.Command, _ []string) error {
 		}
 	}
 
+	// Set analytics defaults (enabled by default, opt-out)
+	cfg.Analytics.Enabled = config.BoolPtr(true)
+
 	// Save config
 	if err := config.Save(cfg); err != nil {
 		return fmt.Errorf("saving config: %w", err)
@@ -163,6 +167,12 @@ func runInit(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 	db.Close()
+
+	// Generate analytics installation ID
+	if _, err := analytics.GetOrCreateID(); err != nil {
+		// Non-fatal — analytics can generate the ID later
+		fmt.Println(ui.Muted.Render("  (could not generate analytics ID — will retry later)"))
+	}
 
 	paths := config.GetPaths()
 

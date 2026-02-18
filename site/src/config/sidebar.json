@@ -29,6 +29,10 @@
           "slug": "contributors/plugin-protocol"
         }
       ]
+    },
+    {
+      "label": "Privacy & Analytics",
+      "slug": "docs/privacy"
     }
   ]
 }

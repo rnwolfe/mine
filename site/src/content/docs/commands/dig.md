@@ -14,7 +14,7 @@ mine dig 1h       # 1 hour
 mine dig --simple # simple inline progress bar (no full-screen)
 ```
 
-Press `q` or `Ctrl+C` to end early. Sessions over 5 minutes still count toward your streak.
+Press `q` or `Ctrl+C` to end early (full-screen mode only). Sessions over 5 minutes still count toward your streak.
 
 ## Full-Screen Mode
 
@@ -28,7 +28,7 @@ When run in a terminal, `mine dig` launches a full-screen focus timer that adapt
 
 | Key | Action |
 |-----|--------|
-| `q` / `Ctrl+C` / `Esc` | End session early |
+| `q` / `Ctrl+C` | End session early |
 
 ### Simple Mode
 

@@ -296,18 +296,55 @@ func TestTodoModel_QuitAction(t *testing.T) {
 	}
 }
 
-func TestTodoModel_EscQuits(t *testing.T) {
+func TestTodoModel_EscNoOpWhenNoFilter(t *testing.T) {
 	todos := makeTodos("item")
 	m := NewTodoModel(todos)
 
 	model, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	result := model.(*TodoModel)
 
-	if !result.quitting {
-		t.Fatal("esc should set quitting in normal mode")
+	// Esc with no active filter should be a no-op, not quit.
+	if result.quitting {
+		t.Fatal("esc should not quit when no filter is active")
 	}
-	if cmd == nil {
-		t.Fatal("esc should return tea.Quit cmd")
+	if cmd != nil {
+		t.Fatal("esc with no filter should return nil cmd")
+	}
+}
+
+func TestTodoModel_EscClearsActiveFilter(t *testing.T) {
+	todos := makeTodos("buy milk", "write tests", "book flight")
+	m := NewTodoModel(todos)
+
+	// Enter filter mode, type a filter, confirm (keeps filter active)
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	for _, r := range "milk" {
+		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if m.filter != "milk" {
+		t.Fatalf("filter should still be 'milk' after Enter, got %q", m.filter)
+	}
+	if len(m.filtered) != 1 {
+		t.Fatalf("filter should be active (1 item), got %d", len(m.filtered))
+	}
+
+	// Esc in normal mode should clear the active filter
+	model, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	result := model.(*TodoModel)
+
+	if result.quitting {
+		t.Fatal("esc should not quit when clearing filter")
+	}
+	if cmd != nil {
+		t.Fatal("esc clearing filter should return nil cmd")
+	}
+	if result.filter != "" {
+		t.Fatalf("filter should be cleared after Esc, got %q", result.filter)
+	}
+	if len(result.filtered) != 3 {
+		t.Fatalf("all todos should be visible after filter cleared, got %d", len(result.filtered))
 	}
 }
 

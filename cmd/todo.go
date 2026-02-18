@@ -30,7 +30,8 @@ Keyboard shortcuts (interactive mode):
   d            Delete selected todo
   /            Filter todos (fuzzy search)
   g / G        Jump to top / bottom
-  q / Esc      Quit`,
+  Esc          Clear active filter (or no-op)
+  q / Ctrl+C   Quit`,
 	RunE: hook.Wrap("todo.list", runTodoList),
 }
 

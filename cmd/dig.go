@@ -76,11 +76,11 @@ func runDigTUI(duration time.Duration, label string) error {
 		fmt.Printf("  %s %s of focused work. Nice.\n", ui.IconGem, ui.Accent.Render(label))
 		recordDigSession(duration)
 	} else if result.Canceled {
-		fmt.Printf("  %s Session ended early after %s\n", ui.IconPick, result.Elapsed)
 		if result.Elapsed >= 5*time.Minute {
 			recordDigSession(result.Elapsed)
-			ui.Ok(fmt.Sprintf("Still counts! %s logged.", result.Elapsed))
+			ui.Ok(fmt.Sprintf("Session ended early after %s. Still counts! Logged.", result.Elapsed))
 		} else {
+			fmt.Printf("  %s Session ended early after %s\n", ui.IconPick, result.Elapsed)
 			fmt.Println(ui.Muted.Render("  Too short to count. Try again!"))
 		}
 	}

@@ -100,9 +100,17 @@ func (m *TodoModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m *TodoModel) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "ctrl+c", "q", "esc":
+	case "ctrl+c", "q":
 		m.quitting = true
 		return m, tea.Quit
+
+	case "esc":
+		// Esc goes back one step: clear active filter if one is set, otherwise no-op.
+		if m.filter != "" {
+			m.filter = ""
+			m.applyFilter()
+			m.cursor = 0
+		}
 
 	case "j", "down":
 		if m.cursor < len(m.filtered)-1 {
@@ -125,6 +133,10 @@ func (m *TodoModel) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "x", " ", "enter":
 		if len(m.filtered) > 0 {
 			t := m.filtered[m.cursor]
+			// Skip toggle for locally-added todos that haven't been persisted yet.
+			if t.ID < 0 {
+				break
+			}
 			m.Actions = append(m.Actions, TodoAction{Type: "toggle", ID: t.ID})
 			// Toggle locally for immediate feedback
 			for i, item := range m.todos {
@@ -142,6 +154,10 @@ func (m *TodoModel) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "d":
 		if len(m.filtered) > 0 {
 			t := m.filtered[m.cursor]
+			// Skip delete for locally-added todos that haven't been persisted yet.
+			if t.ID < 0 {
+				break
+			}
 			m.Actions = append(m.Actions, TodoAction{Type: "delete", ID: t.ID})
 			// Remove locally
 			for i, item := range m.todos {
@@ -336,7 +352,7 @@ func (m *TodoModel) View() string {
 	case todoModeAdd:
 		help = ui.Muted.Render("  enter save · esc cancel")
 	default:
-		help = ui.Muted.Render("  j/k move · x toggle · a add · d delete · / filter · q quit")
+		help = ui.Muted.Render("  j/k move · x toggle · a add · d delete · / filter · esc clear filter · q quit")
 	}
 	b.WriteString(help + "\n")
 

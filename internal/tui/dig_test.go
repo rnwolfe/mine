@@ -53,14 +53,21 @@ func TestDigModel_CtrlCCancels(t *testing.T) {
 	}
 }
 
-func TestDigModel_EscCancels(t *testing.T) {
+func TestDigModel_EscNoOp(t *testing.T) {
 	m := NewDigModel(25*time.Minute, "25m")
 
-	model, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	result := model.(*DigModel)
 
-	if !result.canceled {
-		t.Fatal("esc should set canceled")
+	// Esc is a no-op in the dig TUI; only q and Ctrl+C cancel.
+	if result.canceled {
+		t.Fatal("esc should not cancel the dig session")
+	}
+	if result.quitting {
+		t.Fatal("esc should not quit the dig session")
+	}
+	if cmd != nil {
+		t.Fatal("esc should return nil cmd")
 	}
 }
 

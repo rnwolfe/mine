@@ -88,7 +88,7 @@ func (m *DigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q", "esc":
+		case "ctrl+c", "q":
 			m.elapsed = time.Since(m.start).Round(time.Second)
 			m.canceled = true
 			m.quitting = true

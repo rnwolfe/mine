@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -500,6 +501,13 @@ func getAIKey(provider string) (string, error) {
 	}
 
 	// Try vault (requires passphrase from env var or prompt).
+	// Skip the prompt entirely if the vault file doesn't exist yet — no point
+	// asking for a passphrase if there's nothing to unlock.
+	paths := config.GetPaths()
+	vaultPath := filepath.Join(paths.DataDir, "vault.age")
+	if _, statErr := os.Stat(vaultPath); os.IsNotExist(statErr) {
+		return vaultFallback(provider)
+	}
 	passphrase, err := readPassphrase(false)
 	if err != nil {
 		// Vault not configured — fall through to "not found" error.

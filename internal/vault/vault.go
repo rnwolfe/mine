@@ -261,8 +261,11 @@ func decryptData(raw []byte, passphrase string) (*vaultData, error) {
 	armorReader := armor.NewReader(bytes.NewReader(raw))
 	r, err := age.Decrypt(armorReader, identity)
 	if err != nil {
-		// age does not export a typed error for wrong passphrase, but the
-		// error message contains "incorrect" or "no identity matched".
+		// filippo.io/age does not export typed errors for wrong passphrase (as of v1.x).
+		// We detect it by matching known error message substrings. This is fragile:
+		// if the library changes its error wording, wrong passphrases will silently
+		// fall through to ErrCorruptedVault. Revisit if age exports typed errors in
+		// a future release (track: https://github.com/FiloSottile/age/issues).
 		msg := err.Error()
 		if strings.Contains(msg, "no identity matched") || strings.Contains(msg, "incorrect") {
 			return nil, fmt.Errorf("%w: %v\n\nHint: check your passphrase and try again.\nIf you forgot your passphrase, you cannot recover the vault.", ErrWrongPassphrase, err)

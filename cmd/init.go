@@ -121,9 +121,17 @@ func runInit(_ *cobra.Command, _ []string) error {
 			if keyInput != "" {
 				// Store the API key in vault.
 				passphrase, err := readPassphrase(false)
-				if err == nil {
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "  Warning: could not read vault passphrase: %v\n", err)
+					fmt.Fprintf(os.Stderr, "  API key not saved. Set it later with: mine ai config --provider openrouter --key <your-key>\n")
+					fmt.Println()
+				} else {
 					v := vault.New(passphrase)
-					if err := v.Set(aiVaultKey("openrouter"), keyInput); err == nil {
+					if err := v.Set(aiVaultKey("openrouter"), keyInput); err != nil {
+						fmt.Fprintf(os.Stderr, "  Warning: could not save API key to vault: %v\n", err)
+						fmt.Fprintf(os.Stderr, "  Set it later with: mine ai config --provider openrouter --key <your-key>\n")
+						fmt.Println()
+					} else {
 						cfg.AI.Provider = "openrouter"
 						cfg.AI.Model = "z-ai/glm-4.5-air:free"
 						fmt.Println(ui.Success.Render("  ✓ OpenRouter API key saved and configured"))

@@ -104,6 +104,11 @@ Rules:
 10. **External binary integration**: Features wrapping external tools (tmux, git, etc.)
     shell out via `exec.Command` with structured output parsing. Attach/switch commands
     that replace the process use an injectable `execSyscall` var for testability.
+11. **User-local hooks**: Scripts in `~/.config/mine/hooks/` are auto-discovered by
+    filename convention (`<command-pattern>.<stage>.<ext>`) and registered into the
+    hook pipeline at startup. Filenames are parsed right-to-left (extension, then stage,
+    remainder is command pattern). Scripts must be executable (+x). Transform hooks
+    chain alphabetically; notify hooks run in parallel. CLI: `mine hook list/create/test`.
 
 ## Design Principles
 
@@ -487,7 +492,9 @@ users allowlist (`AUTODEV_TRUSTED_USERS` in config.sh).
 | `internal/hook/hook.go` | Hook types, Context, Handler interface |
 | `internal/hook/pipeline.go` | Hook pipeline (Wrap, stage execution, flag rewrites) |
 | `internal/hook/discover.go` | User hook discovery, script creation, testing |
+| `internal/hook/registry.go` | Thread-safe hook registry with glob pattern matching |
 | `internal/hook/exec.go` | ExecHandler — runs external hook scripts |
+| `cmd/hook.go` | Hook CLI commands (list, create, test) |
 | `internal/plugin/manifest.go` | Plugin manifest parsing and validation |
 | `internal/plugin/lifecycle.go` | Plugin install, remove, list, registry management |
 | `internal/plugin/runtime.go` | Plugin invocation (hooks, commands, lifecycle events) |

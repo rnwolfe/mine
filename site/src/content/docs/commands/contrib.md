@@ -60,7 +60,7 @@ After confirming the opt-in prompt, the flow:
 
 1. **Forks** the repo under your GitHub account (skipped if you already have one).
 2. **Clones** your fork locally into `./<repo-name>/`.
-3. **Adds** the upstream remote (`upstream`) pointing to the original repo.
+3. **Adds** the upstream remote (`upstream`) pointing to the original repo (only when a fork was created or reused).
 4. **Creates** a branch named `issue-<N>-<slug>`.
 
 If the local directory already exists, the command stops and tells you to remove
@@ -80,3 +80,7 @@ mine meta contrib            # start contribution flow for rnwolfe/mine
 mine meta contrib --list     # list candidate issues for rnwolfe/mine
 mine meta contrib --issue 16 # target a specific issue
 ```
+
+## Learn More
+
+See the [Community Contribution feature guide](/features/community-contribution/) for a workflow overview and detailed examples.

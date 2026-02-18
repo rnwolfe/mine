@@ -14,6 +14,10 @@
       ]
     },
     {
+      "label": "Features",
+      "autogenerate": { "directory": "features" }
+    },
+    {
       "label": "Commands",
       "autogenerate": { "directory": "commands" }
     },

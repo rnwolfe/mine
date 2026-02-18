@@ -31,9 +31,25 @@ alias mtd='mine todo done'
 alias md='mine dig'
 alias mc='mine craft'
 alias ms='mine stash'
+alias mx='mine tmux'
+alias mg='mine git'
 ```
 
 Add these to your `~/.zshrc`, `~/.bashrc`, or `~/.config/fish/config.fish`.
+
+## Git Shell Functions
+
+The following git helper functions are included in `mine shell init`:
+
+| Function | Description |
+|----------|-------------|
+| `gc <msg>` | `git commit -m` shorthand |
+| `gca <msg>` | `git commit --amend -m` shorthand |
+| `gp` | `git push` with upstream tracking |
+| `gpl` | `git pull --rebase` |
+| `gsw <branch>` | `git switch` shorthand |
+
+All functions include `--help` for usage documentation and work in bash, zsh, and fish.
 
 ## Examples
 

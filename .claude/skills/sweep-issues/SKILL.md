@@ -1,4 +1,5 @@
 ---
+name: sweep-issues
 description: "Sweep open issues against the quality checklist and label those needing refinement"
 disable-model-invocation: true
 ---

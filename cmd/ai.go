@@ -3,9 +3,11 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/ui"
+	"github.com/rnwolfe/mine/internal/vault"
 	"github.com/spf13/cobra"
 )
 
@@ -103,20 +106,16 @@ func init() {
 }
 
 func runAIConfig(_ *cobra.Command, _ []string) error {
-	ks, err := ai.NewKeystore()
-	if err != nil {
-		return err
-	}
-
-	// List mode
+	// List mode — read providers from vault.
 	if aiConfigList {
-		providers, err := ks.List()
+		cfg, err := config.Load()
 		if err != nil {
 			return err
 		}
 
-		cfg, err := config.Load()
-		if err != nil {
+		// Collect providers that have vault keys.
+		providers, err := aiVaultProviders()
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 
@@ -152,10 +151,16 @@ func runAIConfig(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("--provider is required (use --list to see configured providers)")
 	}
 
-	// Store API key
+	// Store API key in vault.
 	if aiConfigKey != "" {
-		if err := ks.Set(aiConfigProvider, aiConfigKey); err != nil {
+		passphrase, err := readPassphrase(false)
+		if err != nil {
 			return err
+		}
+		v := vault.New(passphrase)
+		vaultKey := aiVaultKey(aiConfigProvider)
+		if err := v.Set(vaultKey, aiConfigKey); err != nil {
+			return fmt.Errorf("storing API key in vault: %w", err)
 		}
 		fmt.Println()
 		fmt.Printf("%s API key stored securely for %s\n", ui.IconVault, ui.Accent.Render(aiConfigProvider))
@@ -427,45 +432,40 @@ Get started:
 See providers: mine ai --help`)
 	}
 
-	ks, err := ai.NewKeystore()
-	if err != nil {
-		return nil, err
-	}
-
-	apiKey, err := ks.Get(cfg.AI.Provider)
+	apiKey, err := getAIKey(cfg.AI.Provider)
 	if err != nil {
 		// Provide provider-specific help for where to get API keys
 		helpMsg := ""
 		switch cfg.AI.Provider {
 		case "claude":
-			helpMsg = fmt.Sprintf(`API key not found for Claude.
+			helpMsg = `API key not found for Claude.
 
 Options:
   • Set environment variable: export ANTHROPIC_API_KEY=sk-...
   • Get a key: https://console.anthropic.com/settings/keys
-  • Or run: mine ai config --provider claude --key <your-key>`)
+  • Or run: mine ai config --provider claude --key <your-key>`
 		case "openai":
-			helpMsg = fmt.Sprintf(`API key not found for OpenAI.
+			helpMsg = `API key not found for OpenAI.
 
 Options:
   • Set environment variable: export OPENAI_API_KEY=sk-...
   • Get a key: https://platform.openai.com/api-keys
-  • Or run: mine ai config --provider openai --key <your-key>`)
+  • Or run: mine ai config --provider openai --key <your-key>`
 		case "gemini":
-			helpMsg = fmt.Sprintf(`API key not found for Gemini.
+			helpMsg = `API key not found for Gemini.
 
 Options:
   • Set environment variable: export GEMINI_API_KEY=AIza...
   • Get a key: https://aistudio.google.com/app/apikey
-  • Or run: mine ai config --provider gemini --key <your-key>`)
+  • Or run: mine ai config --provider gemini --key <your-key>`
 		case "openrouter":
-			helpMsg = fmt.Sprintf(`API key not found for OpenRouter.
+			helpMsg = `API key not found for OpenRouter.
 
 OpenRouter provides access to free AI models. Get your free API key:
   • Visit: https://openrouter.ai/keys (sign up free, no credit card)
   • Set: export OPENROUTER_API_KEY=sk-or-v1-...
   • Or run: mine ai config --provider openrouter --key <your-key>
-  • Free models: z-ai/glm-4.5-air:free, google/gemini-flash-1.5`)
+  • Free models: z-ai/glm-4.5-air:free, google/gemini-flash-1.5`
 		default:
 			helpMsg = fmt.Sprintf("Run: mine ai config --provider %s --key <your-key>", cfg.AI.Provider)
 		}
@@ -478,6 +478,84 @@ OpenRouter provides access to free AI models. Get your free API key:
 	}
 
 	return provider, nil
+}
+
+// aiVaultKey returns the vault key for an AI provider's API key.
+func aiVaultKey(provider string) string {
+	return "ai." + provider + ".api_key"
+}
+
+// getAIKey retrieves an AI provider API key, checking env vars first, then vault.
+func getAIKey(provider string) (string, error) {
+	// Check env vars first (zero-config setup).
+	envVars := map[string]string{
+		"claude":     "ANTHROPIC_API_KEY",
+		"openai":     "OPENAI_API_KEY",
+		"gemini":     "GEMINI_API_KEY",
+		"openrouter": "OPENROUTER_API_KEY",
+	}
+	if envVar, ok := envVars[provider]; ok {
+		if key := os.Getenv(envVar); key != "" {
+			return key, nil
+		}
+	}
+
+	// Try vault (requires passphrase from env var or prompt).
+	// Skip the prompt entirely if the vault file doesn't exist yet — no point
+	// asking for a passphrase if there's nothing to unlock.
+	paths := config.GetPaths()
+	vaultPath := filepath.Join(paths.DataDir, "vault.age")
+	if _, statErr := os.Stat(vaultPath); os.IsNotExist(statErr) {
+		return vaultFallback(provider)
+	}
+	passphrase, err := readPassphrase(false)
+	if err != nil {
+		// Vault not configured — fall through to "not found" error.
+		return vaultFallback(provider)
+	}
+	v := vault.New(passphrase)
+	key, err := v.Get(aiVaultKey(provider))
+	if err == nil {
+		return key, nil
+	}
+	// Surface vault-specific errors directly so users get actionable feedback.
+	if errors.Is(err, vault.ErrWrongPassphrase) || errors.Is(err, vault.ErrCorruptedVault) {
+		return "", err
+	}
+
+	return vaultFallback(provider)
+}
+
+// vaultFallback returns the appropriate error for a missing AI key.
+func vaultFallback(provider string) (string, error) {
+	// OpenRouter free models don't require an API key.
+	if provider == "openrouter" {
+		return "", nil
+	}
+	return "", fmt.Errorf("no API key configured for %s", provider)
+}
+
+// aiVaultProviders returns AI provider names that have keys stored in vault.
+func aiVaultProviders() ([]string, error) {
+	passphrase := os.Getenv("MINE_VAULT_PASSPHRASE")
+	if passphrase == "" {
+		return nil, nil // No passphrase available — return empty list silently.
+	}
+	v := vault.New(passphrase)
+	allKeys, err := v.List()
+	if err != nil {
+		return nil, err
+	}
+
+	var providers []string
+	for _, k := range allKeys {
+		// Extract provider from "ai.<provider>.api_key".
+		if strings.HasPrefix(k, "ai.") && strings.HasSuffix(k, ".api_key") {
+			provider := strings.TrimSuffix(strings.TrimPrefix(k, "ai."), ".api_key")
+			providers = append(providers, provider)
+		}
+	}
+	return providers, nil
 }
 
 // ai models command
@@ -494,11 +572,6 @@ func runAIModels(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	ks, err := ai.NewKeystore()
-	if err != nil {
-		return err
-	}
-
 	fmt.Println()
 	fmt.Println(ui.Title.Render("  AI Providers & Models"))
 	fmt.Println()
@@ -506,16 +579,11 @@ func runAIModels(_ *cobra.Command, _ []string) error {
 	// Get all registered providers
 	allProviders := ai.ListProviders()
 
-	// Get providers with stored keys
-	configuredProviders, err := ks.List()
-	if err != nil {
-		return err
-	}
-
-	// Create a map for faster lookup
-	configuredMap := make(map[string]bool)
-	for _, p := range configuredProviders {
-		configuredMap[p] = true
+	// Get providers with vault-stored keys (best-effort, silent if vault unavailable).
+	vaultProviders, _ := aiVaultProviders()
+	vaultMap := make(map[string]bool)
+	for _, p := range vaultProviders {
+		vaultMap[p] = true
 	}
 
 	// Check which providers have env vars
@@ -563,7 +631,7 @@ func runAIModels(_ *cobra.Command, _ []string) error {
 		// Determine status
 		status := ""
 		isDefault := cfg.AI.Provider == provider
-		hasKey := configuredMap[provider] || envProviders[provider]
+		hasKey := vaultMap[provider] || envProviders[provider]
 
 		if isDefault {
 			status = ui.Success.Render("✓ DEFAULT")
@@ -576,11 +644,11 @@ func runAIModels(_ *cobra.Command, _ []string) error {
 		// Print provider header
 		fmt.Printf("  %s %s\n", ui.KeyStyle.Render(provider), status)
 
-		// Show env var status
+		// Show key source
 		if envProviders[provider] {
 			fmt.Printf("    %s\n", ui.Success.Render(fmt.Sprintf("API key detected in %s", info.envVar)))
-		} else if configuredMap[provider] {
-			fmt.Printf("    %s\n", ui.Muted.Render("API key stored in keystore"))
+		} else if vaultMap[provider] {
+			fmt.Printf("    %s\n", ui.Muted.Render("API key stored in vault"))
 		} else {
 			fmt.Printf("    %s %s\n",
 				ui.Muted.Render(fmt.Sprintf("No API key (set %s or use:", info.envVar)),

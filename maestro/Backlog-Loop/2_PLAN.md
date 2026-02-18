@@ -10,13 +10,15 @@
 
 ## Objective
 
-Read the selected issue from `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md`, explore the codebase, and produce a concrete implementation plan. This is the thinking phase — no code changes yet.
+Read the selected issue from `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md`, explore the codebase in the worktree, and produce a concrete implementation plan. This is the thinking phase — no code changes yet.
 
 ## Tasks
 
-- [ ] **Read issue and CLAUDE.md**: Read `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md` for the issue details. If the status is not `READY`, mark this task complete without proceeding. Then read `CLAUDE.md` for project conventions, architecture patterns, and file organization rules.
+- [ ] **Read issue and locate worktree**: Read `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md` for the issue details and worktree path. If the status is not `READY`, mark this task complete without proceeding. Extract the worktree path from the `## Worktree` section — all codebase exploration happens in that directory.
 
-- [ ] **Explore relevant code**: Based on the issue requirements, explore the codebase to understand:
+- [ ] **Read project conventions**: Read `CLAUDE.md` (from the worktree or project root) for project conventions, architecture patterns, and file organization rules.
+
+- [ ] **Explore relevant code**: Based on the issue requirements, explore the codebase **in the worktree directory** to understand:
   - Which existing packages/files are relevant
   - What patterns are already used (command structure, domain packages, store layer, UI helpers)
   - Where new code should live following existing conventions
@@ -53,7 +55,7 @@ Read the selected issue from `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md`,
 - <Anything tricky, any existing code that might conflict>
 
 ## Acceptance Criteria Mapping
-- [ ] Criterion from issue → planned implementation detail
+- [ ] Criterion from issue -> planned implementation detail
 - [ ] ...
 ```
 

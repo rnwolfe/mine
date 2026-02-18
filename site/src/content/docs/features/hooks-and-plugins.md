@@ -3,7 +3,7 @@ title: Hooks & Plugins
 description: Extend mine with user-local hooks and the plugin system
 ---
 
-Customize and extend mine without forking it. User-local hooks let you intercept any command with a simple script. The plugin system lets you install third-party extensions with sandboxed permissions.
+Customize and extend mine without forking it. User-local hooks let you intercept any command with a simple script. The plugin system lets you install third-party extensions that declare their required capabilities in a manifest.
 
 ## Key Capabilities
 
@@ -11,7 +11,7 @@ Customize and extend mine without forking it. User-local hooks let you intercept
 - **Four hook stages** — prevalidate, preexec, postexec, and notify
 - **Filename convention** — `<command-pattern>.<stage>.<ext>` (e.g., `todo.add.preexec.sh`)
 - **Wildcard patterns** — `todo.*` matches all todo subcommands, `*` matches everything
-- **Plugin system** — install third-party plugins from GitHub with sandboxed permissions
+- **Plugin system** — install third-party plugins that declare required environment variables, filesystem paths, and network access
 
 ## Quick Example
 
@@ -38,7 +38,7 @@ Use `mine hook create` to scaffold a starter script with inline comments explain
 
 ### Plugins
 
-Plugins are standalone binaries invoked via JSON-over-stdin. They declare capabilities in a `mine-plugin.toml` manifest and are sandboxed — environment variables, filesystem access, and network access are opt-in. Install plugins from GitHub with `mine plugin install`.
+Plugins are standalone binaries invoked via JSON-over-stdin. They declare capabilities in a `mine-plugin.toml` manifest — including which environment variables, filesystem paths, and network access they require. mine displays these declared permissions at install time so you know what a plugin needs before enabling it. To install a plugin from GitHub, clone or download it first, then run `mine plugin install <path>`.
 
 ## Learn More
 

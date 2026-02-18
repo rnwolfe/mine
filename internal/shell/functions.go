@@ -856,6 +856,37 @@ end`,
   end
 end`,
 		},
+		{
+			Name: "menv",
+			Desc: "Load active mine env profile into the current shell",
+			Bash: `menv() {
+  if [ "$1" = "--help" ]; then
+    echo "menv — Load active mine env profile into the current shell"
+    echo "Usage: menv"
+    echo "Example: menv"
+    return 0
+  fi
+  eval "$(mine env export)"
+}`,
+			Zsh: `menv() {
+  if [[ "$1" == "--help" ]]; then
+    echo "menv — Load active mine env profile into the current shell"
+    echo "Usage: menv"
+    echo "Example: menv"
+    return 0
+  fi
+  eval "$(mine env export)"
+}`,
+			Fish: `function menv
+  if test "$argv[1]" = "--help"
+    echo "menv — Load active mine env profile into the current shell"
+    echo "Usage: menv"
+    echo "Example: menv"
+    return 0
+  end
+  mine env export --shell fish | source
+end`,
+		},
 	}
 }
 

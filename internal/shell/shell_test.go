@@ -67,7 +67,7 @@ func TestFunctions(t *testing.T) {
 	}
 
 	// Verify expected functions exist.
-	expected := []string{"mkcd", "extract", "ports", "gitroot", "serve", "backup", "tre"}
+	expected := []string{"mkcd", "extract", "ports", "gitroot", "serve", "backup", "tre", "menv"}
 	for _, name := range expected {
 		if !names[name] {
 			t.Errorf("expected function %q not found", name)

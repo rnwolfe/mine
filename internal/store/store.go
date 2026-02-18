@@ -106,6 +106,12 @@ func (db *DB) migrate() error {
 			value TEXT,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
+		// Per-project active environment profile state
+		`CREATE TABLE IF NOT EXISTS env_projects (
+			project_path TEXT PRIMARY KEY,
+			active_profile TEXT NOT NULL DEFAULT 'local',
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
 	}
 
 	for _, m := range migrations {

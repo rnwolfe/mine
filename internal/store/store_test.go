@@ -47,7 +47,7 @@ func TestMigrationsCreateTables(t *testing.T) {
 	defer db.Close()
 
 	// Check all expected tables exist
-	tables := []string{"migrations", "todos", "goals", "streaks", "kv"}
+	tables := []string{"migrations", "todos", "goals", "streaks", "kv", "env_projects"}
 	for _, table := range tables {
 		var name string
 		err := db.Conn().QueryRow(

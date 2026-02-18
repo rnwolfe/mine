@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/rnwolfe/mine/internal/contrib"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/meta"
 	"github.com/rnwolfe/mine/internal/ui"
@@ -13,12 +14,13 @@ import (
 )
 
 var (
-	metaFrDesc    string
-	metaFrUseCase string
-	metaDryRun    bool
-	metaBugSteps  string
-	metaBugExpect string
-	metaBugActual string
+	metaFrDesc      string
+	metaFrUseCase   string
+	metaDryRun      bool
+	metaBugSteps    string
+	metaBugExpect   string
+	metaBugActual   string
+	metaContribList bool
 )
 
 var metaCmd = &cobra.Command{
@@ -42,10 +44,18 @@ var metaBugCmd = &cobra.Command{
 	RunE:  hook.Wrap("meta.bug", runMetaBug),
 }
 
+var metaContribCmd = &cobra.Command{
+	Use:   "contrib",
+	Short: "Start a contribution workflow for the mine repo",
+	Long:  `Shortcut for mine contrib --repo rnwolfe/mine. Turbo-starts an AI-assisted contribution workflow for mine itself.`,
+	RunE:  hook.Wrap("meta.contrib", runMetaContrib),
+}
+
 func init() {
 	rootCmd.AddCommand(metaCmd)
 	metaCmd.AddCommand(metaFrCmd)
 	metaCmd.AddCommand(metaBugCmd)
+	metaCmd.AddCommand(metaContribCmd)
 
 	metaFrCmd.Flags().StringVarP(&metaFrDesc, "description", "d", "", "What the feature should do")
 	metaFrCmd.Flags().StringVarP(&metaFrUseCase, "use-case", "u", "", "Why you need this feature")
@@ -55,6 +65,10 @@ func init() {
 	metaBugCmd.Flags().StringVarP(&metaBugExpect, "expected", "e", "", "Expected behavior")
 	metaBugCmd.Flags().StringVarP(&metaBugActual, "actual", "a", "", "Actual behavior")
 	metaBugCmd.Flags().BoolVar(&metaDryRun, "dry-run", false, "Preview the issue without submitting")
+
+	metaContribCmd.Flags().BoolVar(&metaContribList, "list", false, "List candidate issues without starting flow")
+	metaContribCmd.Flags().IntVarP(&contribIssue, "issue", "i", 0, "Issue number to work on")
+	metaContribCmd.Flags().BoolVar(&contribUseTmux, "tmux", false, "Start a two-pane tmux workspace")
 }
 
 func runMetaHelp(_ *cobra.Command, _ []string) error {
@@ -65,10 +79,18 @@ func runMetaHelp(_ *cobra.Command, _ []string) error {
 	fmt.Println()
 	fmt.Printf("    %s    %s\n", ui.Accent.Render("mine meta fr <title>"), ui.Muted.Render("Submit a feature request"))
 	fmt.Printf("    %s   %s\n", ui.Accent.Render("mine meta bug <title>"), ui.Muted.Render("Report a bug"))
+	fmt.Printf("    %s        %s\n", ui.Accent.Render("mine meta contrib"), ui.Muted.Render("Contribute to mine itself"))
 	fmt.Println()
 	ui.Tip("Use --dry-run to preview before submitting.")
 	fmt.Println()
 	return nil
+}
+
+func runMetaContrib(_ *cobra.Command, _ []string) error {
+	if metaContribList {
+		return runContribList(contrib.MineRepo)
+	}
+	return runContribFlow(contrib.MineRepo, contribIssue, contribUseTmux)
 }
 
 func runMetaFr(_ *cobra.Command, args []string) error {

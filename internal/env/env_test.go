@@ -191,6 +191,27 @@ func TestCurrentProfileDefaultMissingReturnsEmpty(t *testing.T) {
 	}
 }
 
+func TestExportAndTemplateDefaultMissingReturnEmpty(t *testing.T) {
+	mgr, projectPath, done := setupTestManager(t, "secret-pass")
+	defer done()
+
+	exportLines, err := mgr.ExportLines(projectPath, "local", "posix")
+	if err != nil {
+		t.Fatalf("ExportLines: %v", err)
+	}
+	if len(exportLines) != 0 {
+		t.Fatalf("expected no export lines, got %#v", exportLines)
+	}
+
+	keys, err := mgr.TemplateKeys(projectPath, "local")
+	if err != nil {
+		t.Fatalf("TemplateKeys: %v", err)
+	}
+	if len(keys) != 0 {
+		t.Fatalf("expected no template keys, got %#v", keys)
+	}
+}
+
 func TestUnsetVarAndListProfiles(t *testing.T) {
 	mgr, projectPath, done := setupTestManager(t, "secret-pass")
 	defer done()

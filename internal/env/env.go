@@ -260,7 +260,11 @@ func (m *Manager) Diff(projectPath, a, b string) (Diff, error) {
 func (m *Manager) ExportLines(projectPath, profile, shellName string) ([]string, error) {
 	vars, err := m.LoadProfile(projectPath, profile)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, os.ErrNotExist) && profile == defaultProfile {
+			vars = map[string]string{}
+		} else {
+			return nil, err
+		}
 	}
 	keys := sortedKeys(vars)
 	lines := make([]string, 0, len(keys))
@@ -278,6 +282,9 @@ func (m *Manager) ExportLines(projectPath, profile, shellName string) ([]string,
 func (m *Manager) TemplateKeys(projectPath, profile string) ([]string, error) {
 	vars, err := m.LoadProfile(projectPath, profile)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) && profile == defaultProfile {
+			return []string{}, nil
+		}
 		return nil, err
 	}
 	return sortedKeys(vars), nil

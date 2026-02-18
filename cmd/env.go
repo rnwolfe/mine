@@ -256,11 +256,7 @@ func runEnvInject(_ *cobra.Command, args []string) error {
 		return err
 	}
 	defer m.Close()
-	profile, err := m.manager.ActiveProfile(projectPath)
-	if err != nil {
-		return err
-	}
-	vars, err := m.manager.LoadProfile(projectPath, profile)
+	_, vars, err := m.manager.CurrentProfile(projectPath)
 	if err != nil {
 		return err
 	}

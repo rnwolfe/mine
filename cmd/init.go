@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rnwolfe/mine/internal/ai"
 	"github.com/rnwolfe/mine/internal/analytics"
 	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"

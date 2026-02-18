@@ -87,6 +87,11 @@ func runMetaHelp(_ *cobra.Command, _ []string) error {
 }
 
 func runMetaContrib(_ *cobra.Command, _ []string) error {
+	// Check gh CLI availability and auth before any gh invocation.
+	// runContribFlow/runContribList rely on the caller to have done this.
+	if err := contrib.CheckGH(); err != nil {
+		return err
+	}
 	if metaContribList {
 		return runContribList(contrib.MineRepo)
 	}

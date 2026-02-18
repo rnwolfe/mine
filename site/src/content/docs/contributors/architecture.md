@@ -161,3 +161,24 @@ graph LR
 ```
 
 Plugins are standalone binaries that communicate via JSON-over-stdin. See the [Plugin Protocol](/contributors/plugin-protocol/) for details.
+
+## Contribution Workflow (`internal/contrib/`)
+
+The `contrib` package orchestrates AI-assisted contribution workflows. It has no persistent
+storage — all operations are transient GitHub API calls and local filesystem operations via
+the `gh` CLI.
+
+Key responsibilities:
+- Repo slug validation (`ValidateRepo`)
+- Issue fetching and selection policy (`FetchCandidateIssues`, `FetchIssue`)
+- Fork detection and creation (`CheckForkState`, `EnsureFork`)
+- Clone and branch setup (`CloneRepo`, `CreateBranch`, `BranchName`)
+
+The `cmd/contrib.go` command wires these together with:
+- An explicit opt-in confirmation prompt before any action
+- A clear warning that actions use the user's own GitHub quota
+- TTY-aware issue selection (interactive picker in TTY, `--issue` required otherwise)
+- Optional `--tmux` flag for a two-pane workspace
+
+`mine meta contrib` is a thin shortcut in `cmd/meta.go` that calls the same flow
+with `rnwolfe/mine` as the target repo.

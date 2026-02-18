@@ -114,7 +114,6 @@ func MergedBranches() ([]Branch, error) {
 	var branches []Branch
 	for _, line := range lines {
 		name := strings.TrimSpace(strings.TrimPrefix(line, "*"))
-		name = strings.TrimSpace(name)
 		if name == "" || protected[name] {
 			continue
 		}

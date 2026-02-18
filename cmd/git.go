@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -80,8 +81,7 @@ func runGitBare(_ *cobra.Command, _ []string) error {
 		return nil // user canceled
 	}
 
-	// Strip the " *" suffix we added for the current branch display.
-	name := strings.TrimSuffix(chosen.Title(), " *")
+	name := chosen.FilterValue()
 
 	if err := git.SwitchBranch(name); err != nil {
 		return err
@@ -310,7 +310,7 @@ var ghPRCreate = func(info *git.PRInfo) (string, error) {
 		if msg == "" {
 			msg = err.Error()
 		}
-		return "", fmt.Errorf("%s", msg)
+		return "", errors.New(msg)
 	}
 	return strings.TrimSpace(out.String()), nil
 }

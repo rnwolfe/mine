@@ -14,7 +14,7 @@ Select the next `agent-ready` issue from the GitHub backlog, verify it was label
 
 ## Tasks
 
-- [ ] **Check concurrency**: Run `gh pr list --repo rnwolfe/mine --label autodev --state open --json number --jq 'length'`. If the count is >= 1, write "BLOCKED: concurrency limit reached" to `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md` and mark this task complete without proceeding further.
+- [x] **Check concurrency**: Run `gh pr list --repo rnwolfe/mine --label autodev --state open --json number --jq 'length'`. If the count is >= 1, write "BLOCKED: concurrency limit reached" to `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md` and mark this task complete without proceeding further. (Loop 00001: result = 1, blocked)
 
 - [ ] **Find candidate issue**: Run `gh issue list --repo rnwolfe/mine --label agent-ready --state open --json number,title,labels --jq '[.[] | select(.labels | map(.name) | index("in-progress") | not)] | sort_by(.number) | first'`. If no issues found, write "BLOCKED: no agent-ready issues" to `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md` and mark complete.
 

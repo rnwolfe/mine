@@ -31,6 +31,10 @@
         {
           "label": "Plugin Protocol",
           "slug": "contributors/plugin-protocol"
+        },
+        {
+          "label": "Project Context",
+          "slug": "contributors/project-context"
         }
       ]
     },

@@ -113,24 +113,41 @@ func runTodoTUI(ts *todo.Store, todos []todo.Todo) error {
 	}
 
 	// Apply actions returned from the TUI.
+	var failedActions []string
 	for _, a := range actions {
 		switch a.Type {
 		case "toggle":
 			t, err := ts.Get(a.ID)
 			if err != nil {
+				failedActions = append(failedActions, fmt.Sprintf("toggle #%d: %v", a.ID, err))
 				continue
 			}
 			if t.Done {
-				_ = ts.Uncomplete(a.ID)
+				if err := ts.Uncomplete(a.ID); err != nil {
+					failedActions = append(failedActions, fmt.Sprintf("uncomplete #%d: %v", a.ID, err))
+				}
 			} else {
-				_ = ts.Complete(a.ID)
+				if err := ts.Complete(a.ID); err != nil {
+					failedActions = append(failedActions, fmt.Sprintf("complete #%d: %v", a.ID, err))
+				}
 			}
 		case "delete":
-			_ = ts.Delete(a.ID)
+			if err := ts.Delete(a.ID); err != nil {
+				failedActions = append(failedActions, fmt.Sprintf("delete #%d: %v", a.ID, err))
+			}
 		case "add":
 			if strings.TrimSpace(a.Text) != "" {
-				_, _ = ts.Add(a.Text, todo.PrioMedium, nil, nil)
+				if _, err := ts.Add(a.Text, todo.PrioMedium, nil, nil); err != nil {
+					failedActions = append(failedActions, fmt.Sprintf("add %q: %v", a.Text, err))
+				}
 			}
+		}
+	}
+
+	if len(failedActions) > 0 {
+		fmt.Println(ui.Warning.Render("Some actions failed:"))
+		for _, msg := range failedActions {
+			fmt.Println("  " + msg)
 		}
 	}
 

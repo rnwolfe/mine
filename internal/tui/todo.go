@@ -219,7 +219,11 @@ func (m *TodoModel) handleAddKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				UpdatedAt: now,
 			})
 			m.applyFilter()
-			m.cursor = len(m.filtered) - 1
+			if len(m.filtered) > 0 {
+				m.cursor = len(m.filtered) - 1
+			} else {
+				m.cursor = 0
+			}
 		}
 		m.mode = todoModeNormal
 		m.addInput = ""

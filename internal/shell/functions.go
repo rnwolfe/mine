@@ -483,6 +483,162 @@ end`,
   tmux split-window -v
 end`,
 		},
+		// --- git helpers ---
+		{
+			Name: "gc",
+			Desc: "git commit -m shorthand",
+			Bash: `gc() {
+  if [ "$1" = "--help" ]; then
+    echo "gc — git commit -m shorthand"
+    echo "Usage: gc <message>"
+    echo "Example: gc \"feat: add user auth\""
+    return 0
+  fi
+  git commit -m "$*"
+}`,
+			Zsh: `gc() {
+  if [[ "$1" == "--help" ]]; then
+    echo "gc — git commit -m shorthand"
+    echo "Usage: gc <message>"
+    echo "Example: gc \"feat: add user auth\""
+    return 0
+  fi
+  git commit -m "$*"
+}`,
+			Fish: `function gc
+  if test "$argv[1]" = "--help"
+    echo "gc — git commit -m shorthand"
+    echo "Usage: gc <message>"
+    echo "Example: gc \"feat: add user auth\""
+    return 0
+  end
+  git commit -m "$argv"
+end`,
+		},
+		{
+			Name: "gca",
+			Desc: "git commit --amend -m shorthand",
+			Bash: `gca() {
+  if [ "$1" = "--help" ]; then
+    echo "gca — git commit --amend -m shorthand"
+    echo "Usage: gca <message>"
+    echo "Example: gca \"fix: corrected typo\""
+    return 0
+  fi
+  git commit --amend -m "$*"
+}`,
+			Zsh: `gca() {
+  if [[ "$1" == "--help" ]]; then
+    echo "gca — git commit --amend -m shorthand"
+    echo "Usage: gca <message>"
+    echo "Example: gca \"fix: corrected typo\""
+    return 0
+  fi
+  git commit --amend -m "$*"
+}`,
+			Fish: `function gca
+  if test "$argv[1]" = "--help"
+    echo "gca — git commit --amend -m shorthand"
+    echo "Usage: gca <message>"
+    echo "Example: gca \"fix: corrected typo\""
+    return 0
+  end
+  git commit --amend -m "$argv"
+end`,
+		},
+		{
+			Name: "gp",
+			Desc: "git push with upstream tracking",
+			Bash: `gp() {
+  if [ "$1" = "--help" ]; then
+    echo "gp — git push with upstream tracking"
+    echo "Usage: gp"
+    echo "Example: gp"
+    return 0
+  fi
+  git push --set-upstream origin "$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+}`,
+			Zsh: `gp() {
+  if [[ "$1" == "--help" ]]; then
+    echo "gp — git push with upstream tracking"
+    echo "Usage: gp"
+    echo "Example: gp"
+    return 0
+  fi
+  git push --set-upstream origin "$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+}`,
+			Fish: `function gp
+  if test "$argv[1]" = "--help"
+    echo "gp — git push with upstream tracking"
+    echo "Usage: gp"
+    echo "Example: gp"
+    return 0
+  end
+  git push --set-upstream origin (git rev-parse --abbrev-ref HEAD 2>/dev/null)
+end`,
+		},
+		{
+			Name: "gpl",
+			Desc: "git pull --rebase",
+			Bash: `gpl() {
+  if [ "$1" = "--help" ]; then
+    echo "gpl — git pull --rebase"
+    echo "Usage: gpl"
+    echo "Example: gpl"
+    return 0
+  fi
+  git pull --rebase
+}`,
+			Zsh: `gpl() {
+  if [[ "$1" == "--help" ]]; then
+    echo "gpl — git pull --rebase"
+    echo "Usage: gpl"
+    echo "Example: gpl"
+    return 0
+  fi
+  git pull --rebase
+}`,
+			Fish: `function gpl
+  if test "$argv[1]" = "--help"
+    echo "gpl — git pull --rebase"
+    echo "Usage: gpl"
+    echo "Example: gpl"
+    return 0
+  end
+  git pull --rebase
+end`,
+		},
+		{
+			Name: "gsw",
+			Desc: "git switch shorthand",
+			Bash: `gsw() {
+  if [ "$1" = "--help" ]; then
+    echo "gsw — git switch shorthand"
+    echo "Usage: gsw <branch>"
+    echo "Example: gsw main"
+    return 0
+  fi
+  git switch "$1"
+}`,
+			Zsh: `gsw() {
+  if [[ "$1" == "--help" ]]; then
+    echo "gsw — git switch shorthand"
+    echo "Usage: gsw <branch>"
+    echo "Example: gsw main"
+    return 0
+  fi
+  git switch "$1"
+}`,
+			Fish: `function gsw
+  if test "$argv[1]" = "--help"
+    echo "gsw — git switch shorthand"
+    echo "Usage: gsw <branch>"
+    echo "Example: gsw main"
+    return 0
+  end
+  git switch $argv[1]
+end`,
+		},
 	}
 }
 

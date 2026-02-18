@@ -43,6 +43,7 @@ func aliasesScript(shellName string) string {
 		{"mc", "mine craft"},
 		{"ms", "mine stash"},
 		{"mx", "mine tmux"},
+		{"mg", "mine git"},
 	}
 
 	out := "# mine aliases\n"

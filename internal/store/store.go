@@ -113,14 +113,16 @@ func (db *DB) migrate() error {
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
 		// Project registry
-			`CREATE TABLE IF NOT EXISTS projects (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				name TEXT NOT NULL UNIQUE,
-				path TEXT NOT NULL UNIQUE,
-				last_accessed TEXT,
-				created_at TEXT NOT NULL
-			)`,
-		}
+		`CREATE TABLE IF NOT EXISTS projects (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			path TEXT NOT NULL UNIQUE,
+			last_accessed TEXT,
+			created_at TEXT NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name)`,
+		`CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)`,
+	}
 
 	for _, m := range migrations {
 		if _, err := db.conn.Exec(m); err != nil {

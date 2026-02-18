@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -82,8 +83,14 @@ func NewPicker(items []Item, opts ...PickerOption) *Picker {
 // Run is the convenience entry point: show a picker and return the selected item.
 // Returns nil and no error if the user canceled.
 func Run(items []Item, opts ...PickerOption) (Item, error) {
+	return RunWithOutput(items, os.Stdout, opts...)
+}
+
+// RunWithOutput renders the picker UI to the provided writer.
+// Useful when stdout is captured but an interactive TTY UI is still desired.
+func RunWithOutput(items []Item, output io.Writer, opts ...PickerOption) (Item, error) {
 	p := NewPicker(items, opts...)
-	prog := tea.NewProgram(p, tea.WithAltScreen())
+	prog := tea.NewProgram(p, tea.WithAltScreen(), tea.WithOutput(output))
 	m, err := prog.Run()
 	if err != nil {
 		return nil, fmt.Errorf("picker: %w", err)

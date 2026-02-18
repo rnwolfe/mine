@@ -49,6 +49,7 @@ mine/
 │   ├── hook/        # Hook pipeline (stages, registry, exec)
 │   ├── plugin/      # Plugin system (manifest, lifecycle, runtime, search)
 │   ├── craft/       # Scaffolding recipe engine (data-driven, embed.FS)
+│   ├── proj/        # Project registry + context switching
 │   ├── tui/         # Reusable TUI components (fuzzy-search picker)
 │   ├── tmux/        # Tmux session management and layout persistence
 │   ├── env/         # Encrypted per-project environment profiles
@@ -117,6 +118,10 @@ Rules:
     Active profile per project is tracked in the `env_projects` SQLite table (defaults to `local`).
     Passphrase sourced from `MINE_ENV_PASSPHRASE`, `MINE_VAULT_PASSPHRASE`, or TTY prompt — never stored.
     CLI: `mine env show/set/unset/diff/switch/export/template/inject`. Shell helper: `menv`.
+13. **Project context registry**: `internal/proj` persists project membership in SQLite
+    (`projects` table) and project-local settings in `~/.config/mine/projects.toml`.
+    Current/previous project pointers are tracked via `kv` keys (`proj.current`,
+    `proj.previous`) to support shell helpers (`p`, `pp`) and dashboard context.
 
 ## Design Principles
 
@@ -486,15 +491,22 @@ anyone who can label an issue could queue arbitrary code generation. Fix: use th
 timeline API to check who applied the label and only proceed if they're in the trusted
 users allowlist (`AUTODEV_TRUSTED_USERS` in config.sh).
 
+### L-018: Interactive picker output must handle command substitution
+Shell helpers like `p` use command substitution to capture `--print-path`, which pipes
+stdout. Bubbletea picker rendering must target a real TTY output stream (stderr) in
+that mode, or the picker can become invisible/hang despite stdin being interactive.
+
 ## Key Files
 
 | File | Purpose |
 |------|---------|
 | `cmd/root.go` | Dashboard, command registration |
 | `cmd/todo.go` | Todo CRUD commands |
+| `cmd/proj.go` | Project CLI commands (add, rm, list, open, scan, config) |
 | `cmd/plugin.go` | Plugin CLI commands (install, remove, search, info) |
 | `internal/ui/theme.go` | Colors, icons, style constants |
 | `internal/store/store.go` | DB connection, migrations |
+| `internal/proj/proj.go` | Project domain logic — registry CRUD, scan, open state, settings |
 | `internal/todo/todo.go` | Todo domain logic + queries |
 | `internal/config/config.go` | Config load/save, XDG paths |
 | `internal/hook/hook.go` | Hook types, Context, Handler interface |

@@ -1,0 +1,105 @@
+---
+title: mine ai
+description: AI-powered development helpers
+---
+
+Use AI to assist with code review, commit messages, and quick questions.
+Supports Claude, OpenAI, Gemini, and OpenRouter.
+
+## Configure a Provider
+
+```bash
+mine ai config --provider claude --key sk-ant-...
+mine ai config --provider openai --key sk-...
+mine ai config --provider gemini --key AIza...
+mine ai config --provider openrouter --key sk-or-v1-...
+```
+
+API keys are stored encrypted in the vault (`~/.local/share/mine/vault.age`).
+See [`mine vault`](/commands/vault) for details.
+
+### Set Default Model
+
+```bash
+mine ai config --provider claude --default-model claude-opus-4-6
+```
+
+### List Configured Providers
+
+```bash
+mine ai config --list
+```
+
+## Zero-Config Setup
+
+Set a standard environment variable and mine detects it automatically:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+export OPENAI_API_KEY=sk-...
+export GEMINI_API_KEY=AIza...
+export OPENROUTER_API_KEY=sk-or-v1-...
+```
+
+Environment variables take precedence over vault-stored keys.
+
+## Ask a Question
+
+```bash
+mine ai ask "What is the difference between defer and panic in Go?"
+mine ai ask "Explain the repository pattern" --model claude-opus-4-6
+```
+
+## Review Staged Changes
+
+```bash
+git add .
+mine ai review
+```
+
+Sends your staged git diff to the configured AI provider for code review.
+
+## Generate a Commit Message
+
+```bash
+git add .
+mine ai commit
+```
+
+Analyzes staged changes, suggests a conventional commit message, and optionally runs `git commit`.
+
+## List Providers and Models
+
+```bash
+mine ai models
+```
+
+Shows all available providers with their suggested models and configuration status.
+
+## API Key Storage
+
+API keys configured via `mine ai config --key` are stored in the encrypted vault:
+
+| Provider | Vault key |
+|----------|-----------|
+| claude | `ai.claude.api_key` |
+| openai | `ai.openai.api_key` |
+| gemini | `ai.gemini.api_key` |
+| openrouter | `ai.openrouter.api_key` |
+
+You can also manage these keys directly with `mine vault`:
+
+```bash
+mine vault set ai.claude.api_key sk-ant-...
+mine vault get ai.claude.api_key
+mine vault rm ai.claude.api_key
+```
+
+## Supported Providers
+
+| Provider | Env Var | Notes |
+|----------|---------|-------|
+| `claude` | `ANTHROPIC_API_KEY` | [Get key](https://console.anthropic.com/settings/keys) |
+| `openai` | `OPENAI_API_KEY` | [Get key](https://platform.openai.com/api-keys) |
+| `gemini` | `GEMINI_API_KEY` | [Get key](https://aistudio.google.com/app/apikey) |
+| `openrouter` | `OPENROUTER_API_KEY` | Free models available. [Get key](https://openrouter.ai/keys) |

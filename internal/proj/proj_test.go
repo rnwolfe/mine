@@ -212,3 +212,68 @@ func TestProjectConfigSettings(t *testing.T) {
 		t.Fatalf("projects.toml should not be empty")
 	}
 }
+
+func TestAddRejectsFilePath(t *testing.T) {
+	s, _ := setupStore(t)
+
+	root := t.TempDir()
+	file := filepath.Join(root, "README.md")
+	if err := os.WriteFile(file, []byte("hi"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	if _, err := s.Add(file); err == nil {
+		t.Fatal("expected error for non-directory path")
+	}
+}
+
+func TestScanRejectsNegativeDepth(t *testing.T) {
+	s, _ := setupStore(t)
+
+	if _, err := s.Scan(t.TempDir(), -1); err == nil {
+		t.Fatal("expected error for negative scan depth")
+	}
+}
+
+func TestOpenPreviousWithoutState(t *testing.T) {
+	s, _ := setupStore(t)
+
+	if _, err := s.OpenPrevious(); err == nil {
+		t.Fatal("expected error when previous project is not tracked")
+	}
+}
+
+func TestSetSettingValidation(t *testing.T) {
+	s, _ := setupStore(t)
+	p, err := s.Add(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.SetSetting("", "ssh_host", "prod-box"); err == nil {
+		t.Fatal("expected error for missing project name")
+	}
+
+	if err := s.SetSetting("does-not-exist", "ssh_host", "prod-box"); err == nil {
+		t.Fatal("expected error for unknown project")
+	}
+
+	if err := s.SetSetting(p.Name, "not_a_key", "x"); err == nil {
+		t.Fatal("expected error for unknown key")
+	}
+}
+
+func TestGetSettingUnknownKey(t *testing.T) {
+	s, _ := setupStore(t)
+	p, err := s.Add(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetSetting(p.Name, "ssh_host", "prod-box"); err != nil {
+		t.Fatalf("SetSetting ssh_host failed: %v", err)
+	}
+
+	if _, err := s.GetSetting(p.Name, "not_a_key"); err == nil {
+		t.Fatal("expected error for unknown key")
+	}
+}

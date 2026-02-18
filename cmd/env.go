@@ -268,7 +268,7 @@ func runEnvInject(_ *cobra.Command, args []string) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = append(os.Environ(), mapToEnv(vars)...)
+	cmd.Env = mergedEnv(os.Environ(), vars)
 	return cmd.Run()
 }
 
@@ -387,10 +387,26 @@ func parseSetArg(arg string) (string, string, error) {
 	return key, value, nil
 }
 
-func mapToEnv(vars map[string]string) []string {
-	out := make([]string, 0, len(vars))
-	for k, v := range vars {
-		out = append(out, k+"="+v)
+func mergedEnv(base []string, overrides map[string]string) []string {
+	outMap := make(map[string]string, len(base)+len(overrides))
+	for _, entry := range base {
+		key, value, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		outMap[key] = value
+	}
+	for k, v := range overrides {
+		outMap[k] = v
+	}
+	keys := make([]string, 0, len(outMap))
+	for k := range outMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
+		out = append(out, k+"="+outMap[k])
 	}
 	return out
 }

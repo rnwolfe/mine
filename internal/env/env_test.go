@@ -251,3 +251,24 @@ func TestCorruptedProfile(t *testing.T) {
 		t.Fatalf("expected ErrCorruptedProfile, got %v", err)
 	}
 }
+
+func TestCorruptedProfileInvalidKey(t *testing.T) {
+	mgr, projectPath, done := setupTestManager(t, "secret-pass")
+	defer done()
+
+	data := &profileData{
+		Vars: map[string]string{"BAD-KEY": "value"},
+	}
+	enc, err := encrypt(data, "secret-pass")
+	if err != nil {
+		t.Fatalf("encrypt: %v", err)
+	}
+	if err := atomicWrite(mgr.profilePath(projectPath, "local"), enc); err != nil {
+		t.Fatalf("atomicWrite: %v", err)
+	}
+
+	_, err = mgr.LoadProfile(projectPath, "local")
+	if !errors.Is(err, ErrCorruptedProfile) {
+		t.Fatalf("expected ErrCorruptedProfile, got %v", err)
+	}
+}

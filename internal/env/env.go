@@ -148,6 +148,11 @@ func (m *Manager) LoadProfile(projectPath, name string) (map[string]string, erro
 	if err != nil {
 		return nil, err
 	}
+	for key := range data.Vars {
+		if err := ValidateKey(key); err != nil {
+			return nil, fmt.Errorf("%w: invalid key %q", ErrCorruptedProfile, key)
+		}
+	}
 	return data.Vars, nil
 }
 

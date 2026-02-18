@@ -82,17 +82,27 @@ func TestParseSetArgRequiresValue(t *testing.T) {
 	}
 }
 
-func TestMapToEnv(t *testing.T) {
-	values := map[string]string{
-		"B": "2",
-		"A": "1",
+func TestMergedEnv(t *testing.T) {
+	base := []string{
+		"A=old",
+		"B=2",
+		"A=stale",
+		"NOSEP",
 	}
-	lines := mapToEnv(values)
-	if len(lines) != 2 {
-		t.Fatalf("expected 2 entries, got %d", len(lines))
+	overrides := map[string]string{
+		"A": "new",
+		"C": "3",
+	}
+
+	lines := mergedEnv(base, overrides)
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 entries, got %d (%v)", len(lines), lines)
 	}
 	joined := strings.Join(lines, ",")
-	if !strings.Contains(joined, "A=1") || !strings.Contains(joined, "B=2") {
+	if strings.Contains(joined, "A=old") || strings.Contains(joined, "A=stale") {
+		t.Fatalf("unexpected stale A value in merged env: %v", lines)
+	}
+	if !strings.Contains(joined, "A=new") || !strings.Contains(joined, "B=2") || !strings.Contains(joined, "C=3") {
 		t.Fatalf("unexpected env entries: %v", lines)
 	}
 }

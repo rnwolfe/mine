@@ -411,5 +411,5 @@ func fishQuote(v string) string {
 	if v == "" {
 		return "''"
 	}
-	return "'" + strings.ReplaceAll(v, "'", `\'`) + "'"
+	return "'" + strings.ReplaceAll(v, "'", `'\''`) + "'"
 }

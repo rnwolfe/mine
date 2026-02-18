@@ -8,12 +8,44 @@ Pomodoro-style focus timer with streak tracking and deep work stats.
 ## Start a Session
 
 ```bash
-mine dig          # 25 minutes (default)
+mine dig          # 25 minutes (default), full-screen TUI in a terminal
 mine dig 45m      # 45 minutes
 mine dig 1h       # 1 hour
+mine dig --simple # simple inline progress bar (no full-screen)
 ```
 
-Press `Ctrl+C` to end early. Sessions over 5 minutes still count toward your streak.
+Press `q` or `Ctrl+C` to end early (full-screen mode only). Sessions over 5 minutes still count toward your streak.
+
+## Full-Screen Mode
+
+When run in a terminal, `mine dig` launches a full-screen focus timer that adapts to your terminal size, showing:
+
+- A large countdown timer
+- A progress bar proportional to time elapsed
+- Elapsed and remaining time
+
+### Keyboard Shortcuts (full-screen mode)
+
+| Key | Action |
+|-----|--------|
+| `q` / `Ctrl+C` | End session early |
+
+### Simple Mode
+
+Use `--simple` to keep the original inline progress output (useful for tmux status bars or logging):
+
+```bash
+mine dig --simple
+mine dig 45m --simple
+```
+
+### Non-interactive (piped output)
+
+When stdout is piped or not a TTY, `mine dig` automatically uses simple mode:
+
+```bash
+mine dig | tee focus.log   # plain output for scripting
+```
 
 ## View Stats
 

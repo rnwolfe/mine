@@ -9,6 +9,7 @@ import (
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/todo"
+	"github.com/rnwolfe/mine/internal/tui"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -17,8 +18,21 @@ var todoCmd = &cobra.Command{
 	Use:     "todo",
 	Aliases: []string{"t"},
 	Short:   "Manage your tasks",
-	Long:    `Fast, no-nonsense task management. Add, complete, and track todos.`,
-	RunE:    hook.Wrap("todo.list", runTodoList),
+	Long: `Fast, no-nonsense task management. Add, complete, and track todos.
+
+In an interactive terminal, launches a full-screen todo browser.
+Pipe output or use subcommands for scripting.
+
+Keyboard shortcuts (interactive mode):
+  j / k        Move down / up
+  x / space    Toggle done/undone
+  a            Add new todo (type title, Enter to save)
+  d            Delete selected todo
+  /            Filter todos (fuzzy search)
+  g / G        Jump to top / bottom
+  Esc          Clear active filter (or no-op)
+  q / Ctrl+C   Quit`,
+	RunE: hook.Wrap("todo.list", runTodoList),
 }
 
 var (
@@ -85,6 +99,63 @@ func runTodoList(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
+	// Launch interactive TUI when connected to a terminal.
+	if tui.IsTTY() {
+		return runTodoTUI(ts, todos)
+	}
+
+	return printTodoList(todos, ts)
+}
+
+func runTodoTUI(ts *todo.Store, todos []todo.Todo) error {
+	actions, err := tui.RunTodo(todos)
+	if err != nil {
+		return err
+	}
+
+	// Apply actions returned from the TUI.
+	var failedActions []string
+	for _, a := range actions {
+		switch a.Type {
+		case "toggle":
+			t, err := ts.Get(a.ID)
+			if err != nil {
+				failedActions = append(failedActions, fmt.Sprintf("toggle #%d: %v", a.ID, err))
+				continue
+			}
+			if t.Done {
+				if err := ts.Uncomplete(a.ID); err != nil {
+					failedActions = append(failedActions, fmt.Sprintf("uncomplete #%d: %v", a.ID, err))
+				}
+			} else {
+				if err := ts.Complete(a.ID); err != nil {
+					failedActions = append(failedActions, fmt.Sprintf("complete #%d: %v", a.ID, err))
+				}
+			}
+		case "delete":
+			if err := ts.Delete(a.ID); err != nil {
+				failedActions = append(failedActions, fmt.Sprintf("delete #%d: %v", a.ID, err))
+			}
+		case "add":
+			if strings.TrimSpace(a.Text) != "" {
+				if _, err := ts.Add(a.Text, todo.PrioMedium, nil, nil); err != nil {
+					failedActions = append(failedActions, fmt.Sprintf("add %q: %v", a.Text, err))
+				}
+			}
+		}
+	}
+
+	if len(failedActions) > 0 {
+		fmt.Println(ui.Warning.Render("Some actions failed:"))
+		for _, msg := range failedActions {
+			fmt.Println("  " + msg)
+		}
+	}
+
+	return nil
+}
+
+func printTodoList(todos []todo.Todo, ts *todo.Store) error {
 	if len(todos) == 0 {
 		fmt.Println()
 		fmt.Println(ui.Muted.Render("  No todos yet. Life is good?"))

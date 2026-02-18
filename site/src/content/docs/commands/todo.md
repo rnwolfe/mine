@@ -5,12 +5,37 @@ description: Fast task management with priorities, due dates, and tags
 
 Fast task management with priorities, due dates, and tags.
 
-## List Todos
+## Interactive TUI
+
+When run in a terminal, `mine todo` launches a full-screen interactive browser:
 
 ```bash
-mine todo         # show open todos
-mine todo --all   # include completed
+mine todo         # interactive TUI (TTY) or plain list (piped)
+mine todo --all   # include completed todos in the view
 mine t            # alias
+```
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Move down |
+| `k` / `↑` | Move up |
+| `x` / `Space` / `Enter` | Toggle done / undone |
+| `a` | Add new todo (type title, Enter to save) |
+| `d` | Delete selected todo |
+| `/` | Filter todos (fuzzy search) |
+| `g` | Jump to top |
+| `G` | Jump to bottom |
+| `Esc` | Clear active filter (no-op if no filter) |
+| `q` / `Ctrl+C` | Quit |
+
+### Non-interactive (script-friendly)
+
+When stdout is piped or not a TTY, `mine todo` prints the plain text list:
+
+```bash
+mine todo | grep "high"    # plain output for scripting
 ```
 
 ## Add a Todo

@@ -3,8 +3,10 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "predev": "bash scripts/sync-changelog.sh",
     "dev": "astro dev",
     "start": "astro dev",
+    "prebuild": "bash scripts/sync-changelog.sh",
     "build": "astro check && astro build",
     "preview": "astro preview",
     "astro": "astro"

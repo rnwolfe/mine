@@ -17,6 +17,9 @@ func TestGetPaths(t *testing.T) {
 	if paths.ConfigFile == "" {
 		t.Fatal("ConfigFile should not be empty")
 	}
+	if paths.ProjectsFile == "" {
+		t.Fatal("ProjectsFile should not be empty")
+	}
 	if paths.DBFile == "" {
 		t.Fatal("DBFile should not be empty")
 	}

@@ -48,13 +48,14 @@ type AIConfig struct {
 
 // Paths returns standard XDG-compliant paths.
 type Paths struct {
-	ConfigDir  string
-	DataDir    string
-	CacheDir   string
-	StateDir   string
-	ConfigFile string
-	DBFile     string
-	EnvDir     string
+	ConfigDir    string
+	DataDir      string
+	CacheDir     string
+	StateDir     string
+	ConfigFile   string
+	ProjectsFile string
+	DBFile       string
+	EnvDir       string
 }
 
 // GetPaths returns the resolved paths, respecting XDG env vars.
@@ -70,13 +71,14 @@ func GetPaths() Paths {
 	mineData := filepath.Join(dataDir, "mine")
 
 	return Paths{
-		ConfigDir:  mineConfig,
-		DataDir:    mineData,
-		CacheDir:   filepath.Join(cacheDir, "mine"),
-		StateDir:   filepath.Join(stateDir, "mine"),
-		ConfigFile: filepath.Join(mineConfig, "config.toml"),
-		DBFile:     filepath.Join(mineData, "mine.db"),
-		EnvDir:     filepath.Join(mineData, "envs"),
+		ConfigDir:    mineConfig,
+		DataDir:      mineData,
+		CacheDir:     filepath.Join(cacheDir, "mine"),
+		StateDir:     filepath.Join(stateDir, "mine"),
+		ConfigFile:   filepath.Join(mineConfig, "config.toml"),
+		ProjectsFile: filepath.Join(mineConfig, "projects.toml"),
+		DBFile:       filepath.Join(mineData, "mine.db"),
+		EnvDir:       filepath.Join(mineData, "envs"),
 	}
 }
 

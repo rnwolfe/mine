@@ -118,6 +118,28 @@ All output goes through `internal/ui` helpers:
 
 Never use raw `fmt.Println` in commands.
 
+### 6. Terminal Markdown Rendering
+
+`internal/ui` provides a reusable `MarkdownWriter` adapter for rendering AI streaming output as styled terminal markdown via [glamour](https://github.com/charmbracelet/glamour).
+
+```go
+mdw := ui.NewMarkdownWriter(os.Stdout, rawFlag)
+provider.Stream(ctx, req, mdw)
+mdw.Flush()
+```
+
+**Mode selection:**
+
+| Context | Behaviour |
+|---------|-----------|
+| TTY + default | Buffer chunks, render as styled markdown on `Flush` |
+| Non-TTY / piped | Pass-through immediately (no buffering) |
+| `--raw` flag | Pass-through immediately (no buffering) |
+
+If renderer initialisation or rendering fails, `Flush` falls back to emitting raw markdown and prints a warning to stderr — commands always produce output.
+
+Commands using this pattern: `mine ai ask`, `mine ai review`.
+
 ## Data Flow
 
 ```mermaid

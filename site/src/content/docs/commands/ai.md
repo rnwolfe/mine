@@ -50,6 +50,18 @@ mine ai ask "What is the difference between defer and panic in Go?"
 mine ai ask "Explain the repository pattern" --model claude-opus-4-6
 ```
 
+In interactive terminals (TTY), responses are automatically rendered as styled markdown — headings, code blocks, lists, and emphasis are all formatted for readability.
+
+### Raw output
+
+Use `--raw` to force plain markdown output (no terminal rendering). Useful for piping into other tools or saving to a file:
+
+```bash
+mine ai ask "Explain goroutines" --raw
+mine ai ask "Explain goroutines" --raw > answer.md
+mine ai ask "Explain goroutines" | cat   # non-TTY also outputs raw automatically
+```
+
 ## Review Staged Changes
 
 ```bash
@@ -57,7 +69,14 @@ git add .
 mine ai review
 ```
 
-Sends your staged git diff to the configured AI provider for code review.
+Sends your staged git diff to the configured AI provider for code review. Output is rendered as styled markdown in interactive terminals.
+
+### Raw output
+
+```bash
+mine ai review --raw             # force plain markdown
+mine ai review --raw > review.md # pipe to file
+```
 
 ## Generate a Commit Message
 

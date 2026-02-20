@@ -230,12 +230,19 @@ func runAIConfig(_ *cobra.Command, _ []string) error {
 }
 
 // ai ask command
-var aiAskCmd = &cobra.Command{
-	Use:   "ask <question>",
-	Short: "Ask a quick question",
-	Long:  `Send a question to your configured AI provider and get an answer.`,
-	Args:  cobra.MinimumNArgs(1),
-	RunE:  hook.Wrap("ai.ask", runAIAsk),
+var (
+	aiAskCmd = &cobra.Command{
+		Use:   "ask <question>",
+		Short: "Ask a quick question",
+		Long:  `Send a question to your configured AI provider and get an answer.`,
+		Args:  cobra.MinimumNArgs(1),
+		RunE:  hook.Wrap("ai.ask", runAIAsk),
+	}
+	aiAskRaw bool
+)
+
+func init() {
+	aiAskCmd.Flags().BoolVar(&aiAskRaw, "raw", false, "Output raw markdown without terminal rendering")
 }
 
 func runAIAsk(cmd *cobra.Command, args []string) error {
@@ -264,8 +271,12 @@ func runAIAsk(cmd *cobra.Command, args []string) error {
 	fmt.Println(ui.Muted.Render(fmt.Sprintf("  Asking %s...", provider.Name())))
 	fmt.Println()
 
-	// Stream the response
-	if err := provider.Stream(ctx, req, os.Stdout); err != nil {
+	// Stream the response through a markdown-aware writer.
+	mdw := ui.NewMarkdownWriter(os.Stdout, aiAskRaw)
+	if err := provider.Stream(ctx, req, mdw); err != nil {
+		return err
+	}
+	if err := mdw.Flush(); err != nil {
 		return err
 	}
 
@@ -275,11 +286,18 @@ func runAIAsk(cmd *cobra.Command, args []string) error {
 }
 
 // ai review command
-var aiReviewCmd = &cobra.Command{
-	Use:   "review",
-	Short: "Review staged changes with AI",
-	Long:  `Get an AI-powered code review of your staged git changes.`,
-	RunE:  hook.Wrap("ai.review", runAIReview),
+var (
+	aiReviewCmd = &cobra.Command{
+		Use:   "review",
+		Short: "Review staged changes with AI",
+		Long:  `Get an AI-powered code review of your staged git changes.`,
+		RunE:  hook.Wrap("ai.review", runAIReview),
+	}
+	aiReviewRaw bool
+)
+
+func init() {
+	aiReviewCmd.Flags().BoolVar(&aiReviewRaw, "raw", false, "Output raw markdown without terminal rendering")
 }
 
 func runAIReview(cmd *cobra.Command, _ []string) error {
@@ -349,7 +367,12 @@ Here's the diff%s:
 	fmt.Println(ui.Muted.Render(fmt.Sprintf("  Analyzing staged changes with %s...", provider.Name())))
 	fmt.Println()
 
-	if err := provider.Stream(ctx, req, os.Stdout); err != nil {
+	// Stream the review through a markdown-aware writer.
+	mdw := ui.NewMarkdownWriter(os.Stdout, aiReviewRaw)
+	if err := provider.Stream(ctx, req, mdw); err != nil {
+		return err
+	}
+	if err := mdw.Flush(); err != nil {
 		return err
 	}
 

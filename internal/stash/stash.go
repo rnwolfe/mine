@@ -145,6 +145,38 @@ func validateSafeName(safeName string) error {
 	return nil
 }
 
+// ValidateEntry validates the safety invariants of a manifest entry.
+// It checks that SafeName is non-empty and free of path traversal characters,
+// that Source is non-empty and an absolute path, and that Source does not
+// escape the user's home directory.
+// It does not perform any disk I/O — file existence, readability, and type
+// checks are the caller's responsibility.
+func ValidateEntry(e Entry) error {
+	if err := validateSafeName(e.SafeName); err != nil {
+		return err
+	}
+	if e.Source == "" {
+		return fmt.Errorf("empty Source")
+	}
+	srcPath := filepath.Clean(e.Source)
+	if !filepath.IsAbs(srcPath) {
+		return fmt.Errorf("source path is not absolute: %q", e.Source)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("determining home directory: %w", err)
+	}
+	sep := string(os.PathSeparator)
+	rel, err := filepath.Rel(home, srcPath)
+	if err != nil {
+		return fmt.Errorf("source path %q is not resolvable relative to home directory", e.Source)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+sep) {
+		return fmt.Errorf("source path %q escapes home directory", e.Source)
+	}
+	return nil
+}
+
 // Commit snapshots the current stash state with a message.
 // Initializes the git repo on first commit.
 func Commit(message string) (string, error) {
@@ -160,7 +192,7 @@ func Commit(message string) (string, error) {
 		return "", fmt.Errorf("reading manifest: %w", err)
 	}
 	for _, e := range entries {
-		if err := validateSafeName(e.SafeName); err != nil {
+		if err := ValidateEntry(e); err != nil {
 			return "", fmt.Errorf("invalid manifest entry for %s: %w", e.Source, err)
 		}
 		src := e.Source
@@ -405,35 +437,12 @@ func SyncPull() error {
 		return fmt.Errorf("reading manifest: %w", err)
 	}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("determining home directory: %w", err)
-	}
-	sep := string(os.PathSeparator)
-
 	for _, e := range entries {
-		// Validate SafeName to avoid path traversal within the stash directory.
-		if err := validateSafeName(e.SafeName); err != nil {
+		// Validate SafeName and Source path safety invariants.
+		if err := ValidateEntry(e); err != nil {
 			return fmt.Errorf("invalid manifest entry for %s: %w", e.Source, err)
 		}
-
-		// Validate Source: must be an absolute path under the user's home directory.
-		if e.Source == "" {
-			return fmt.Errorf("invalid manifest entry: empty Source for SafeName %q", e.SafeName)
-		}
 		srcPath := filepath.Clean(e.Source)
-		if !filepath.IsAbs(srcPath) {
-			return fmt.Errorf("invalid manifest entry for %s: source path is not absolute", e.Source)
-		}
-		rel, err := filepath.Rel(home, srcPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: skipping manifest entry with unresolvable source path: %s\n", e.Source)
-			continue
-		}
-		if rel == ".." || strings.HasPrefix(rel, ".."+sep) {
-			fmt.Fprintf(os.Stderr, "warning: skipping manifest entry with source outside home directory: %s\n", e.Source)
-			continue
-		}
 
 		stashPath := filepath.Join(dir, e.SafeName)
 		data, err := os.ReadFile(stashPath)

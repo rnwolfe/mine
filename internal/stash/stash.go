@@ -410,10 +410,16 @@ func RestoreToSource(file string, version string) (*Entry, error) {
 	}
 
 	// Determine permissions for the source file: preserve existing mode when present,
-	// otherwise use a restrictive default.
-	srcPerm := os.FileMode(0o600)
+	// otherwise fall back to 0644 (readable by owner and group, not executable).
+	// When the file exists, remove it before recreating so that read-only source
+	// files (e.g. 0444) can be restored without a permission error — the file owner
+	// can always remove a file they own regardless of its mode bits.
+	srcPerm := os.FileMode(0o644)
 	if info, err := os.Stat(entry.Source); err == nil {
 		srcPerm = info.Mode().Perm()
+		if err := os.Remove(entry.Source); err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("removing existing %s before restore: %w", entry.Source, err)
+		}
 	} else if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("stat source %s: %w", entry.Source, err)
 	}

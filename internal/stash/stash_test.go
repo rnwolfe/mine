@@ -538,6 +538,72 @@ func TestCommitRefreshesSources(t *testing.T) {
 	}
 }
 
+func TestValidateEntry(t *testing.T) {
+	_, homeDir := setupTestEnv(t)
+
+	tests := []struct {
+		name    string
+		entry   Entry
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "valid entry",
+			entry:   Entry{SafeName: ".zshrc", Source: filepath.Join(homeDir, ".zshrc")},
+			wantErr: false,
+		},
+		{
+			name:    "empty SafeName",
+			entry:   Entry{SafeName: "", Source: filepath.Join(homeDir, ".zshrc")},
+			wantErr: true,
+			errMsg:  "empty SafeName",
+		},
+		{
+			name:    "traversal in SafeName (..)",
+			entry:   Entry{SafeName: "../evil", Source: filepath.Join(homeDir, ".zshrc")},
+			wantErr: true,
+			errMsg:  "unsafe SafeName",
+		},
+		{
+			name:    "traversal in SafeName (slash)",
+			entry:   Entry{SafeName: "sub/file", Source: filepath.Join(homeDir, ".zshrc")},
+			wantErr: true,
+			errMsg:  "unsafe SafeName",
+		},
+		{
+			name:    "empty Source",
+			entry:   Entry{SafeName: ".zshrc", Source: ""},
+			wantErr: true,
+			errMsg:  "empty Source",
+		},
+		{
+			name:    "relative Source",
+			entry:   Entry{SafeName: ".zshrc", Source: "relative/path/.zshrc"},
+			wantErr: true,
+			errMsg:  "not absolute",
+		},
+		{
+			name:    "Source outside home dir",
+			entry:   Entry{SafeName: "passwd", Source: "/etc/passwd"},
+			wantErr: true,
+			errMsg:  "escapes home directory",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateEntry(tt.entry)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateEntry() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("ValidateEntry() error = %q, want containing %q", err.Error(), tt.errMsg)
+			}
+		})
+	}
+}
+
 func TestGitCmd(t *testing.T) {
 	dir := t.TempDir()
 

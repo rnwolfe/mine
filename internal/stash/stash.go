@@ -155,7 +155,7 @@ func TrackFile(source string) (*Entry, error) {
 		return nil, fmt.Errorf("can't find %s", source)
 	}
 	if info.IsDir() {
-		return nil, fmt.Errorf("can't track directories")
+		return nil, fmt.Errorf("can't track directories yet (coming soon)")
 	}
 
 	dir := Dir()

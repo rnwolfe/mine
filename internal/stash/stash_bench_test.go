@@ -114,7 +114,11 @@ func BenchmarkCommit_LargeFile(b *testing.B) {
 
 // BenchmarkCommit_ManyFiles measures Commit performance with 50 tracked files (~1 KB each).
 //
-// NOTE: If this benchmark shows disproportionate time vs BenchmarkCommit_SmallFile
+// NOTE: All 50 files share the same content within each iteration (same prefix mutation).
+// git deduplicates identical blobs, so this may be slightly optimistic vs a real-world
+// scenario where each file has unique content. The measured cost reflects file-count
+// overhead (manifest scan, git add staging, N file copies) rather than blob uniqueness.
+// If this benchmark shows disproportionate time vs BenchmarkCommit_SmallFile
 // beyond a 50× I/O factor, the bottleneck is likely in the manifest scan or
 // git add staging overhead for many files. Open a follow-up issue to investigate.
 func BenchmarkCommit_ManyFiles(b *testing.B) {

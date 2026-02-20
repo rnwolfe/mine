@@ -604,6 +604,95 @@ func TestValidateEntry(t *testing.T) {
 	}
 }
 
+func TestRestoreToSourcePermissions(t *testing.T) {
+	tests := []struct {
+		name     string
+		// setup is called after the initial commit; source is the source file path.
+		setup    func(t *testing.T, source string)
+		wantPerm os.FileMode
+	}{
+		{
+			name: "source does not exist uses 0644 default",
+			setup: func(t *testing.T, source string) {
+				// Remove source to simulate a first-time restore to a machine that
+				// doesn't yet have the file.
+				if err := os.Remove(source); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantPerm: 0o644,
+		},
+		{
+			name: "source exists with 0755 inherits 0755",
+			setup: func(t *testing.T, source string) {
+				if err := os.Chmod(source, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantPerm: 0o755,
+		},
+		{
+			name: "source exists with 0600 inherits 0600",
+			setup: func(t *testing.T, source string) {
+				if err := os.Chmod(source, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantPerm: 0o600,
+		},
+		{
+			name: "source is read-only 0444 restore succeeds",
+			// NOTE: A --force flag to override permissions on restore (e.g. to
+			// elevate a 0444 file to 0644 when restoring) may be desirable in a
+			// follow-up issue. Not implemented here.
+			setup: func(t *testing.T, source string) {
+				if err := os.Chmod(source, 0o444); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantPerm: 0o444,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stashDir, homeDir := setupTestEnv(t)
+			source := createTestFile(t, homeDir, ".zshrc", "content v1")
+			setupManifest(t, stashDir, source, ".zshrc", "content v1")
+
+			if _, err := Commit("initial"); err != nil {
+				t.Fatalf("Commit() error: %v", err)
+			}
+
+			tt.setup(t, source)
+
+			entry, err := RestoreToSource(".zshrc", "")
+			if err != nil {
+				t.Fatalf("RestoreToSource() error: %v", err)
+			}
+			if entry == nil {
+				t.Fatal("RestoreToSource() returned nil entry")
+			}
+
+			info, err := os.Stat(source)
+			if err != nil {
+				t.Fatalf("os.Stat(source) error: %v", err)
+			}
+			if got := info.Mode().Perm(); got != tt.wantPerm {
+				t.Errorf("source file mode = %04o, want %04o", got, tt.wantPerm)
+			}
+
+			data, err := os.ReadFile(source)
+			if err != nil {
+				t.Fatalf("os.ReadFile(source) error: %v", err)
+			}
+			if gotContent := string(data); gotContent != "content v1" {
+				t.Errorf("source file content = %q, want %q", gotContent, "content v1")
+			}
+		})
+	}
+}
+
 func TestGitCmd(t *testing.T) {
 	dir := t.TempDir()
 

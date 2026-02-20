@@ -412,8 +412,10 @@ func RestoreToSource(file string, version string) (*Entry, error) {
 	// Determine permissions for the source file: preserve existing mode when present,
 	// otherwise fall back to 0644 (user read/write, group and others read-only, non-executable).
 	// When the file exists, remove it before recreating so that read-only source
-	// files (e.g. 0444) can be restored without a permission error — the file owner
-	// can always remove a file they own regardless of its mode bits.
+	// files (e.g. 0444) can be restored without a permission error — on most
+	// Unix filesystems, the directory write permission governs deletion, not the
+	// file's own mode bits, so a file owner can typically remove their own files
+	// regardless of the file's permissions.
 	srcPerm := os.FileMode(0o644)
 	if info, err := os.Stat(entry.Source); err == nil {
 		srcPerm = info.Mode().Perm()
@@ -538,9 +540,14 @@ func SyncPull() error {
 		}
 
 		// Preserve existing file mode if the source file already exists.
+		// Remove before recreating so that read-only source files (e.g. 0444)
+		// can be written without a permission error (same strategy as RestoreToSource).
 		mode := os.FileMode(0o644)
 		if info, err := os.Stat(srcPath); err == nil {
 			mode = info.Mode().Perm()
+			if err := os.Remove(srcPath); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("removing existing %s before sync restore: %w", e.Source, err)
+			}
 		}
 
 		if err := os.WriteFile(srcPath, data, mode); err != nil {

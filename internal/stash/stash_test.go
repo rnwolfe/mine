@@ -681,6 +681,14 @@ func TestRestoreToSourcePermissions(t *testing.T) {
 			if got := info.Mode().Perm(); got != tt.wantPerm {
 				t.Errorf("source file mode = %04o, want %04o", got, tt.wantPerm)
 			}
+
+			data, err := os.ReadFile(source)
+			if err != nil {
+				t.Fatalf("os.ReadFile(source) error: %v", err)
+			}
+			if gotContent := string(data); gotContent != "content v1" {
+				t.Errorf("source file content = %q, want %q", gotContent, "content v1")
+			}
 		})
 	}
 }

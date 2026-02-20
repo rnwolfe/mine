@@ -410,7 +410,7 @@ func RestoreToSource(file string, version string) (*Entry, error) {
 	}
 
 	// Determine permissions for the source file: preserve existing mode when present,
-	// otherwise fall back to 0644 (readable by owner and group, not executable).
+	// otherwise fall back to 0644 (user read/write, group and others read-only, non-executable).
 	// When the file exists, remove it before recreating so that read-only source
 	// files (e.g. 0444) can be restored without a permission error — the file owner
 	// can always remove a file they own regardless of its mode bits.

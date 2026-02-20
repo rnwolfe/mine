@@ -41,8 +41,6 @@ func (e *KeyEntry) Set(cfg *Config, value string) error { return e.set(cfg, valu
 // Unset resets the key to its schema default.
 func (e *KeyEntry) Unset(cfg *Config) { e.unset(cfg) }
 
-const defaultModel = "claude-sonnet-4-5-20250929"
-
 // SchemaKeys is the authoritative registry of all settable config keys.
 // Keys use dot-notation matching the TOML section structure.
 var SchemaKeys = map[string]*KeyEntry{
@@ -65,7 +63,7 @@ var SchemaKeys = map[string]*KeyEntry{
 	"shell.default_shell": {
 		Type:       KeyTypeString,
 		Desc:       "Default shell path (e.g. /bin/bash)",
-		DefaultStr: "/bin/bash",
+		DefaultStr: envOr("SHELL", "/bin/bash"),
 		get:        func(cfg *Config) string { return cfg.Shell.DefaultShell },
 		set:        func(cfg *Config, v string) error { cfg.Shell.DefaultShell = v; return nil },
 		unset:      func(cfg *Config) { cfg.Shell.DefaultShell = envOr("SHELL", "/bin/bash") },
@@ -81,10 +79,10 @@ var SchemaKeys = map[string]*KeyEntry{
 	"ai.model": {
 		Type:       KeyTypeString,
 		Desc:       "AI model name",
-		DefaultStr: defaultModel,
+		DefaultStr: DefaultModel,
 		get:        func(cfg *Config) string { return cfg.AI.Model },
 		set:        func(cfg *Config, v string) error { cfg.AI.Model = v; return nil },
-		unset:      func(cfg *Config) { cfg.AI.Model = defaultModel },
+		unset:      func(cfg *Config) { cfg.AI.Model = DefaultModel },
 	},
 	"ai.system_instructions": {
 		Type:       KeyTypeString,
@@ -126,7 +124,7 @@ var SchemaKeys = map[string]*KeyEntry{
 		set: func(cfg *Config, v string) error {
 			b, err := ParseBoolValue(v)
 			if err != nil {
-				return fmt.Errorf("invalid value %q for analytics (expected bool: true/false)", v)
+				return fmt.Errorf("invalid value %q for analytics: %w", v, err)
 			}
 			cfg.Analytics.Enabled = BoolPtr(b)
 			return nil
@@ -161,6 +159,6 @@ func ParseBoolValue(s string) (bool, error) {
 	case "false", "0", "no", "off":
 		return false, nil
 	default:
-		return false, fmt.Errorf("not a boolean: %q (use true/false)", s)
+		return false, fmt.Errorf("not a boolean: %q (use one of: true/false, 1/0, yes/no, on/off)", s)
 	}
 }

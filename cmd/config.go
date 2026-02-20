@@ -180,8 +180,13 @@ func runConfigEdit(_ *cobra.Command, _ []string) error {
 		)
 	}
 
+	parts := strings.Fields(editor)
+	if len(parts) == 0 {
+		return fmt.Errorf("$EDITOR value is empty or invalid")
+	}
 	paths := config.GetPaths()
-	cmd := exec.Command(editor, paths.ConfigFile)
+	args := append(parts[1:], paths.ConfigFile)
+	cmd := exec.Command(parts[0], args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

@@ -28,11 +28,14 @@ func captureStdout(t *testing.T, fn func()) string {
 		t.Fatalf("os.Pipe: %v", err)
 	}
 	os.Stdout = w
+	defer func() {
+		os.Stdout = old
+		r.Close()
+	}()
 
 	fn()
 
 	w.Close()
-	os.Stdout = old
 
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r); err != nil {

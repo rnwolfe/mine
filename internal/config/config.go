@@ -141,6 +141,9 @@ func Initialized() bool {
 	return err == nil
 }
 
+// DefaultModel is the canonical default AI model for mine.
+const DefaultModel = "claude-sonnet-4-5-20250929"
+
 // BoolPtr returns a pointer to a bool value.
 func BoolPtr(v bool) *bool {
 	return &v
@@ -153,7 +156,7 @@ func defaultConfig() *Config {
 		},
 		AI: AIConfig{
 			Provider: "claude",
-			Model:    "claude-sonnet-4-5-20250929",
+			Model:    DefaultModel,
 		},
 		Analytics: AnalyticsConfig{
 			Enabled: BoolPtr(true),

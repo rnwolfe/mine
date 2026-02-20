@@ -28,6 +28,7 @@ const { command = 'curl -fsSL https://mine.rwolfe.io/install | bash' } = Astro.p
       </button>
     </div>
   </div>
+  <span class="copy-install__sr-status" role="status" aria-live="polite"></span>
 </div>
 
 <style>
@@ -123,32 +124,42 @@ const { command = 'curl -fsSL https://mine.rwolfe.io/install | bash' } = Astro.p
   .copy-install__btn[data-copied] .copy-install__icon--check {
     display: block;
   }
+
+  .copy-install__sr-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 </style>
 
 <script>
   function initCopyButtons() {
     document.querySelectorAll('.copy-install').forEach((el) => {
-      const btn = el.querySelector('.copy-install__btn');
+      const btn = el.querySelector('.copy-install__btn') as HTMLButtonElement | null;
+      const status = el.querySelector('.copy-install__sr-status') as HTMLElement | null;
       const command = el.getAttribute('data-command');
       if (!btn || !command) return;
 
       btn.addEventListener('click', async () => {
+        if (!navigator.clipboard) return;
         try {
           await navigator.clipboard.writeText(command);
           btn.setAttribute('data-copied', '');
-          setTimeout(() => btn.removeAttribute('data-copied'), 2000);
-        } catch {
-          // Fallback for older browsers
-          const textarea = document.createElement('textarea');
-          textarea.value = command;
-          textarea.style.position = 'fixed';
-          textarea.style.opacity = '0';
-          document.body.appendChild(textarea);
-          textarea.select();
-          document.execCommand('copy');
-          document.body.removeChild(textarea);
-          btn.setAttribute('data-copied', '');
-          setTimeout(() => btn.removeAttribute('data-copied'), 2000);
+          btn.setAttribute('aria-label', 'Copied!');
+          if (status) status.textContent = 'Copied to clipboard';
+          setTimeout(() => {
+            btn.removeAttribute('data-copied');
+            btn.setAttribute('aria-label', 'Copy install command to clipboard');
+            if (status) status.textContent = '';
+          }, 2000);
+        } catch (err) {
+          console.error('Failed to copy to clipboard:', err);
         }
       });
     });

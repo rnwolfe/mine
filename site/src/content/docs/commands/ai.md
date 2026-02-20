@@ -48,6 +48,7 @@ Environment variables take precedence over vault-stored keys.
 ```bash
 mine ai ask "What is the difference between defer and panic in Go?"
 mine ai ask "Explain the repository pattern" --model claude-opus-4-6
+mine ai ask "What does this code do?" --system "You are a Go expert. Be concise."
 ```
 
 In interactive terminals (TTY), responses are automatically rendered as styled markdown — headings, code blocks, lists, and emphasis are all formatted for readability.
@@ -67,6 +68,8 @@ mine ai ask "Explain goroutines" | cat   # non-TTY also outputs raw automaticall
 ```bash
 git add .
 mine ai review
+mine ai review --system "Focus only on security issues."
+mine ai review --system ""   # disable system instructions for this review
 ```
 
 Sends your staged git diff to the configured AI provider for code review. Output is rendered as styled markdown in interactive terminals.
@@ -83,9 +86,56 @@ mine ai review --raw > review.md # pipe to file
 ```bash
 git add .
 mine ai commit
+mine ai commit --system "Use Angular commit convention."
 ```
 
 Analyzes staged changes, suggests a conventional commit message, and optionally runs `git commit`.
+
+## System Instructions
+
+Control what behavior the AI uses for each command via the `--system` flag or config defaults.
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--system "<text>"` | Override system instructions for this invocation |
+| `--system ""` | Disable system instructions for this invocation |
+
+### Config Keys
+
+Set persistent defaults using `mine config set`:
+
+```bash
+# Global default applied to all AI subcommands
+mine config set ai.system_instructions "Always respond in English."
+
+# Per-subcommand defaults (override the global default)
+mine config set ai.ask_system_instructions "You are a Go expert."
+mine config set ai.review_system_instructions "Focus on security and performance."
+mine config set ai.commit_system_instructions "Use Angular commit convention."
+```
+
+Or edit the TOML file directly (`mine config edit`):
+
+```toml
+[ai]
+system_instructions        = "Always respond in English."
+ask_system_instructions    = "You are a Go expert."
+review_system_instructions = "Focus on security and performance."
+commit_system_instructions = "Use Angular commit convention."
+```
+
+### Precedence Rules
+
+System instructions are resolved in this order (first match wins):
+
+1. `--system` flag (including empty string, which disables system instructions)
+2. Per-subcommand config key (`ask_system_instructions`, etc.)
+3. Global config key (`system_instructions`)
+4. Built-in default (for `review` and `commit` only)
+
+When no custom value is configured or provided, `review` and `commit` use their built-in system prompts. `ask` has no built-in default.
 
 ## List Providers and Models
 

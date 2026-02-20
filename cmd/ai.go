@@ -26,16 +26,55 @@ var aiCmd = &cobra.Command{
 	RunE:  hook.Wrap("ai", runAIHelp),
 }
 
-var aiModel string
+var (
+	aiModel        string
+	aiAskSystem    string
+	aiReviewSystem string
+	aiCommitSystem string
+)
 
 func init() {
 	aiCmd.PersistentFlags().StringVarP(&aiModel, "model", "m", "", "Override the configured model")
+
+	aiAskCmd.Flags().StringVar(&aiAskSystem, "system", "", "Override system instructions for this invocation (empty string disables system instructions)")
+	aiReviewCmd.Flags().StringVar(&aiReviewSystem, "system", "", "Override system instructions for this invocation (empty string disables system instructions)")
+	aiCommitCmd.Flags().StringVar(&aiCommitSystem, "system", "", "Override system instructions for this invocation (empty string disables system instructions)")
 
 	aiCmd.AddCommand(aiConfigCmd)
 	aiCmd.AddCommand(aiAskCmd)
 	aiCmd.AddCommand(aiReviewCmd)
 	aiCmd.AddCommand(aiCommitCmd)
 	aiCmd.AddCommand(aiModelsCmd)
+}
+
+// resolveSystemInstructions returns the effective system instruction string according
+// to the precedence rules:
+//  1. --system flag (including empty string, which disables system instructions)
+//  2. per-subcommand config default
+//  3. global config default
+//  4. builtinDefault (only when no custom value is configured/provided)
+func resolveSystemInstructions(cfg *config.AIConfig, subcommand, flagValue string, flagChanged bool, builtinDefault string) string {
+	if flagChanged {
+		return flagValue
+	}
+	switch subcommand {
+	case "ask":
+		if cfg.AskSystemInstructions != "" {
+			return cfg.AskSystemInstructions
+		}
+	case "review":
+		if cfg.ReviewSystemInstructions != "" {
+			return cfg.ReviewSystemInstructions
+		}
+	case "commit":
+		if cfg.CommitSystemInstructions != "" {
+			return cfg.CommitSystemInstructions
+		}
+	}
+	if cfg.SystemInstructions != "" {
+		return cfg.SystemInstructions
+	}
+	return builtinDefault
 }
 
 func runAIHelp(_ *cobra.Command, _ []string) error {
@@ -206,15 +245,21 @@ func init() {
 	aiAskCmd.Flags().BoolVar(&aiAskRaw, "raw", false, "Output raw markdown without terminal rendering")
 }
 
-func runAIAsk(_ *cobra.Command, args []string) error {
+func runAIAsk(cmd *cobra.Command, args []string) error {
 	question := strings.Join(args, " ")
 
-	provider, err := getConfiguredProvider()
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	provider, err := getConfiguredProviderFromConfig(cfg)
 	if err != nil {
 		return err
 	}
 
 	req := ai.NewRequest(question)
+	req.System = resolveSystemInstructions(&cfg.AI, "ask", aiAskSystem, cmd.Flags().Changed("system"), "")
 	if aiModel != "" {
 		req.Model = aiModel
 	}
@@ -255,10 +300,10 @@ func init() {
 	aiReviewCmd.Flags().BoolVar(&aiReviewRaw, "raw", false, "Output raw markdown without terminal rendering")
 }
 
-func runAIReview(_ *cobra.Command, _ []string) error {
+func runAIReview(cmd *cobra.Command, _ []string) error {
 	// Get git diff of staged changes
-	cmd := exec.Command("git", "diff", "--cached")
-	output, err := cmd.CombinedOutput()
+	gitCmd := exec.Command("git", "diff", "--cached")
+	output, err := gitCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to get git diff: %w\nGit output:\n%s", err, strings.TrimSpace(string(output)))
 	}
@@ -281,7 +326,12 @@ func runAIReview(_ *cobra.Command, _ []string) error {
 		truncated = true
 	}
 
-	provider, err := getConfiguredProvider()
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	provider, err := getConfiguredProviderFromConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -301,8 +351,9 @@ Here's the diff%s:
 		return ""
 	}(), diff)
 
+	const reviewBuiltinSystem = "You are an expert code reviewer. Provide constructive, specific feedback."
 	req := ai.NewRequest(prompt)
-	req.System = "You are an expert code reviewer. Provide constructive, specific feedback."
+	req.System = resolveSystemInstructions(&cfg.AI, "review", aiReviewSystem, cmd.Flags().Changed("system"), reviewBuiltinSystem)
 	if aiModel != "" {
 		req.Model = aiModel
 	}
@@ -338,10 +389,10 @@ var aiCommitCmd = &cobra.Command{
 	RunE:  hook.Wrap("ai.commit", runAICommit),
 }
 
-func runAICommit(_ *cobra.Command, _ []string) error {
+func runAICommit(cmd *cobra.Command, _ []string) error {
 	// Get git diff of staged changes
-	cmd := exec.Command("git", "diff", "--cached")
-	output, err := cmd.CombinedOutput()
+	gitCmd := exec.Command("git", "diff", "--cached")
+	output, err := gitCmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to get git diff: %w; output:\n%s", err, string(output))
 	}
@@ -356,7 +407,12 @@ func runAICommit(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	provider, err := getConfiguredProvider()
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	provider, err := getConfiguredProviderFromConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -380,8 +436,9 @@ Here's the diff (it may be truncated to 50KB):
 
 %s%s`, truncatedDiff, truncationNote)
 
+	const commitBuiltinSystem = "You are a git commit message expert. Write clear, professional commit messages."
 	req := ai.NewRequest(prompt)
-	req.System = "You are a git commit message expert. Write clear, professional commit messages."
+	req.System = resolveSystemInstructions(&cfg.AI, "commit", aiCommitSystem, cmd.Flags().Changed("system"), commitBuiltinSystem)
 	req.MaxTokens = 500
 	if aiModel != "" {
 		req.Model = aiModel
@@ -423,10 +480,10 @@ Here's the diff (it may be truncated to 50KB):
 	}
 
 	// Create the commit
-	cmd = exec.Command("git", "commit", "-m", message)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	gitCmd = exec.Command("git", "commit", "-m", message)
+	gitCmd.Stdout = os.Stdout
+	gitCmd.Stderr = os.Stderr
+	if err := gitCmd.Run(); err != nil {
 		return fmt.Errorf("failed to create commit: %w", err)
 	}
 
@@ -437,13 +494,17 @@ Here's the diff (it may be truncated to 50KB):
 	return nil
 }
 
-// Helper to get a configured provider
+// getConfiguredProvider loads config and returns the configured AI provider.
 func getConfiguredProvider() (ai.Provider, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
+	return getConfiguredProviderFromConfig(cfg)
+}
 
+// getConfiguredProviderFromConfig returns the configured AI provider using a pre-loaded config.
+func getConfiguredProviderFromConfig(cfg *config.Config) (ai.Provider, error) {
 	if cfg.AI.Provider == "" {
 		return nil, fmt.Errorf(`no AI provider configured
 

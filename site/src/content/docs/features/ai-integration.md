@@ -13,6 +13,7 @@ Get AI assistance without leaving the terminal. `mine ai` supports Claude, OpenA
 - **Quick questions** — ask coding questions directly from the terminal
 - **Styled markdown output** — responses rendered as formatted markdown in interactive terminals (headings, code blocks, lists, emphasis)
 - **Secure key storage** — API keys stored in the encrypted vault, or use environment variables
+- **System instructions** — customize AI behavior globally or per-subcommand via config or `--system` flag
 
 ## Quick Example
 
@@ -32,6 +33,10 @@ git add . && mine ai commit
 # Force plain markdown output (useful for piping to files or other tools)
 mine ai ask "Explain goroutines" --raw > answer.md
 mine ai review --raw | less
+
+# Override AI behavior for a single invocation
+mine ai review --system "Focus only on security issues."
+mine ai ask "Explain Go channels" --system "You are a Go expert. Be concise."
 ```
 
 ## How It Works
@@ -39,6 +44,8 @@ mine ai review --raw | less
 Configure a provider once with `mine ai config` and the API key is stored encrypted in the vault. From then on, AI commands just work. `mine ai review` sends your staged diff to the configured provider and returns feedback. `mine ai commit` analyzes staged changes and suggests a conventional commit message, optionally running `git commit` for you.
 
 For zero-config setups, just set the standard environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.) and mine detects it automatically. Environment variables take precedence over vault-stored keys.
+
+System instructions let you tailor how the AI responds. Pass `--system "<text>"` on any `ai` subcommand to override behavior for that invocation, or set persistent defaults with `mine config set`. A four-level precedence chain (flag → subcommand config → global config → built-in default) gives you fine-grained control without breaking existing workflows.
 
 Use `mine ai models` to see all available providers, their suggested models, and whether they're configured.
 

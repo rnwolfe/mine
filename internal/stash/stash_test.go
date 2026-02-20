@@ -30,6 +30,12 @@ func setupEnv(tb testing.TB) (stashDir string, homeDir string) {
 	return Dir(), homeDir
 }
 
+// setupTestEnv is a backward-compatible alias for setupEnv for *testing.T callers.
+func setupTestEnv(t *testing.T) (stashDir string, homeDir string) {
+	t.Helper()
+	return setupEnv(t)
+}
+
 // createTestFile creates a file in the test home directory.
 func createTestFile(t *testing.T, homeDir, name, content string) string {
 	t.Helper()

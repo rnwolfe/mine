@@ -145,13 +145,10 @@ func validateSafeName(safeName string) error {
 	return nil
 }
 
-// ValidateEntry validates the safety invariants of a manifest entry.
-// It checks that SafeName is non-empty and free of path traversal characters,
-// that Source is non-empty and an absolute path, and that Source does not
-// escape the user's home directory.
-// It does not perform any disk I/O — file existence, readability, and type
-// checks are the caller's responsibility.
-func ValidateEntry(e Entry) error {
+// validateEntryWithHome is the core validation logic for a manifest entry,
+// accepting a pre-resolved home directory so callers can compute it once per
+// operation when validating multiple entries in a loop.
+func validateEntryWithHome(e Entry, home string) error {
 	if err := validateSafeName(e.SafeName); err != nil {
 		return err
 	}
@@ -162,19 +159,30 @@ func ValidateEntry(e Entry) error {
 	if !filepath.IsAbs(srcPath) {
 		return fmt.Errorf("source path is not absolute: %q", e.Source)
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("determining home directory: %w", err)
-	}
 	sep := string(os.PathSeparator)
 	rel, err := filepath.Rel(home, srcPath)
 	if err != nil {
-		return fmt.Errorf("source path %q is not resolvable relative to home directory", e.Source)
+		return fmt.Errorf("source path %q is not resolvable relative to home directory %q: %w", e.Source, home, err)
 	}
 	if rel == ".." || strings.HasPrefix(rel, ".."+sep) {
 		return fmt.Errorf("source path %q escapes home directory", e.Source)
 	}
 	return nil
+}
+
+// ValidateEntry validates the safety invariants of a manifest entry.
+// It checks that SafeName is non-empty and free of path traversal characters,
+// that Source is non-empty and an absolute path, and that Source does not
+// escape the user's home directory.
+// It avoids explicit filesystem checks — file existence, readability, and type
+// checks are the caller's responsibility — but may consult OS user info to
+// resolve the home directory.
+func ValidateEntry(e Entry) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("determining home directory: %w", err)
+	}
+	return validateEntryWithHome(e, home)
 }
 
 // Commit snapshots the current stash state with a message.
@@ -191,8 +199,13 @@ func Commit(message string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("reading manifest: %w", err)
 	}
+	// Resolve home dir once for all entry validation.
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("determining home directory: %w", err)
+	}
 	for _, e := range entries {
-		if err := ValidateEntry(e); err != nil {
+		if err := validateEntryWithHome(e, home); err != nil {
 			return "", fmt.Errorf("invalid manifest entry for %s: %w", e.Source, err)
 		}
 		src := e.Source
@@ -437,9 +450,14 @@ func SyncPull() error {
 		return fmt.Errorf("reading manifest: %w", err)
 	}
 
+	// Resolve home dir once for all entry validation.
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("determining home directory: %w", err)
+	}
 	for _, e := range entries {
 		// Validate SafeName and Source path safety invariants.
-		if err := ValidateEntry(e); err != nil {
+		if err := validateEntryWithHome(e, home); err != nil {
 			return fmt.Errorf("invalid manifest entry for %s: %w", e.Source, err)
 		}
 		srcPath := filepath.Clean(e.Source)

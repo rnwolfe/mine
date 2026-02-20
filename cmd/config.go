@@ -83,7 +83,10 @@ func runConfigList(_ *cobra.Command, _ []string) error {
 	ui.Header("Configuration Keys")
 	fmt.Println()
 	for _, key := range keys {
-		entry := config.SchemaKeys[key]
+		entry, ok := config.LookupKey(key)
+		if !ok {
+			continue // Should never happen since keys come from ValidKeyNames
+		}
 		value := entry.Get(cfg)
 		display := value
 		if display == "" {

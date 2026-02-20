@@ -3,7 +3,7 @@ title: mine config
 description: View and manage configuration
 ---
 
-View and manage configuration.
+View and manage your `mine` configuration via CLI — no manual TOML editing required.
 
 ## Show Config
 
@@ -11,22 +11,25 @@ View and manage configuration.
 mine config
 ```
 
-Displays the current configuration, including your name, shell, AI provider, and analytics status.
+Displays a summary of the current configuration: name, shell, AI provider, and analytics status.
 
-## Set a Value
+## List All Keys
 
 ```bash
-mine config set <key> <value>
+mine config list
 ```
 
-Set a configuration value. Supported keys:
+Lists every known config key with its current value and type (`string`, `int`, `bool`).
 
-| Key | Values | Description |
-|-----|--------|-------------|
-| `analytics` | `true` / `false` | Enable or disable anonymous usage analytics |
-| `user.name` | any string | Your display name |
-| `ai.provider` | `claude`, `openai`, `gemini`, `openrouter` | AI provider |
-| `ai.model` | model name | AI model to use |
+```
+user.name                        (unset)  [string]
+user.email                       (unset)  [string]
+ai.model                         claude-sonnet-4-5-20250929  [string]
+ai.provider                      claude   [string]
+ai.system_instructions           (unset)  [string]
+analytics                        true     [bool]
+...
+```
 
 ## Get a Value
 
@@ -34,7 +37,96 @@ Set a configuration value. Supported keys:
 mine config get <key>
 ```
 
-Read a single configuration value. Uses the same keys as `set`.
+Returns the current value for a known key. Exits with a non-zero code and lists valid keys if the key is unknown.
+
+```bash
+mine config get ai.provider   # → claude
+mine config get analytics     # → true
+mine config get user.name     # → (empty if unset)
+```
+
+## Set a Value
+
+```bash
+mine config set <key> <value>
+```
+
+Sets a known configuration key with type-aware validation. Exits with a non-zero code on unknown key or type mismatch.
+
+### Supported Keys
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `user.name` | string | Your display name |
+| `user.email` | string | Your email address |
+| `shell.default_shell` | string | Default shell path (e.g. `/bin/bash`) |
+| `ai.provider` | string | AI provider (`claude`, `openai`, `gemini`, `openrouter`) |
+| `ai.model` | string | AI model name |
+| `ai.system_instructions` | string | Default system instructions for all AI commands |
+| `ai.ask_system_instructions` | string | System instructions for `mine ai ask` |
+| `ai.review_system_instructions` | string | System instructions for `mine ai review` |
+| `ai.commit_system_instructions` | string | System instructions for `mine ai commit` |
+| `analytics` | bool | Enable anonymous usage analytics |
+
+### Examples
+
+```bash
+# Set your display name
+mine config set user.name "Jane"
+
+# Switch AI provider
+mine config set ai.provider openai
+
+# Set a custom AI model
+mine config set ai.model gpt-4o
+
+# Disable analytics
+mine config set analytics false
+
+# Set global AI system instructions
+mine config set ai.system_instructions "Always respond in English."
+
+# Set per-command AI system instructions
+mine config set ai.ask_system_instructions "You are a Go expert."
+mine config set ai.review_system_instructions "Focus on security and performance."
+mine config set ai.commit_system_instructions "Use Angular commit convention."
+```
+
+### Type Validation
+
+- **bool**: accepts `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off`
+- **string**: accepts any value
+- Type mismatch returns a non-zero exit code with expected-type guidance
+
+## Unset a Value
+
+```bash
+mine config unset <key>
+```
+
+Resets a known key to its schema default. Exits with a non-zero code on unknown key.
+
+```bash
+mine config unset ai.provider   # resets to 'claude'
+mine config unset user.name     # resets to empty
+mine config unset analytics     # resets to true
+```
+
+## Edit Config File
+
+```bash
+mine config edit
+```
+
+Opens the config file in `$EDITOR`. If `$EDITOR` is not set, prints the config file path with instructions.
+
+```bash
+# Set your editor first
+export EDITOR=vim
+
+# Then open the config
+mine config edit
+```
 
 ## Show Config File Path
 
@@ -44,25 +136,24 @@ mine config path
 
 Prints the absolute path to your config file (typically `~/.config/mine/config.toml`).
 
-## Edit Directly
-
 ```bash
-$EDITOR $(mine config path)
+# Useful for scripting
+cat $(mine config path)
 ```
 
-Opens your config file in your default editor.
+## Hook Observability
 
-Some settings are only available by editing the TOML file directly. For example, AI system instructions:
+All config commands are hook-wrapped and plugin-observable:
 
-```toml
-[ai]
-system_instructions        = "Always respond in English."
-ask_system_instructions    = "You are a Go expert."
-review_system_instructions = "Focus on security and performance."
-commit_system_instructions = "Use Angular commit convention."
-```
-
-See [`mine ai`](/commands/ai/#system-instructions) for full details on AI system instruction precedence.
+| Command path | Description |
+|---|---|
+| `config` | Bare `mine config` (dashboard) |
+| `config.list` | List all keys |
+| `config.get` | Get a key |
+| `config.set` | Set a key |
+| `config.unset` | Unset a key |
+| `config.edit` | Open editor |
+| `config.path` | Print path |
 
 ## Examples
 
@@ -70,21 +161,28 @@ See [`mine ai`](/commands/ai/#system-instructions) for full details on AI system
 # View current config
 mine config
 
-# Disable analytics
-mine config set analytics false
+# List all keys with values and types
+mine config list
 
-# Check if analytics are enabled
-mine config get analytics
+# Check a specific value
+mine config get ai.provider
 
 # Change your display name
 mine config set user.name "Jane"
 
-# Switch AI provider
+# Switch AI provider to OpenAI
 mine config set ai.provider openai
+mine config set ai.model gpt-4o
 
-# Get the config file path
+# Disable analytics
+mine config set analytics false
+
+# Reset AI provider to default (claude)
+mine config unset ai.provider
+
+# Open config in your editor
+mine config edit
+
+# Get config file path
 mine config path
-
-# Edit config in vim
-vim $(mine config path)
 ```

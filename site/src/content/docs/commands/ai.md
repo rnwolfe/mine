@@ -85,14 +85,23 @@ Control what behavior the AI uses for each command via the `--system` flag or co
 
 ### Config Keys
 
-Set persistent defaults in `~/.config/mine/config.toml`:
+Set persistent defaults using `mine config set`:
+
+```bash
+# Global default applied to all AI subcommands
+mine config set ai.system_instructions "Always respond in English."
+
+# Per-subcommand defaults (override the global default)
+mine config set ai.ask_system_instructions "You are a Go expert."
+mine config set ai.review_system_instructions "Focus on security and performance."
+mine config set ai.commit_system_instructions "Use Angular commit convention."
+```
+
+Or edit the TOML file directly (`mine config edit`):
 
 ```toml
 [ai]
-# Global default applied to all AI subcommands
-system_instructions = "Always respond in English."
-
-# Per-subcommand defaults (override the global default)
+system_instructions        = "Always respond in English."
 ask_system_instructions    = "You are a Go expert."
 review_system_instructions = "Focus on security and performance."
 commit_system_instructions = "Use Angular commit convention."

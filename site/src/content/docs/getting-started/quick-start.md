@@ -133,6 +133,27 @@ alias mt='mine todo'
 alias md='mine dig'
 ```
 
+## Configure mine
+
+Personalize your setup without editing TOML files directly:
+
+```bash
+# See all settings and their current values
+mine config list
+
+# Set your display name
+mine config set user.name "Jane"
+
+# Switch to a different AI provider
+mine config set ai.provider openai
+mine config set ai.model gpt-4o
+
+# Opt out of analytics
+mine config set analytics false
+```
+
+See the [config command reference](/commands/config/) for all keys and options.
+
 ## Next Steps
 
 - Explore the [command reference](/commands/todo/) for all available commands

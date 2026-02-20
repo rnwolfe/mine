@@ -40,7 +40,7 @@ Configure a provider once with `mine ai config` and the API key is stored encryp
 
 For zero-config setups, just set the standard environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.) and mine detects it automatically. Environment variables take precedence over vault-stored keys.
 
-System instructions let you tailor how the AI responds. Pass `--system "<text>"` on any `ai` subcommand to override behavior for that invocation, or set persistent defaults in `~/.config/mine/config.toml` under `[ai]`. A four-level precedence chain (flag → subcommand config → global config → built-in default) gives you fine-grained control without breaking existing workflows.
+System instructions let you tailor how the AI responds. Pass `--system "<text>"` on any `ai` subcommand to override behavior for that invocation, or set persistent defaults with `mine config set`. A four-level precedence chain (flag → subcommand config → global config → built-in default) gives you fine-grained control without breaking existing workflows.
 
 Use `mine ai models` to see all available providers, their suggested models, and whether they're configured.
 

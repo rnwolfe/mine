@@ -90,20 +90,20 @@ mine shell aliases            # see recommended aliases
 
 ## Configuration
 
-Config lives at `~/.config/mine/config.toml` (XDG-compliant):
+Manage settings via the CLI — no manual TOML editing required:
 
-```toml
-[user]
-name = "Ryan"
-
-[shell]
-default_shell = "/usr/bin/zsh"
-
-[ai]
-provider = "claude"
-model = "claude-sonnet-4-5-20250929"
+```bash
+mine config list                           # see all keys and current values
+mine config get ai.provider               # check a value
+mine config set user.name "Jane"          # set your display name
+mine config set ai.provider openai        # switch AI provider
+mine config set analytics false           # opt out of analytics
+mine config unset ai.provider             # reset to default (claude)
+mine config edit                          # open in $EDITOR
+mine config path                          # show config file location
 ```
 
+Config file: `~/.config/mine/config.toml` (XDG-compliant)
 Data: `~/.local/share/mine/mine.db` (SQLite)
 
 ## Tech

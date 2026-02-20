@@ -5,6 +5,12 @@ All notable changes to mine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Config CLI** (`mine config list/get/set/unset/edit/path`) — Manage all settings from the terminal with type-aware validation and schema defaults. Eliminates manual TOML editing for common config changes. All subcommands are hook-wrapped for plugin observability.
+
 ## [0.2.0-alpha.1] - 2026-02-18
 
 ### Added

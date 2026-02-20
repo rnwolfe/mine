@@ -14,7 +14,6 @@
 package stash
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -215,38 +214,40 @@ func TestValidateEntry_Security(t *testing.T) {
 }
 
 // TestSyncPullRejectsInvalidManifest verifies that the validation gate used by
-// SyncPull rejects a poisoned manifest entry and does NOT write any file to
-// the escaped path.
+// SyncPull rejects poisoned manifest entries before any file I/O occurs.
 //
 // SyncPull requires a git repo with a working remote, so a true end-to-end test
 // is impractical in unit tests. Instead, this test exercises the exact
-// validation path that SyncPull invokes (validateEntryWithHome) against a
-// crafted malicious entry, then asserts no file appeared at the target path.
+// validation function that SyncPull invokes (validateEntryWithHome) against
+// crafted malicious entries. Since validateEntryWithHome is a pure validation
+// function that performs no file I/O, the error return is sufficient proof
+// that SyncPull would abort before copying any files.
 func TestSyncPullRejectsInvalidManifest(t *testing.T) {
 	_, homeDir := setupTestEnv(t)
-
-	// The escape target: a file that should never be created.
-	escapeTarget := filepath.Join(homeDir, "..", "escaped-file")
 
 	tests := []struct {
 		name     string
 		safeName string
 		source   string
+		errMsg   string
 	}{
 		{
 			name:     "SafeName traversal (../escape)",
 			safeName: "../escape",
 			source:   filepath.Join(homeDir, ".zshrc"),
+			errMsg:   "unsafe SafeName",
 		},
 		{
 			name:     "Source outside home",
 			safeName: "passwd",
 			source:   "/etc/passwd",
+			errMsg:   "escapes home directory",
 		},
 		{
 			name:     "Source with deep .. escape",
 			safeName: ".zshrc",
 			source:   homeDir + "/../../../etc/shadow",
+			errMsg:   "escapes home directory",
 		},
 	}
 
@@ -258,12 +259,8 @@ func TestSyncPullRejectsInvalidManifest(t *testing.T) {
 			if err == nil {
 				t.Fatalf("validateEntryWithHome(%+v) should have returned an error", entry)
 			}
-
-			// Verify no file was written at the escape target.
-			if _, statErr := os.Stat(escapeTarget); statErr == nil {
-				t.Errorf("escape target %q exists — validation did not prevent file write", escapeTarget)
-				// Clean up to avoid polluting other tests.
-				os.Remove(escapeTarget)
+			if !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf("validateEntryWithHome(%+v) error = %q, want containing %q", entry, err.Error(), tt.errMsg)
 			}
 		})
 	}

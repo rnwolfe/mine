@@ -25,7 +25,7 @@ import (
 // goroutine tracks a unique file; all entries must appear in the manifest after
 // all goroutines complete.
 func TestConcurrentTrackDifferentFiles(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	if err := os.MkdirAll(stashDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestConcurrentTrackDifferentFiles(t *testing.T) {
 // append pattern in TrackFile. A mutex or file-level lock is needed to fix it.
 // A follow-up issue should be opened to address this.
 func TestConcurrentTrackSameFile(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	if err := os.MkdirAll(stashDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestConcurrentTrackSameFile(t *testing.T) {
 // same file do not produce a corrupted output. The source file must contain a
 // complete, recognisable version after all goroutines complete.
 func TestConcurrentRestore(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "version 1")
 	setupManifest(t, stashDir, source, ".zshrc", "version 1")
 
@@ -213,7 +213,7 @@ func TestConcurrentRestore(t *testing.T) {
 // from individual goroutines as long as at least one commit succeeds and the
 // repo remains queryable.
 func TestConcurrentCommit(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	if err := os.MkdirAll(stashDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

@@ -7,25 +7,25 @@ import (
 	"testing"
 )
 
-// setupTestEnv creates a temp directory structure for stash tests.
-// Returns a cleanup function (called by t.Cleanup automatically).
-func setupTestEnv(t *testing.T) (stashDir string, homeDir string) {
-	t.Helper()
+// setupEnv creates a temp directory structure for stash tests and benchmarks.
+// Accepts testing.TB so it works with both *testing.T and *testing.B.
+func setupEnv(tb testing.TB) (stashDir string, homeDir string) {
+	tb.Helper()
 
-	tmpDir := t.TempDir()
+	tmpDir := tb.TempDir()
 	homeDir = filepath.Join(tmpDir, "home")
 	dataDir := filepath.Join(tmpDir, "data")
 
 	if err := os.MkdirAll(homeDir, 0o755); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	// Point XDG dirs to our temp dirs.
-	t.Setenv("XDG_DATA_HOME", dataDir)
-	t.Setenv("HOME", homeDir)
+	tb.Setenv("XDG_DATA_HOME", dataDir)
+	tb.Setenv("HOME", homeDir)
 
 	return Dir(), homeDir
 }
@@ -64,7 +64,7 @@ func setupManifest(t *testing.T, stashDir, source, safeName, content string) {
 }
 
 func TestReadManifest(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "export PATH=$PATH")
 	safeName := ".zshrc"
 	setupManifest(t, stashDir, source, safeName, "export PATH=$PATH")
@@ -85,7 +85,7 @@ func TestReadManifest(t *testing.T) {
 }
 
 func TestReadManifestNoFile(t *testing.T) {
-	setupTestEnv(t)
+	setupEnv(t)
 
 	entries, err := ReadManifest()
 	if err != nil {
@@ -97,7 +97,7 @@ func TestReadManifestNoFile(t *testing.T) {
 }
 
 func TestReadManifestSkipsComments(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	if err := os.MkdirAll(stashDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestReadManifestSkipsComments(t *testing.T) {
 }
 
 func TestReadManifestEmptyEntries(t *testing.T) {
-	stashDir, _ := setupTestEnv(t)
+	stashDir, _ := setupEnv(t)
 	if err := os.MkdirAll(stashDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestReadManifestEmptyEntries(t *testing.T) {
 }
 
 func TestFindEntry(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "content")
 	setupManifest(t, stashDir, source, ".zshrc", "content")
 
@@ -175,7 +175,7 @@ func TestFindEntry(t *testing.T) {
 }
 
 func TestInitGitRepo(t *testing.T) {
-	setupTestEnv(t)
+	setupEnv(t)
 
 	if IsGitRepo() {
 		t.Error("IsGitRepo() should be false before init")
@@ -196,7 +196,7 @@ func TestInitGitRepo(t *testing.T) {
 }
 
 func TestCommitAndLog(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "export FOO=bar")
 	setupManifest(t, stashDir, source, ".zshrc", "export FOO=bar")
 
@@ -251,7 +251,7 @@ func TestCommitAndLog(t *testing.T) {
 }
 
 func TestCommitNothingToCommit(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "content")
 	setupManifest(t, stashDir, source, ".zshrc", "content")
 
@@ -271,7 +271,7 @@ func TestCommitNothingToCommit(t *testing.T) {
 }
 
 func TestLogFilteredByFile(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source1 := createTestFile(t, homeDir, ".zshrc", "zsh content")
 	source2 := createTestFile(t, homeDir, ".bashrc", "bash content")
 
@@ -323,7 +323,7 @@ func TestLogFilteredByFile(t *testing.T) {
 }
 
 func TestLogNoRepo(t *testing.T) {
-	setupTestEnv(t)
+	setupEnv(t)
 
 	_, err := Log("")
 	if err == nil {
@@ -332,7 +332,7 @@ func TestLogNoRepo(t *testing.T) {
 }
 
 func TestRestore(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "version 1")
 	setupManifest(t, stashDir, source, ".zshrc", "version 1")
 
@@ -373,7 +373,7 @@ func TestRestore(t *testing.T) {
 }
 
 func TestRestoreToSource(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "original")
 	setupManifest(t, stashDir, source, ".zshrc", "original")
 
@@ -408,7 +408,7 @@ func TestRestoreToSource(t *testing.T) {
 }
 
 func TestRestoreNoRepo(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "content")
 	setupManifest(t, stashDir, source, ".zshrc", "content")
 
@@ -419,7 +419,7 @@ func TestRestoreNoRepo(t *testing.T) {
 }
 
 func TestRestoreInvalidVersion(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "content")
 	setupManifest(t, stashDir, source, ".zshrc", "content")
 
@@ -434,7 +434,7 @@ func TestRestoreInvalidVersion(t *testing.T) {
 }
 
 func TestSyncSetRemote(t *testing.T) {
-	setupTestEnv(t)
+	setupEnv(t)
 
 	// Should fail without git repo.
 	err := SyncSetRemote("https://example.com/dotfiles.git")
@@ -469,7 +469,7 @@ func TestSyncSetRemote(t *testing.T) {
 }
 
 func TestSyncPushNoRemote(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "content")
 	setupManifest(t, stashDir, source, ".zshrc", "content")
 
@@ -487,7 +487,7 @@ func TestSyncPushNoRemote(t *testing.T) {
 }
 
 func TestSyncPullNoRemote(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "content")
 	setupManifest(t, stashDir, source, ".zshrc", "content")
 
@@ -505,7 +505,7 @@ func TestSyncPullNoRemote(t *testing.T) {
 }
 
 func TestSyncRemoteURLEmpty(t *testing.T) {
-	setupTestEnv(t)
+	setupEnv(t)
 
 	url := SyncRemoteURL()
 	if url != "" {
@@ -514,7 +514,7 @@ func TestSyncRemoteURLEmpty(t *testing.T) {
 }
 
 func TestCommitRefreshesSources(t *testing.T) {
-	stashDir, homeDir := setupTestEnv(t)
+	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "original")
 	setupManifest(t, stashDir, source, ".zshrc", "old stash content")
 
@@ -539,7 +539,7 @@ func TestCommitRefreshesSources(t *testing.T) {
 }
 
 func TestValidateEntry(t *testing.T) {
-	_, homeDir := setupTestEnv(t)
+	_, homeDir := setupEnv(t)
 
 	tests := []struct {
 		name    string

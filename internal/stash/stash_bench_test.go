@@ -9,28 +9,6 @@ import (
 	"testing"
 )
 
-// setupBenchEnv creates a temp directory structure for stash benchmarks.
-// Mirrors setupTestEnv but typed for *testing.B.
-func setupBenchEnv(b *testing.B) (stashDir, homeDir string) {
-	b.Helper()
-
-	tmpDir := b.TempDir()
-	homeDir = filepath.Join(tmpDir, "home")
-	dataDir := filepath.Join(tmpDir, "data")
-
-	if err := os.MkdirAll(homeDir, 0o755); err != nil {
-		b.Fatal(err)
-	}
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
-		b.Fatal(err)
-	}
-
-	b.Setenv("XDG_DATA_HOME", dataDir)
-	b.Setenv("HOME", homeDir)
-
-	return Dir(), homeDir
-}
-
 // BenchmarkCommit_SmallFile measures Commit performance with a single ~1 KB tracked file.
 //
 // NOTE: git subprocess overhead (git add, git status, git commit, git rev-parse)
@@ -38,7 +16,7 @@ func setupBenchEnv(b *testing.B) (stashDir, homeDir string) {
 // This is expected and reflects real-world Commit cost.
 func BenchmarkCommit_SmallFile(b *testing.B) {
 	b.ReportAllocs()
-	stashDir, homeDir := setupBenchEnv(b)
+	stashDir, homeDir := setupEnv(b)
 
 	srcPath := filepath.Join(homeDir, "small.txt")
 	safeName := "small.txt"
@@ -89,7 +67,7 @@ func BenchmarkCommit_SmallFile(b *testing.B) {
 // instead of loading the entire file into memory in Commit.
 func BenchmarkCommit_LargeFile(b *testing.B) {
 	b.ReportAllocs()
-	stashDir, homeDir := setupBenchEnv(b)
+	stashDir, homeDir := setupEnv(b)
 
 	srcPath := filepath.Join(homeDir, "large.txt")
 	safeName := "large.txt"
@@ -110,6 +88,8 @@ func BenchmarkCommit_LargeFile(b *testing.B) {
 		b.Fatal(err)
 	}
 
+	// Warm-up commit: initializes git repo and creates the initial commit.
+	// Excluded from measurement via b.ResetTimer below.
 	if _, err := Commit("warmup"); err != nil {
 		b.Fatal(err)
 	}
@@ -139,7 +119,7 @@ func BenchmarkCommit_LargeFile(b *testing.B) {
 // git add staging overhead for many files. Open a follow-up issue to investigate.
 func BenchmarkCommit_ManyFiles(b *testing.B) {
 	b.ReportAllocs()
-	stashDir, homeDir := setupBenchEnv(b)
+	stashDir, homeDir := setupEnv(b)
 
 	const fileCount = 50
 	const fileSize = 1024
@@ -168,6 +148,8 @@ func BenchmarkCommit_ManyFiles(b *testing.B) {
 		b.Fatal(err)
 	}
 
+	// Warm-up commit: initializes git repo and creates the initial commit.
+	// Excluded from measurement via b.ResetTimer below.
 	if _, err := Commit("warmup"); err != nil {
 		b.Fatal(err)
 	}
@@ -200,13 +182,14 @@ func BenchmarkCommit_ManyFiles(b *testing.B) {
 // a map[SafeName]Entry on first load and opening a follow-up issue.
 func BenchmarkReadManifest_ManyEntries(b *testing.B) {
 	b.ReportAllocs()
-	stashDir, homeDir := setupBenchEnv(b)
+	stashDir, homeDir := setupEnv(b)
 
 	if err := os.MkdirAll(stashDir, 0o755); err != nil {
 		b.Fatal(err)
 	}
 
-	// Build a synthetic 100-entry manifest; no real source files needed.
+	// Build a synthetic 100-entry manifest; no real source files needed —
+	// ReadManifest only reads and parses the manifest text, it does not stat source paths.
 	var manifestLines strings.Builder
 	manifestLines.WriteString("# mine stash manifest\n")
 	for i := 0; i < 100; i++ {
@@ -234,9 +217,13 @@ func BenchmarkReadManifest_ManyEntries(b *testing.B) {
 // With a single-entry manifest this is negligible, but with 100+ entries the O(n)
 // scan in FindEntry would compound the per-call cost. See BenchmarkReadManifest_ManyEntries
 // for manifest-scan isolation.
+//
+// NOTE: After the first iteration the OS page cache serves the git object read from
+// RAM. Subsequent iterations will appear faster than a cold-cache read would be.
+// Interpret the per-op numbers as warm-cache throughput, not cold-start latency.
 func BenchmarkRestoreToSource_LargeFile(b *testing.B) {
 	b.ReportAllocs()
-	stashDir, homeDir := setupBenchEnv(b)
+	stashDir, homeDir := setupEnv(b)
 
 	srcPath := filepath.Join(homeDir, "large.txt")
 	safeName := "large.txt"

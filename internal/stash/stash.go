@@ -134,6 +134,68 @@ func FindEntry(name string) (*Entry, error) {
 	}
 }
 
+// SafeNameFor returns the stash-safe filename for an absolute source path.
+// The home-relative portion of the path has "/" replaced with "__".
+func SafeNameFor(source string) string {
+	home, _ := os.UserHomeDir()
+	relPath := strings.TrimPrefix(source, home+"/")
+	return strings.ReplaceAll(relPath, "/", "__")
+}
+
+// TrackFile copies source into the stash directory and registers it in the
+// manifest. Returns the Entry for the newly tracked file.
+//
+// NOTE: The read-check-append sequence used to update the manifest is NOT
+// atomic. Concurrent calls may produce duplicate manifest entries (TOCTOU
+// race). A mutex or file-level lock is required for correct concurrent use.
+// See follow-up issue for the planned fix.
+func TrackFile(source string) (*Entry, error) {
+	info, err := os.Stat(source)
+	if err != nil {
+		return nil, fmt.Errorf("can't find %s", source)
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("can't track directories yet (coming soon)")
+	}
+
+	dir := Dir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+
+	safeName := SafeNameFor(source)
+	dest := filepath.Join(dir, safeName)
+
+	data, err := os.ReadFile(source)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", source, err)
+	}
+	if err := os.WriteFile(dest, data, info.Mode()); err != nil {
+		return nil, fmt.Errorf("writing to stash: %w", err)
+	}
+
+	// Update manifest.
+	// WARNING: The read-check-append sequence below is NOT atomic. Concurrent
+	// callers may both observe the manifest before any append, causing both to
+	// write an entry — resulting in duplicate lines for the same source. This
+	// is a known TOCTOU limitation; a follow-up issue tracks the fix.
+	manifestPath := ManifestPath()
+	manifest, _ := os.ReadFile(manifestPath)
+	entry := source + " -> " + safeName + "\n"
+	if !strings.Contains(string(manifest), source) {
+		f, err := os.OpenFile(manifestPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		if _, err := f.WriteString(entry); err != nil {
+			return nil, err
+		}
+	}
+
+	return &Entry{Source: source, SafeName: safeName}, nil
+}
+
 // validateSafeName checks that a SafeName is safe for use as a filename in the stash directory.
 func validateSafeName(safeName string) error {
 	if safeName == "" {

@@ -128,45 +128,14 @@ func runStashTrack(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	info, err := os.Stat(source)
+	entry, err := stash.TrackFile(source)
 	if err != nil {
-		return fmt.Errorf("can't find %s", source)
-	}
-	if info.IsDir() {
-		return fmt.Errorf("can't track directories yet (coming soon)")
-	}
-
-	dir := stash.Dir()
-	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 
 	home, _ := os.UserHomeDir()
-	relPath := strings.TrimPrefix(source, home+"/")
-	safeName := strings.ReplaceAll(relPath, "/", "__")
-
-	dest := filepath.Join(dir, safeName)
-
-	data, err := os.ReadFile(source)
-	if err != nil {
-		return fmt.Errorf("reading %s: %w", source, err)
-	}
-	if err := os.WriteFile(dest, data, info.Mode()); err != nil {
-		return fmt.Errorf("writing to stash: %w", err)
-	}
-
-	// Update manifest.
-	manifestPath := stash.ManifestPath()
-	manifest, _ := os.ReadFile(manifestPath)
-	entry := source + " -> " + safeName + "\n"
-	if !strings.Contains(string(manifest), source) {
-		f, err := os.OpenFile(manifestPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		f.WriteString(entry)
-	}
+	relPath := strings.TrimPrefix(entry.Source, home+"/")
+	dest := filepath.Join(stash.Dir(), entry.SafeName)
 
 	ui.Ok(fmt.Sprintf("Tracking %s", relPath))
 	fmt.Printf("  Stashed to: %s\n", ui.Muted.Render(dest))

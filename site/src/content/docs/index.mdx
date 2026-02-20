@@ -16,80 +16,46 @@ hero:
       icon: external
 ---
 
-import { Card, CardGrid, Code } from '@astrojs/starlight/components';
+import { Card, CardGrid } from '@astrojs/starlight/components';
+import CopyInstallButton from '../../components/CopyInstallButton.astro';
+import TerminalDemo from '../../components/TerminalDemo';
+import FeatureTabs from '../../components/FeatureTabs';
 
 ## Quick Install
 
-<Code code="curl -fsSL https://mine.rwolfe.io/install | bash" lang="bash" title="Installation" />
+<CopyInstallButton />
 
-This downloads the latest release binary for your OS/arch and installs it to `~/.local/bin/`.
+<p style="text-align: center; color: var(--sl-color-gray-3); font-size: 0.875rem; margin-top: 0.75rem;">
+  Downloads the latest release binary for your OS/arch and installs to <code>~/.local/bin/</code>.
+</p>
+
+## See It in Action
+
+<TerminalDemo client:visible />
 
 ## Features
 
-<CardGrid>
-  <Card title="Tasks" icon="checklist">
-    Fast task management with priorities, due dates, and tags. `mine todo`
-  </Card>
-  <Card title="Focus" icon="star">
-    Pomodoro timer with streak tracking and deep work stats. `mine dig`
-  </Card>
-  <Card title="Git" icon="github">
-    Branch picker, sweep, WIP commits, PR creation, changelogs. `mine git`
-  </Card>
-  <Card title="Scaffold" icon="rocket">
-    Bootstrap Go, Node, Python, Rust projects in seconds. `mine craft`
-  </Card>
-  <Card title="SSH" icon="laptop">
-    Fuzzy host picker, key management, tunnels. `mine ssh`
-  </Card>
-  <Card title="Vault" icon="setting">
-    Age-encrypted secret storage with clipboard support. `mine vault`
-  </Card>
-  <Card title="AI" icon="star">
-    Multi-provider AI for code review, commits, and questions — with styled markdown output. `mine ai`
-  </Card>
-  <Card title="Tmux" icon="open-book">
-    Session picker, layout save/restore, auto-naming. `mine tmux`
-  </Card>
-</CardGrid>
+<p style="text-align: center; color: var(--sl-color-gray-3); margin-bottom: 2rem;">
+  One binary. Nine feature areas. Everything a developer needs, nothing they don't.
+</p>
 
-[Explore all features](/features/task-management/)
+<FeatureTabs client:visible />
+
+<p style="text-align: center; margin-top: 1.5rem;">
+  <a href="/features/task-management/">Explore all features</a>
+</p>
 
 ## Philosophy
 
 **mine** is a developer CLI supercharger — a single Go binary that replaces the sprawl of productivity tools with one fast, delightful, opinionated companion.
 
 - **Speed**: Every local command < 50ms. No spinners for local ops.
-- **Single binary**: No runtime dependencies. `curl | sh` install.
+- **Single binary**: One download, no runtime dependencies. Some features integrate with tools you already have (git, tmux, ssh).
 - **Opinionated defaults**: Works out of the box. Escape hatches exist.
 - **Local first**: Data stays on machine. Cloud features opt-in.
 - **XDG-compliant**: `~/.config/mine/`, `~/.local/share/mine/`, `~/.cache/mine/`
 
-## Example Usage
-
-```bash
-# Initialize
-mine init
-
-# Your personal dashboard
-mine
-
-# Add a task
-mine todo add "ship v0.2" -p high -d tomorrow
-
-# Start a focus session
-mine dig 25m
-
-# Bootstrap a Go project
-mine craft dev go
-
-# Configure mine from the terminal
-mine config set user.name "Jane"
-mine config set ai.provider openai
-mine config list
-```
-
-## What's Next?
+## Get Started
 
 <CardGrid>
   <Card title="Installation Guide" icon="rocket">

@@ -2,7 +2,7 @@
 
 > Your personal developer supercharger.
 
-A single CLI tool that turbocharges dev velocity, tames environment chaos, and brings a little joy to the terminal. One binary. Zero deps. Radically fast.
+A single CLI tool that turbocharges dev velocity, tames environment chaos, and brings a little joy to the terminal. One binary. No runtime dependencies. Some features integrate with tools you already have (git, tmux, ssh).
 
 ## Install
 

@@ -52,6 +52,18 @@ $EDITOR $(mine config path)
 
 Opens your config file in your default editor.
 
+Some settings are only available by editing the TOML file directly. For example, AI system instructions:
+
+```toml
+[ai]
+system_instructions        = "Always respond in English."
+ask_system_instructions    = "You are a Go expert."
+review_system_instructions = "Focus on security and performance."
+commit_system_instructions = "Use Angular commit convention."
+```
+
+See [`mine ai`](/commands/ai/#system-instructions) for full details on AI system instruction precedence.
+
 ## Examples
 
 ```bash

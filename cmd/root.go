@@ -22,7 +22,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "mine",
 	Short: "Your personal developer supercharger",
-	Long:  `mine — everything you need, nothing you don't. Radically yours.`,
+	Long:  `mine — todos, secrets, env profiles, dotfiles, git helpers, and more. All in one binary.`,
 	RunE:  hook.Wrap("mine", runDashboard),
 	// NOTE: Cobra's PersistentPostRun on rootCmd fires for ALL subcommands.
 	// If any subcommand defines its own PersistentPostRun, it will shadow this one
@@ -132,9 +132,12 @@ func runDashboard(_ *cobra.Command, _ []string) error {
 	if !config.Initialized() {
 		fmt.Println(ui.Greet(""))
 		fmt.Println()
-		fmt.Println("  Looks like this is your first time. Let's set things up!")
+		fmt.Println("  " + ui.Subtitle.Render("Looks like this is your first time here!"))
 		fmt.Println()
-		fmt.Printf("  Run %s to get started.\n", ui.Accent.Render("mine init"))
+		fmt.Println(ui.Muted.Render("  mine is your all-in-one dev companion — todos, secrets, env profiles,"))
+		fmt.Println(ui.Muted.Render("  dotfile stashing, git helpers, tmux, and AI code review."))
+		fmt.Println()
+		fmt.Printf("  Run %s to get set up in about 30 seconds.\n", ui.Accent.Render("mine init"))
 		fmt.Println()
 		return nil
 	}
@@ -173,15 +176,15 @@ func runDashboard(_ *cobra.Command, _ []string) error {
 		if currentProject.Branch != "" {
 			projectSummary += fmt.Sprintf(" (%s)", currentProject.Branch)
 		}
-		ui.Kv("  📁 Project", projectSummary)
+		ui.Kv("  "+ui.IconProject+" Project", projectSummary)
 	}
 
 	// Date/time
 	now := time.Now()
-	ui.Kv("  📅 Today", now.Format("Monday, January 2"))
+	ui.Kv("  "+ui.IconCalendar+" Today", now.Format("Monday, January 2"))
 
 	// Version
-	ui.Kv("  ⚙️  Mine", version.Short())
+	ui.Kv("  "+ui.IconSettings+" Mine", version.Short())
 
 	// Tip
 	if open > 0 && overdue > 0 {
@@ -189,9 +192,27 @@ func runDashboard(_ *cobra.Command, _ []string) error {
 	} else if open > 0 {
 		ui.Tip("`mine todo` to see what's on your plate.")
 	} else {
-		ui.Tip("`mine todo add \"something awesome\"` to capture an idea.")
+		ui.Tip(dashboardTip(now))
 	}
 
 	fmt.Println()
 	return nil
+}
+
+// dashboardTip returns a contextual tip for the dashboard when there are no open todos.
+// Tips rotate based on time to keep the dashboard feeling fresh.
+func dashboardTip(t time.Time) string {
+	tips := []string{
+		"`mine todo add \"something awesome\"` to capture an idea.",
+		"`mine stash track ~/.zshrc` to version-control your dotfiles.",
+		"`mine vault set <key> <value>` to lock away a secret.",
+		"`mine env set KEY=VALUE` to manage per-project env vars.",
+		"`mine proj add .` to register this directory as a project.",
+		"`mine proj` to fuzzy-pick and jump between projects.",
+		"`mine ai ask \"explain this function\"` for a quick AI assist.",
+		"`mine git sweep` to delete merged branches in one shot.",
+		"`mine craft dev go` to scaffold a new Go project.",
+		"`mine dig` to start a focused 25-minute work session.",
+	}
+	return tips[t.Minute()%len(tips)]
 }

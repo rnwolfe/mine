@@ -10,20 +10,20 @@ import (
 
 var hookCmd = &cobra.Command{
 	Use:   "hook",
-	Short: "Manage user-local hooks",
-	Long:  `Discover, create, and test hook scripts in ~/.config/mine/hooks/.`,
+	Short: "Automate mine with event-driven scripts",
+	Long:  `Create scripts that fire before or after any mine command. Drop them in ~/.config/mine/hooks/.`,
 	RunE:  runHookList,
 }
 
 var hookListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all discovered hooks",
+	Short: "List all active hook scripts",
 	RunE:  runHookList,
 }
 
 var hookCreateCmd = &cobra.Command{
 	Use:   "create <command-pattern> <stage>",
-	Short: "Create a new hook script from template",
+	Short: "Scaffold a new hook script",
 	Long: `Create a starter hook script.
 
 Examples:
@@ -36,7 +36,7 @@ Examples:
 
 var hookTestCmd = &cobra.Command{
 	Use:   "test <file>",
-	Short: "Dry-run a hook script with sample input",
+	Short: "Dry-run a hook with sample input to verify it works",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runHookTest,
 }

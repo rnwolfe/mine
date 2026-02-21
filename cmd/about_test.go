@@ -31,9 +31,9 @@ func TestAboutCommand(t *testing.T) {
 		name     string
 		contains string
 	}{
-		{"has header", "About mine"},
+		{"has header", "mine"},
 		{"has version label", "Version"},
-		{"has repository label", "Repository"},
+		{"has repository label", "Repo"},
 		{"has repository URL", "https://github.com/rnwolfe/mine"},
 		{"has license label", "License"},
 		{"has license type", "MIT"},

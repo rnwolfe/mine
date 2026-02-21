@@ -26,8 +26,8 @@ var (
 var projCmd = &cobra.Command{
 	Use:     "proj",
 	Aliases: []string{"project"},
-	Short:   "Project switcher and context manager",
-	Long:    `Register projects, jump between them quickly, and manage per-project context.`,
+	Short:   "Jump between projects instantly — register once, switch anywhere",
+	Long:    `Register your projects and jump between them with a fuzzy picker. Per-project settings included.`,
 	RunE:    hook.Wrap("proj", runProj),
 }
 
@@ -72,7 +72,7 @@ func runProj(_ *cobra.Command, _ []string) error {
 
 	if !tui.IsTTY() {
 		if projPrintPath {
-			return fmt.Errorf("--print-path requires a terminal when no project name is provided")
+			return fmt.Errorf("--print-path requires an interactive terminal — use `mine proj open <name> --print-path` in scripts")
 		}
 		return printProjectList(projects)
 	}
@@ -106,15 +106,16 @@ func runProj(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	ui.Ok(fmt.Sprintf("Selected %s", ui.Accent.Render(res.Project.Name)))
-	fmt.Printf("  Switch now: %s\n", ui.Muted.Render("cd "+res.Project.Path))
+	ui.Ok(fmt.Sprintf("Switched to %s", ui.Accent.Render(res.Project.Name)))
+	fmt.Printf("  %s\n", ui.Muted.Render(res.Project.Path))
+	fmt.Printf("  Jump there: %s\n", ui.Accent.Render("p "+res.Project.Name))
 	fmt.Println()
 	return nil
 }
 
 var projAddCmd = &cobra.Command{
 	Use:   "add [path]",
-	Short: "Register a project path",
+	Short: "Register a directory as a project",
 	Args:  cobra.MaximumNArgs(1),
 	RunE:  hook.Wrap("proj.add", runProjAdd),
 }
@@ -154,7 +155,7 @@ func runProjRm(_ *cobra.Command, args []string) error {
 	name := args[0]
 	if !projRmYes {
 		if !tui.IsTTY() {
-			return fmt.Errorf("non-interactive remove requires --yes")
+			return fmt.Errorf("non-interactive mode requires --yes to confirm removal")
 		}
 		if !confirmRemove(name) {
 			ui.Warn("Cancelled.")
@@ -217,7 +218,7 @@ func runProjList(_ *cobra.Command, _ []string) error {
 
 var projOpenCmd = &cobra.Command{
 	Use:   "open [name]",
-	Short: "Open a project context (shell-aware with --print-path)",
+	Short: "Set a project as the current context",
 	Args:  cobra.MaximumNArgs(1),
 	RunE:  hook.Wrap("proj.open", runProjOpen),
 }
@@ -238,7 +239,7 @@ func runProjOpen(_ *cobra.Command, args []string) error {
 		}
 	} else {
 		if len(args) == 0 {
-			return fmt.Errorf("project name is required unless --previous is set")
+			return fmt.Errorf("project name is required — use `mine proj open <name>` or `mine proj open --previous`")
 		}
 		result, err = ps.Open(args[0])
 		if err != nil {
@@ -251,23 +252,23 @@ func runProjOpen(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ui.Ok(fmt.Sprintf("Project %s ready", ui.Accent.Render(result.Project.Name)))
-	fmt.Printf("  Path: %s\n", ui.Muted.Render(result.Project.Path))
+	ui.Ok(fmt.Sprintf("Context switched to %s", ui.Accent.Render(result.Project.Name)))
+	fmt.Printf("  %s\n", ui.Muted.Render(result.Project.Path))
 	if result.Project.Branch != "" {
 		fmt.Printf("  Branch: %s\n", ui.Muted.Render(result.Project.Branch))
 	}
 
 	if result.Previous != "" && result.Previous != result.Project.Name {
-		fmt.Printf("  Previous: %s\n", ui.Muted.Render(result.Previous))
+		fmt.Printf("  Back: %s\n", ui.Muted.Render("pp (previous: "+result.Previous+")"))
 	}
-	fmt.Printf("  Shell switch: %s\n", ui.Accent.Render("p "+result.Project.Name))
+	fmt.Printf("  Jump there: %s\n", ui.Accent.Render("p "+result.Project.Name))
 	fmt.Println()
 	return nil
 }
 
 var projScanCmd = &cobra.Command{
 	Use:   "scan [dir]",
-	Short: "Recursively discover git repos and register them",
+	Short: "Discover and register all git repos under a directory",
 	Args:  cobra.MaximumNArgs(1),
 	RunE:  hook.Wrap("proj.scan", runProjScan),
 }
@@ -327,7 +328,7 @@ func runProjConfig(_ *cobra.Command, args []string) error {
 			return err
 		}
 		if current == "" {
-			return fmt.Errorf("no current project set; use --project or run mine proj open <name>")
+			return fmt.Errorf("no current project — run `mine proj open <name>` or pass --project <name>")
 		}
 		projectName = current
 	}

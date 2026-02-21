@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/tips"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
@@ -15,7 +16,7 @@ var tipsCmd = &cobra.Command{
 	Use:   "tips",
 	Short: "Discover what mine can do",
 	Long:  `Show actionable tips for getting the most out of mine.`,
-	RunE:  runTips,
+	RunE:  hook.Wrap("tips", runTips),
 }
 
 func init() {

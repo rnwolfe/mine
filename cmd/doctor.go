@@ -65,7 +65,8 @@ func printCheck(r checkResult) {
 		icon := ui.Error.Render(ui.IconError)
 		fmt.Printf("  %s %s %s\n", icon, ui.KeyStyle.Render(label), r.detail)
 		if r.fixHint != "" {
-			fmt.Printf("  %s %s %s\n", "  ", "                ", ui.Muted.Render("→ "+r.fixHint))
+			hintIndent := fmt.Sprintf("  %s", fmt.Sprintf("%-16s", ""))
+			fmt.Printf("%s %s\n", hintIndent, ui.Muted.Render("→ "+r.fixHint))
 		}
 	}
 }
@@ -128,8 +129,9 @@ func checkGit() checkResult {
 	if err != nil {
 		return checkResult{
 			name:    "Git",
-			ok:      true,
-			detail:  path + " found",
+			ok:      false,
+			detail:  fmt.Sprintf("git found at %s but failed to run 'git --version': %v", path, err),
+			fixHint: "Verify your git installation (check that it is executable and reinstall if necessary)",
 		}
 	}
 	// Trim trailing newline from version string.

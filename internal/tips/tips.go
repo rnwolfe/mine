@@ -10,7 +10,7 @@ var all = []string{
 	"`mine stash track ~/.zshrc` to version your dotfiles.",
 	"`mine stash commit` to snapshot your tracked files.",
 	"`cat main.go | mine ai ask \"explain this\"` to get AI help without leaving the terminal.",
-	"`mine vault get TOKEN | xargs curl -H` to pipe secrets directly to commands.",
+	"`mine vault get TOKEN | xargs -I {} curl -H \"Authorization: {}\"` to pipe secrets directly to commands.",
 	"`mine env inject -- npm run dev` to run commands with env vars injected.",
 	"`mine craft dev go` to scaffold a new Go project with batteries included.",
 	"`mine tmux layout save` to save your current tmux layout and restore it later.",

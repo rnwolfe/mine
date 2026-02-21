@@ -157,7 +157,23 @@ jobs:
           claude_args: "--model claude-sonnet-4-6 --max-turns 100 --dangerously-skip-permissions"
       # ============================================================
 
+      - name: Handle agent failure
+        if: steps.agent.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+        run: |
+          echo "::error::Implementation agent failed. No changes were committed."
+          echo "::error::See logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          gh issue comment "${{ inputs.issue_number }}" \
+            --repo "${{ github.repository }}" \
+            --body "⚠️ Autodev agent failed during implementation. No changes were committed. This issue needs human attention. [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          gh issue edit "${{ inputs.issue_number }}" \
+            --repo "${{ github.repository }}" \
+            --add-label "needs-human" \
+            --remove-label "in-progress"
+
       - name: Revert protected file changes
+        if: steps.agent.outcome == 'success'
         run: |
           PROTECTED=$(git diff --name-only | grep -E '(CLAUDE\.md|\.github/workflows/|scripts/autodev/)' || true)
           if [ -n "$PROTECTED" ]; then
@@ -166,6 +182,7 @@ jobs:
           fi
 
       - name: Check for changes
+        if: steps.agent.outcome == 'success'
         id: changes
         run: |
           if git diff --quiet && git diff --cached --quiet; then
@@ -175,7 +192,7 @@ jobs:
           fi
 
       - name: Commit and push
-        if: steps.changes.outputs.has_changes == 'true'
+        if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
         run: |
@@ -187,7 +204,7 @@ jobs:
           git push -u origin "${{ steps.prep.outputs.branch }}"
 
       - name: Create PR
-        if: steps.changes.outputs.has_changes == 'true'
+        if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
         run: |
@@ -196,7 +213,7 @@ jobs:
             "${{ steps.prep.outputs.branch }}"
 
       - name: Handle no changes
-        if: steps.changes.outputs.has_changes == 'false'
+        if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

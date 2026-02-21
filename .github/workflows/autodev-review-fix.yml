@@ -361,7 +361,7 @@ jobs:
           git push
 
       - name: Update copilot iteration counter
-        if: steps.route.outputs.action == 'copilot-fix' && steps.copilot-feedback.outputs.override_action != 'trigger-claude' && steps.copilot-agent.outcome == 'success'
+        if: steps.route.outputs.action == 'copilot-fix' && steps.copilot-feedback.outputs.override_action != 'trigger-claude' && steps.copilot-agent.outcome == 'success' && steps.copilot-changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -523,7 +523,7 @@ jobs:
           git push
 
       - name: Finalize — mark phase done
-        if: steps.route.outputs.action == 'claude-fix'
+        if: steps.route.outputs.action == 'claude-fix' && (steps.claude-feedback.outputs.no_feedback == 'true' || steps.claude-agent.outcome == 'success')
         env:
           GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
         run: |

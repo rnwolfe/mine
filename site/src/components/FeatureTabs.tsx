@@ -131,6 +131,20 @@ const FEATURES: Feature[] = [
       "mine tmux load dev",
     ],
   },
+  {
+    id: "plugins",
+    icon: "\u{1F9E9}",
+    label: "Plugins",
+    title: "Plugin Ecosystem",
+    description:
+      "Extend mine with plugins that hook into any command. Install from GitHub, build your own in any language. Sandboxed permissions keep your system safe.",
+    lines: [
+      { comment: "# search GitHub for plugins" },
+      "mine plugin search obsidian",
+      "mine plugin install ./my-plugin",
+      "mine plugin list",
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------

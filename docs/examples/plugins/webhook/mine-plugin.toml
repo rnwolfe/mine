@@ -1,0 +1,23 @@
+[plugin]
+name = "webhook"
+version = "0.1.0"
+description = "Send webhook notifications on todo events"
+author = "mine-examples"
+license = "MIT"
+min_mine_version = "0.2.0"
+protocol_version = "1.0.0"
+
+[[hooks]]
+command = "todo.add"
+stage = "preexec"
+mode = "transform"
+
+[[hooks]]
+command = "todo.done"
+stage = "notify"
+mode = "notify"
+timeout = "15s"
+
+[permissions]
+network = true
+env_vars = ["WEBHOOK_URL"]

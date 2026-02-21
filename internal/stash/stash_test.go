@@ -783,6 +783,52 @@ func TestRestoreToSourceForce(t *testing.T) {
 	}
 }
 
+func TestRestoreToSourceForce_NoSourceFile(t *testing.T) {
+	stashDir, homeDir := setupTestEnv(t)
+
+	source := createTestFile(t, homeDir, ".zshrc", "content v1")
+	setupManifest(t, stashDir, source, ".zshrc", "content v1")
+
+	if _, err := Commit("initial"); err != nil {
+		t.Fatalf("Commit() error: %v", err)
+	}
+
+	// Remove source file to simulate first-time restore on a new machine.
+	if err := os.Remove(source); err != nil {
+		t.Fatalf("os.Remove(source) error: %v", err)
+	}
+
+	// Set a specific permission on the stash copy to verify it's used.
+	stashCopy := filepath.Join(stashDir, ".zshrc")
+	if err := os.Chmod(stashCopy, 0o755); err != nil {
+		t.Fatalf("os.Chmod(stashCopy) error: %v", err)
+	}
+
+	entry, err := RestoreToSource(".zshrc", "", true)
+	if err != nil {
+		t.Fatalf("RestoreToSource(force=true, no source) error: %v", err)
+	}
+	if entry == nil {
+		t.Fatal("RestoreToSource() returned nil entry")
+	}
+
+	info, err := os.Stat(source)
+	if err != nil {
+		t.Fatalf("os.Stat(source) error: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o755 {
+		t.Errorf("source file mode = %04o, want %04o (force=true, no prior source)", got, 0o755)
+	}
+
+	data, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatalf("os.ReadFile(source) error: %v", err)
+	}
+	if string(data) != "content v1" {
+		t.Errorf("source content = %q, want %q", string(data), "content v1")
+	}
+}
+
 func TestGitCmd(t *testing.T) {
 	dir := t.TempDir()
 

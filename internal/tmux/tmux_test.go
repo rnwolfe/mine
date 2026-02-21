@@ -224,6 +224,133 @@ func TestRenameSession_Stubbed(t *testing.T) {
 	}
 }
 
+func TestFindSessionByName_Found(t *testing.T) {
+	sessions := []Session{
+		{Name: "dev"},
+		{Name: "work"},
+		{Name: "myapp"},
+	}
+
+	s := FindSessionByName("work", sessions)
+	if s == nil {
+		t.Fatal("expected to find session 'work', got nil")
+	}
+	if s.Name != "work" {
+		t.Fatalf("expected 'work', got %q", s.Name)
+	}
+}
+
+func TestFindSessionByName_NotFound(t *testing.T) {
+	sessions := []Session{
+		{Name: "dev"},
+		{Name: "work"},
+	}
+
+	s := FindSessionByName("production", sessions)
+	if s != nil {
+		t.Fatalf("expected nil for missing session, got %v", s)
+	}
+}
+
+func TestFindSessionByName_Empty(t *testing.T) {
+	s := FindSessionByName("anything", nil)
+	if s != nil {
+		t.Fatalf("expected nil for empty session list, got %v", s)
+	}
+}
+
+func TestResolveProjectSession_NamedDir(t *testing.T) {
+	original := listSessionsFunc
+	defer func() { listSessionsFunc = original }()
+
+	listSessionsFunc = func() ([]Session, error) {
+		return nil, nil
+	}
+
+	resolvedDir, name, exists, err := ResolveProjectSession("/home/user/code/myapp")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolvedDir != "/home/user/code/myapp" {
+		t.Fatalf("expected resolvedDir '/home/user/code/myapp', got %q", resolvedDir)
+	}
+	if name != "myapp" {
+		t.Fatalf("expected session name 'myapp', got %q", name)
+	}
+	if exists {
+		t.Fatal("expected exists=false for empty session list")
+	}
+}
+
+func TestResolveProjectSession_CwdFallback(t *testing.T) {
+	original := listSessionsFunc
+	defer func() { listSessionsFunc = original }()
+
+	listSessionsFunc = func() ([]Session, error) {
+		return nil, nil
+	}
+
+	resolvedDir, name, exists, err := ResolveProjectSession("")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Session name should equal the basename of the working directory.
+	if resolvedDir == "" {
+		t.Fatal("expected non-empty resolvedDir from cwd fallback")
+	}
+	if name == "" {
+		t.Fatal("expected non-empty session name from cwd fallback")
+	}
+	if exists {
+		t.Fatal("expected exists=false for empty session list")
+	}
+}
+
+func TestResolveProjectSession_AttachIfExists(t *testing.T) {
+	original := listSessionsFunc
+	defer func() { listSessionsFunc = original }()
+
+	listSessionsFunc = func() ([]Session, error) {
+		return []Session{
+			{Name: "myapp", Windows: 1},
+			{Name: "other", Windows: 2},
+		}, nil
+	}
+
+	_, name, exists, err := ResolveProjectSession("/code/myapp")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if name != "myapp" {
+		t.Fatalf("expected 'myapp', got %q", name)
+	}
+	if !exists {
+		t.Fatal("expected exists=true when session is in the list")
+	}
+}
+
+func TestResolveProjectSession_NoMatchInList(t *testing.T) {
+	original := listSessionsFunc
+	defer func() { listSessionsFunc = original }()
+
+	listSessionsFunc = func() ([]Session, error) {
+		return []Session{
+			{Name: "other-project", Windows: 1},
+		}, nil
+	}
+
+	_, name, exists, err := ResolveProjectSession("/code/myapp")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if name != "myapp" {
+		t.Fatalf("expected 'myapp', got %q", name)
+	}
+	if exists {
+		t.Fatal("expected exists=false when session not in list")
+	}
+}
+
 func TestRenameSession_EmptyNewName(t *testing.T) {
 	err := RenameSession("old", "")
 	if err == nil {

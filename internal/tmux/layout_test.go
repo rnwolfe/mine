@@ -297,6 +297,54 @@ func TestApplyLayout_Stubbed(t *testing.T) {
 	}
 }
 
+func TestApplyLayoutToSession_Stubbed(t *testing.T) {
+	origCmd := tmuxCmd
+	defer func() { tmuxCmd = origCmd }()
+
+	var commands []string
+	tmuxCmd = func(args ...string) (string, error) {
+		commands = append(commands, strings.Join(args, " "))
+		return "", nil
+	}
+
+	layout := &Layout{
+		Name: "dev",
+		Windows: []WindowLayout{
+			{
+				Name:      "editor",
+				Layout:    "main-vertical",
+				PaneCount: 1,
+				Panes:     []PaneLayout{{Dir: "/home/user/project"}},
+			},
+		},
+	}
+
+	if err := applyLayoutToSession(layout, "myapp"); err != nil {
+		t.Fatalf("applyLayoutToSession failed: %v", err)
+	}
+
+	// First window should be renamed via current-window target (no index assumed).
+	if len(commands) == 0 {
+		t.Fatal("expected tmux commands to be issued")
+	}
+	found := false
+	for _, cmd := range commands {
+		if cmd == "rename-window -t myapp: editor" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'rename-window -t myapp: editor' in commands: %v", commands)
+	}
+
+	// select-window should use session:window format.
+	last := commands[len(commands)-1]
+	if last != "select-window -t myapp:editor" {
+		t.Errorf("last command should be 'select-window -t myapp:editor', got: %s", last)
+	}
+}
+
 func TestApplyLayout_ErrorPropagation(t *testing.T) {
 	origCmd := tmuxCmd
 	defer func() { tmuxCmd = origCmd }()

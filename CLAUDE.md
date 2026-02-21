@@ -372,6 +372,19 @@ Workflow:
 3. When ready to implement, create a branch from the issue
 4. Issues reference the spec; PRs reference the issue
 
+## Product Development Lifecycle
+
+The full skill pipeline — from strategic direction to shipped feature — is documented in:
+
+`docs/internal/LIFECYCLE.md`
+
+Layers: **Strategy → Discovery → Specification → Backlog Entry → Backlog Quality →
+Implementation → Quality Assurance → (back to Strategy)**
+
+Entry point when you don't know where to start: `/product`
+
+---
+
 ## Autonomous Implementation Skill
 
 `/autodev` is the CLI counterpart to the GitHub Actions autodev pipeline. It runs the
@@ -432,10 +445,10 @@ issues or modify user-facing strings.
 | `/personality-audit` | Audit CLI output, docs, and site for tone consistency | `/personality-audit cli`, `/personality-audit docs` |
 | `/autodev-audit` | Audit autodev pipeline health, PR quality, and improvement opportunities | `/autodev-audit`, `/autodev-audit pipeline`, `/autodev-audit code` |
 
-The pipeline flow: `/product` sets strategic direction and creates specs → `/brainstorm`
-and `/draft-issue` feed issues into the backlog → `/sweep-issues` labels issues needing
-work with `needs-refinement` → `/refine-issue` auto-picks from that queue → `/autodev`
-implements → `/personality-audit` ensures user-facing strings stay consistent.
+The pipeline flow is documented in full in `docs/internal/LIFECYCLE.md`.
+Short version: `/product` (strategy) → `/product spec` (spec) → `/draft-issue` / issue
+creation (backlog entry) → `/sweep-issues` + `/refine-issue` (quality) → `/autodev`
+(implementation) → `/product sync` (living docs) → repeat.
 
 All skills target the gold-standard issue template (based on issue #35) defined in
 `.claude/skills/shared/issue-quality-checklist.md`. The template includes: summary,
@@ -443,6 +456,7 @@ subcommands table, architecture notes, integration points, acceptance criteria, 
 documentation requirements.
 
 Key files:
+- `docs/internal/LIFECYCLE.md` — full pipeline: how all skills connect
 - `.claude/skills/product/SKILL.md` — strategic roadmap ownership skill
 - `.claude/skills/brainstorm/SKILL.md` — feature ideation skill
 - `.claude/skills/sweep-issues/SKILL.md` — backlog quality audit skill

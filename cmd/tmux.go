@@ -523,20 +523,23 @@ func runTmuxLayoutDelete(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// No name: use picker if TTY, else require a name.
-	if !tui.IsTTY() {
-		return fmt.Errorf("specify a layout name or run interactively in a terminal")
-	}
-
 	names, err := tmux.ListLayouts()
 	if err != nil {
 		return err
 	}
+
 	if len(names) == 0 {
 		fmt.Println()
 		fmt.Println(ui.Muted.Render("  No saved layouts."))
 		fmt.Println()
 		return nil
+	}
+
+	// No name: use picker if TTY, else show list and require a name.
+	if !tui.IsTTY() {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  Specify a layout name or run interactively in a terminal."))
+		return printLayoutList(names)
 	}
 
 	items := make([]tui.Item, len(names))
@@ -572,6 +575,15 @@ func (l layoutItem) Title() string       { return string(l) }
 func (l layoutItem) Description() string { return "" }
 
 // --- helpers ---
+
+func printLayoutList(names []string) error {
+	fmt.Println()
+	for _, name := range names {
+		fmt.Printf("  %s\n", ui.Accent.Render(name))
+	}
+	fmt.Println()
+	return nil
+}
 
 func printSessionList(sessions []tmux.Session) error {
 	fmt.Println()

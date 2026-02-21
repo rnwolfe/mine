@@ -42,7 +42,9 @@ How this connects to existing mine features:
 - [ ] Specific, testable criterion that maps to one verifiable behavior
 - [ ] Another criterion — include happy path AND edge cases
 - [ ] Error handling: what happens when X fails?
-- [ ] Test requirements: unit tests for domain logic, integration tests if needed
+- [ ] Unit tests for domain helpers in `internal/<pkg>/`
+- [ ] Integration tests in `cmd/` that exercise the `runXxx` handler end-to-end (not just helpers)
+- [ ] External tool interactions tested via fake scripts in `t.TempDir()` (if applicable)
 - [ ] Performance: command completes within the <50ms budget (if applicable)
 
 > Each checkbox should be independently verifiable. Avoid vague criteria like

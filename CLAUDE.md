@@ -128,6 +128,34 @@ Rules:
     Current/previous project pointers are tracked via `kv` keys (`proj.current`,
     `proj.previous`) to support shell helpers (`p`, `pp`) and dashboard context.
 
+## Testing Standards
+
+1. **Unit vs integration tests**: Unit tests target internal helpers (e.g. `parseEnvFile`,
+   `slugify`). Integration tests exercise the actual `runXxx` handler function end-to-end
+   with real (or faked) dependencies — they live in `cmd/*_test.go`.
+2. **External binary mocking**: When testing commands that invoke external tools (`$EDITOR`,
+   `tmux`, `git`, etc.), create fake scripts in `t.TempDir()` and put that dir on `$PATH`.
+   Reference pattern: `cmd/tmux_test.go:59` (`setupTmuxEnv`).
+3. **Test isolation**: Every test uses `t.TempDir()` + `t.Setenv()` for XDG dirs so tests
+   never touch the real filesystem. Reference pattern: `cmd/config_test.go:13` (`configTestEnv`).
+4. **Error paths end-to-end**: Don't just test that a helper rejects bad input. Test that
+   the handler returns the right error when the editor exits non-zero, when the file is
+   malformed, when the profile doesn't exist, etc.
+5. **Test naming**: Use `Test<Handler>_<scenario>` (e.g. `TestRunEnvEdit_InvalidProfile`).
+   Table-driven tests are preferred when testing multiple input variations.
+
+## Error Message Standards
+
+1. **Accent rendering**: Use `ui.Accent.Render()` for command suggestions, file paths, and
+   key names in error messages (matches pattern at `cmd/config.go:180`).
+2. **Expected format**: When rejecting invalid input, include the expected format in the
+   error (e.g. the regex pattern, the list of valid values, or an example).
+3. **Error wrapping**: Wrap errors with operation context:
+   `fmt.Errorf("saving profile: %w", err)` — not bare `return err`, unless the caller
+   already provides context.
+4. **User-facing error structure**: Multi-line errors for user-facing problems: what went
+   wrong, then what to do about it (matches Personality Guide and `cmd/config.go:177`).
+
 ## Design Principles
 
 1. **Speed**: Every local command < 50ms. No spinners for local ops.

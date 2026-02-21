@@ -15,8 +15,8 @@ import (
 
 var stashCmd = &cobra.Command{
 	Use:   "stash",
-	Short: "Manage your dotfiles and environment",
-	Long:  `Track, backup, and sync your dotfiles. Your environment, version controlled.`,
+	Short: "Git-backed dotfile snapshots — your configs, version controlled",
+	Long:  `Track, snapshot, and sync your dotfiles. Never lose your carefully tuned configs again.`,
 	RunE:  hook.Wrap("stash", runStashStatus),
 }
 
@@ -37,7 +37,7 @@ func init() {
 
 var stashInitCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize dotfile tracking",
+	Short: "Set up dotfile tracking in this directory",
 	RunE:  hook.Wrap("stash.init", runStashInit),
 }
 
@@ -50,40 +50,40 @@ var stashTrackCmd = &cobra.Command{
 
 var stashListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List tracked dotfiles",
+	Short: "Show all tracked dotfiles",
 	RunE:  hook.Wrap("stash.list", runStashList),
 }
 
 var stashDiffCmd = &cobra.Command{
 	Use:   "diff",
-	Short: "Show changes in tracked dotfiles",
+	Short: "See what's changed since the last snapshot",
 	RunE:  hook.Wrap("stash.diff", runStashDiff),
 }
 
 var stashCommitCmd = &cobra.Command{
 	Use:   "commit",
-	Short: "Snapshot current stashed files with a message",
+	Short: "Snapshot all tracked dotfiles",
 	Long:  `Create a versioned snapshot of all tracked dotfiles. Initializes git tracking on first use.`,
 	RunE:  hook.Wrap("stash.commit", runStashCommit),
 }
 
 var stashLogCmd = &cobra.Command{
 	Use:   "log [file]",
-	Short: "Show version history of stashed files",
+	Short: "Browse snapshot history",
 	Args:  cobra.MaximumNArgs(1),
 	RunE:  hook.Wrap("stash.log", runStashLog),
 }
 
 var stashRestoreCmd = &cobra.Command{
 	Use:   "restore <file>",
-	Short: "Restore a file to a previous version",
+	Short: "Restore a dotfile to a previous snapshot",
 	Args:  cobra.ExactArgs(1),
 	RunE:  hook.Wrap("stash.restore", runStashRestore),
 }
 
 var stashSyncCmd = &cobra.Command{
 	Use:   "sync <push|pull|remote>",
-	Short: "Push/pull stash to a git remote",
+	Short: "Back up your stash to a git remote",
 	Long: `Sync your stash with a git remote. Opt-in cloud backup.
 
   mine stash sync remote <url>   Set the remote repository URL
@@ -107,9 +107,10 @@ func runStashInit(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	ui.Ok("Stash initialized at " + dir)
+	ui.Ok("Stash ready — your dotfile vault is open")
+	fmt.Printf("  Location: %s\n", ui.Muted.Render(dir))
 	fmt.Println()
-	fmt.Printf("  Track a file: %s\n", ui.Accent.Render("mine stash track ~/.zshrc"))
+	fmt.Printf("  Start tracking: %s\n", ui.Accent.Render("mine stash track ~/.zshrc"))
 	fmt.Println()
 	return nil
 }
@@ -194,7 +195,7 @@ func runStashDiff(_ *cobra.Command, _ []string) error {
 		return err
 	}
 	if entries == nil {
-		return fmt.Errorf("no stash found — run `mine stash init` first")
+		return fmt.Errorf("stash not initialized — run `mine stash init` to get started")
 	}
 
 	if len(entries) == 0 {
@@ -249,7 +250,7 @@ func runStashCommit(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if len(entries) == 0 {
-		return fmt.Errorf("nothing to commit — track files with `mine stash track <file>` first")
+		return fmt.Errorf("nothing to snapshot — add a file first with `mine stash track ~/.zshrc`")
 	}
 
 	hash, err := stash.Commit(msg)
@@ -258,8 +259,9 @@ func runStashCommit(cmd *cobra.Command, _ []string) error {
 	}
 
 	fmt.Println()
-	ui.Ok(fmt.Sprintf("Snapshot created [%s]", hash))
+	ui.Ok(fmt.Sprintf("Snapshot saved %s", ui.Muted.Render("["+hash+"]")))
 	fmt.Printf("  %s\n", ui.Muted.Render(msg))
+	fmt.Printf("  Your dotfiles are safe. %s\n", ui.Muted.Render("restore anytime with `mine stash restore <file>`"))
 	fmt.Println()
 	return nil
 }
@@ -358,7 +360,7 @@ func runStashSync(_ *cobra.Command, args []string) error {
 			return err
 		}
 		fmt.Println()
-		ui.Ok("Stash pushed to remote")
+		ui.Ok("Stash backed up to remote — your configs are safe in the cloud")
 		fmt.Println()
 		return nil
 
@@ -367,7 +369,7 @@ func runStashSync(_ *cobra.Command, args []string) error {
 			return err
 		}
 		fmt.Println()
-		ui.Ok("Stash pulled from remote — tracked files restored")
+		ui.Ok("Stash pulled and restored — welcome back to your setup")
 		fmt.Println()
 		return nil
 

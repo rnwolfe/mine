@@ -25,8 +25,8 @@ var (
 
 var envCmd = &cobra.Command{
 	Use:   "env",
-	Short: "Manage per-project environment profiles",
-	Long:  "Encrypted, per-project env profiles with safe display and shell export helpers.",
+	Short: "Encrypted env profiles — no more .env file sprawl",
+	Long:  "Per-project encrypted env profiles. Set secrets safely, export to your shell, and never commit credentials again.",
 	RunE:  hook.Wrap("env", runEnvBare),
 }
 
@@ -48,7 +48,7 @@ func init() {
 
 var envShowCmd = &cobra.Command{
 	Use:   "show [profile]",
-	Short: "Show env vars for a profile",
+	Short: "Show env vars for a profile (values masked by default)",
 	Args:  cobra.MaximumNArgs(1),
 	RunE:  hook.Wrap("env.show", runEnvShow),
 }
@@ -69,7 +69,7 @@ var envUnsetCmd = &cobra.Command{
 
 var envDiffCmd = &cobra.Command{
 	Use:   "diff <profile-a> <profile-b>",
-	Short: "Diff two profiles (keys only)",
+	Short: "See what's different between two profiles",
 	Args:  cobra.ExactArgs(2),
 	RunE:  hook.Wrap("env.diff", runEnvDiff),
 }
@@ -83,21 +83,21 @@ var envSwitchCmd = &cobra.Command{
 
 var envExportCmd = &cobra.Command{
 	Use:   "export",
-	Short: "Output shell export lines for the active profile",
+	Short: "Print shell export lines for the active profile",
 	Args:  cobra.NoArgs,
 	RunE:  hook.Wrap("env.export", runEnvExport),
 }
 
 var envTemplateCmd = &cobra.Command{
 	Use:   "template",
-	Short: "Generate .env.example lines from the active profile",
+	Short: "Generate a .env.example from the active profile",
 	Args:  cobra.NoArgs,
 	RunE:  hook.Wrap("env.template", runEnvTemplate),
 }
 
 var envInjectCmd = &cobra.Command{
 	Use:   "inject -- <command> [args...]",
-	Short: "Run a command with active profile variables injected",
+	Short: "Run a command with env vars injected",
 	Args:  cobra.ArbitraryArgs,
 	RunE:  hook.Wrap("env.inject", runEnvInject),
 }
@@ -139,7 +139,7 @@ func runEnvSet(_ *cobra.Command, args []string) error {
 	if err := m.manager.SetVar(projectPath, profile, key, value); err != nil {
 		return err
 	}
-	fmt.Printf("  %s %s set in profile %s\n", ui.Success.Render("✓"), ui.Accent.Render(key), ui.Muted.Render(profile))
+	ui.Ok(fmt.Sprintf("%s saved to profile %s", ui.Accent.Render(key), ui.Muted.Render(profile)))
 	return nil
 }
 
@@ -160,7 +160,7 @@ func runEnvUnset(_ *cobra.Command, args []string) error {
 	if err := m.manager.UnsetVar(projectPath, profile, key); err != nil {
 		return err
 	}
-	fmt.Printf("  %s %s removed from profile %s\n", ui.Success.Render("✓"), ui.Accent.Render(key), ui.Muted.Render(profile))
+	ui.Ok(fmt.Sprintf("%s removed from profile %s", ui.Accent.Render(key), ui.Muted.Render(profile)))
 	return nil
 }
 
@@ -201,7 +201,8 @@ func runEnvSwitch(_ *cobra.Command, args []string) error {
 	if err := m.manager.SwitchProfile(projectPath, args[0]); err != nil {
 		return err
 	}
-	fmt.Printf("  %s Active profile: %s\n", ui.Success.Render("✓"), ui.Accent.Render(args[0]))
+	ui.Ok(fmt.Sprintf("Switched to profile %s", ui.Accent.Render(args[0])))
+	fmt.Printf("  Run %s to load it into your shell.\n", ui.Accent.Render("menv"))
 	return nil
 }
 
@@ -217,7 +218,7 @@ func runEnvExport(_ *cobra.Command, _ []string) error {
 	}
 	shellName := strings.ToLower(envShellType)
 	if shellName != "posix" && shellName != "fish" {
-		return fmt.Errorf("invalid shell %q (expected posix or fish)", shellName)
+		return fmt.Errorf("unknown shell %q — use --shell posix or --shell fish", shellName)
 	}
 	lines, err := m.manager.ExportLines(projectPath, profile, shellName)
 	if err != nil {
@@ -249,7 +250,7 @@ func runEnvTemplate(_ *cobra.Command, _ []string) error {
 
 func runEnvInject(_ *cobra.Command, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: mine env inject -- <command> [args...]")
+		return fmt.Errorf("no command provided — usage: mine env inject -- <command> [args...]")
 	}
 	m, projectPath, err := envManager()
 	if err != nil {
@@ -342,7 +343,7 @@ func readEnvPassphrase() (string, error) {
 		return p, nil
 	}
 	if !term.IsTerminal(int(syscall.Stdin)) {
-		return "", fmt.Errorf("env passphrase required\n\nHint: set MINE_ENV_PASSPHRASE (or MINE_VAULT_PASSPHRASE) env var or run interactively")
+		return "", fmt.Errorf("env passphrase required — set MINE_ENV_PASSPHRASE or MINE_VAULT_PASSPHRASE, or run interactively")
 	}
 	fmt.Fprint(os.Stderr, ui.Muted.Render("  Env passphrase: "))
 	passBytes, err := term.ReadPassword(int(syscall.Stdin))
@@ -352,7 +353,7 @@ func readEnvPassphrase() (string, error) {
 	}
 	passphrase := strings.TrimSpace(string(passBytes))
 	if passphrase == "" {
-		return "", fmt.Errorf("passphrase must not be empty")
+		return "", fmt.Errorf("passphrase can't be empty — set MINE_ENV_PASSPHRASE or type it when prompted")
 	}
 	return passphrase, nil
 }
@@ -382,7 +383,7 @@ func parseSetArg(arg string) (string, string, error) {
 	}
 	value := strings.TrimRight(string(b), "\r\n")
 	if value == "" {
-		return "", "", errors.New("value required (pass KEY=VALUE or pipe value on stdin)")
+		return "", "", errors.New("value is required — use KEY=VALUE or pipe the value: echo 'secret' | mine env set KEY")
 	}
 	return key, value, nil
 }

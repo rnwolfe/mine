@@ -20,8 +20,8 @@ import (
 
 var vaultCmd = &cobra.Command{
 	Use:   "vault",
-	Short: "Encrypted secrets vault",
-	Long:  `Store and retrieve secrets encrypted at rest using age encryption.`,
+	Short: "Lock away secrets — encrypted at rest with age",
+	Long:  `Store API keys, tokens, and credentials encrypted at rest. Set MINE_VAULT_PASSPHRASE to skip the prompt.`,
 	RunE:  hook.Wrap("vault", runVaultHelp),
 }
 
@@ -46,19 +46,19 @@ func init() {
 
 func runVaultHelp(_ *cobra.Command, _ []string) error {
 	fmt.Println()
-	fmt.Println(ui.Title.Render("  mine vault") + ui.Muted.Render(" — encrypted secrets vault"))
+	fmt.Println(ui.Title.Render("  "+ui.IconVault+" mine vault") + ui.Muted.Render(" — secrets, locked away"))
 	fmt.Println()
-	fmt.Println(ui.Muted.Render("  Store secrets encrypted at rest using age encryption."))
-	fmt.Println(ui.Muted.Render("  Passphrase is read from MINE_VAULT_PASSPHRASE env var or prompted."))
+	fmt.Println(ui.Muted.Render("  Your API keys and tokens, encrypted with age. Never stored in plaintext."))
+	fmt.Println(ui.Muted.Render("  Set MINE_VAULT_PASSPHRASE to skip the password prompt."))
 	fmt.Println()
 	fmt.Println(ui.Accent.Render("  Commands:"))
 	fmt.Println()
 	fmt.Printf("    %s  Store or update a secret\n", ui.KeyStyle.Render("set <key> <value>"))
 	fmt.Printf("    %s  Retrieve a secret\n", ui.KeyStyle.Render("get <key>"))
-	fmt.Printf("    %s  List all secret keys\n", ui.KeyStyle.Render("list"))
-	fmt.Printf("    %s  Delete a secret\n", ui.KeyStyle.Render("rm <key>"))
+	fmt.Printf("    %s  List all stored keys\n", ui.KeyStyle.Render("list"))
+	fmt.Printf("    %s  Delete a secret permanently\n", ui.KeyStyle.Render("rm <key>"))
 	fmt.Printf("    %s  Export encrypted vault for backup\n", ui.KeyStyle.Render("export"))
-	fmt.Printf("    %s  Import an encrypted vault backup\n", ui.KeyStyle.Render("import <file>"))
+	fmt.Printf("    %s  Restore vault from a backup\n", ui.KeyStyle.Render("import <file>"))
 	fmt.Println()
 	fmt.Println(ui.Accent.Render("  Examples:"))
 	fmt.Println()
@@ -66,9 +66,9 @@ func runVaultHelp(_ *cobra.Command, _ []string) error {
 	fmt.Printf("    %s\n", ui.Muted.Render("mine vault get ai.claude.api_key"))
 	fmt.Printf("    %s\n", ui.Muted.Render("mine vault get ai.claude.api_key --copy"))
 	fmt.Printf("    %s\n", ui.Muted.Render("mine vault list"))
-	fmt.Printf("    %s\n", ui.Muted.Render("mine vault export --output vault-backup.age"))
+	fmt.Printf("    %s\n", ui.Muted.Render("mine vault export -o vault-backup.age"))
 	fmt.Println()
-	fmt.Println(ui.Muted.Render("  Tip: set MINE_VAULT_PASSPHRASE to avoid repeated prompts."))
+	ui.Tip("set MINE_VAULT_PASSPHRASE to avoid re-entering your passphrase every time")
 	fmt.Println()
 	return nil
 }
@@ -76,7 +76,7 @@ func runVaultHelp(_ *cobra.Command, _ []string) error {
 // vaultSetCmd stores a secret in the vault.
 var vaultSetCmd = &cobra.Command{
 	Use:   "set <key> <value>",
-	Short: "Store or update an encrypted secret",
+	Short: "Store or update a secret (encrypted)",
 	Long:  `Encrypt and store a secret. If the key already exists, it is overwritten.`,
 	Args:  cobra.ExactArgs(2),
 	RunE:  hook.Wrap("vault.set", runVaultSet),
@@ -95,7 +95,7 @@ func runVaultSet(_ *cobra.Command, args []string) error {
 		return formatVaultError(err)
 	}
 
-	fmt.Printf("%s Secret %s stored\n", ui.IconVault, ui.Accent.Render(key))
+	ui.Ok(fmt.Sprintf("%s locked away in the vault", ui.Accent.Render(key)))
 	return nil
 }
 
@@ -124,9 +124,9 @@ func runVaultGet(_ *cobra.Command, args []string) error {
 
 	if vaultGetCopy {
 		if err := copyToClipboard(value); err != nil {
-			return fmt.Errorf("clipboard copy failed: %v\n\nHint: ensure xclip (Linux) or pbcopy (macOS) is installed.\nFallback: run without --copy to print to stdout.", err)
+			return fmt.Errorf("clipboard copy failed: %v — install xclip or xsel (Linux) or use pbcopy (macOS), or drop --copy to print instead", err)
 		}
-		fmt.Printf("%s Secret %s copied to clipboard\n", ui.IconVault, ui.Accent.Render(key))
+		ui.Ok(fmt.Sprintf("%s copied to clipboard", ui.Accent.Render(key)))
 		return nil
 	}
 
@@ -140,7 +140,7 @@ func runVaultGet(_ *cobra.Command, args []string) error {
 // vaultListCmd lists all secret keys.
 var vaultListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all secret keys",
+	Short: "List all stored secret keys (values stay hidden)",
 	Long:  `Print all stored secret keys. Values are never displayed.`,
 	Args:  cobra.NoArgs,
 	RunE:  hook.Wrap("vault.list", runVaultList),
@@ -183,7 +183,7 @@ func runVaultList(_ *cobra.Command, _ []string) error {
 // vaultRmCmd deletes a secret.
 var vaultRmCmd = &cobra.Command{
 	Use:   "rm <key>",
-	Short: "Delete a secret",
+	Short: "Permanently delete a secret",
 	Long:  `Remove a secret from the vault permanently.`,
 	Args:  cobra.ExactArgs(1),
 	RunE:  hook.Wrap("vault.rm", runVaultRm),
@@ -202,15 +202,15 @@ func runVaultRm(_ *cobra.Command, args []string) error {
 		return formatVaultError(err)
 	}
 
-	fmt.Printf("%s Secret %s removed\n", ui.IconOk, ui.Accent.Render(key))
+	ui.Ok(fmt.Sprintf("%s removed from the vault", ui.Accent.Render(key)))
 	return nil
 }
 
 // vaultExportCmd exports the encrypted vault file.
 var vaultExportCmd = &cobra.Command{
 	Use:   "export",
-	Short: "Export the encrypted vault for backup",
-	Long:  `Write the encrypted vault blob to a file or stdout. The export is still encrypted.`,
+	Short: "Export an encrypted vault backup",
+	Long:  `Write the encrypted vault blob to a file or stdout. The export is still encrypted — safe to store anywhere.`,
 	Args:  cobra.NoArgs,
 	RunE:  hook.Wrap("vault.export", runVaultExport),
 }
@@ -292,7 +292,7 @@ func runVaultImport(_ *cobra.Command, args []string) error {
 		return formatVaultError(err)
 	}
 
-	fmt.Printf("%s Vault imported successfully\n", ui.IconOk)
+	ui.Ok("Vault imported — all secrets restored")
 	return nil
 }
 
@@ -305,7 +305,7 @@ func readPassphrase(confirm bool) (string, error) {
 
 	// Prompt interactively.
 	if !term.IsTerminal(int(syscall.Stdin)) {
-		return "", fmt.Errorf("vault passphrase required\n\nHint: set MINE_VAULT_PASSPHRASE env var or run interactively.")
+		return "", fmt.Errorf("vault passphrase required — set MINE_VAULT_PASSPHRASE or run interactively")
 	}
 
 	fmt.Fprint(os.Stderr, ui.Muted.Render("  Vault passphrase: "))
@@ -317,7 +317,7 @@ func readPassphrase(confirm bool) (string, error) {
 
 	passphrase := strings.TrimSpace(string(passBytes))
 	if passphrase == "" {
-		return "", fmt.Errorf("passphrase must not be empty")
+		return "", fmt.Errorf("passphrase can't be empty — set MINE_VAULT_PASSPHRASE or type it when prompted")
 	}
 
 	if confirm {
@@ -338,10 +338,10 @@ func readPassphrase(confirm bool) (string, error) {
 // formatVaultError wraps vault errors with actionable messages.
 func formatVaultError(err error) error {
 	if errors.Is(err, vault.ErrWrongPassphrase) {
-		return fmt.Errorf("%v", err)
+		return fmt.Errorf("wrong passphrase — double-check MINE_VAULT_PASSPHRASE or try again interactively")
 	}
 	if errors.Is(err, vault.ErrCorruptedVault) {
-		return fmt.Errorf("%v", err)
+		return fmt.Errorf("vault appears corrupted — restore from a backup with `mine vault import <file>`")
 	}
 	return err
 }

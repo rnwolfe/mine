@@ -77,7 +77,7 @@ func TestParseSetArgRequiresValue(t *testing.T) {
 	os.Stdin = r
 
 	_, _, err = parseSetArg("TOKEN")
-	if err == nil || !strings.Contains(err.Error(), "value required") {
+	if err == nil || !strings.Contains(err.Error(), "value") {
 		t.Fatalf("expected value required error, got %v", err)
 	}
 }

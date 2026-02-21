@@ -17,8 +17,8 @@ import (
 var todoCmd = &cobra.Command{
 	Use:     "todo",
 	Aliases: []string{"t"},
-	Short:   "Manage your tasks",
-	Long: `Fast, no-nonsense task management. Add, complete, and track todos.
+	Short:   "Fast, no-nonsense task management",
+	Long: `Capture ideas, track work, and knock things out. Add, complete, and browse todos.
 
 In an interactive terminal, launches a full-screen todo browser.
 Pipe output or use subcommands for scripting.
@@ -58,7 +58,7 @@ func init() {
 
 var todoAddCmd = &cobra.Command{
 	Use:   "add <title>",
-	Short: "Add a new todo",
+	Short: "Capture an idea before it escapes",
 	Args:  cobra.MinimumNArgs(1),
 	RunE:  hook.Wrap("todo.add", runTodoAdd),
 }
@@ -66,7 +66,7 @@ var todoAddCmd = &cobra.Command{
 var todoDoneCmd = &cobra.Command{
 	Use:     "done <id>",
 	Aliases: []string{"do", "complete", "x"},
-	Short:   "Mark a todo as complete",
+	Short:   "Mark a todo complete — check it off",
 	Args:    cobra.ExactArgs(1),
 	RunE:    hook.Wrap("todo.done", runTodoDone),
 }
@@ -74,14 +74,14 @@ var todoDoneCmd = &cobra.Command{
 var todoRmCmd = &cobra.Command{
 	Use:     "rm <id>",
 	Aliases: []string{"remove", "delete"},
-	Short:   "Delete a todo",
+	Short:   "Remove a todo from the list",
 	Args:    cobra.ExactArgs(1),
 	RunE:    hook.Wrap("todo.rm", runTodoRm),
 }
 
 var todoEditCmd = &cobra.Command{
 	Use:   "edit <id> <new title>",
-	Short: "Edit a todo's title",
+	Short: "Rename a todo",
 	Args:  cobra.MinimumNArgs(2),
 	RunE:  hook.Wrap("todo.edit", runTodoEdit),
 }
@@ -262,7 +262,7 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 func runTodoDone(_ *cobra.Command, args []string) error {
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid todo ID: %s", args[0])
+		return fmt.Errorf("%q is not a valid todo ID — use `mine todo` to see IDs", args[0])
 	}
 
 	db, err := store.Open()
@@ -288,7 +288,7 @@ func runTodoDone(_ *cobra.Command, args []string) error {
 	// Check remaining
 	open, _, _, _ := ts.Count()
 	if open == 0 {
-		fmt.Println(ui.Success.Render("  🎉 All clear! Nothing left to do."))
+		fmt.Println(ui.Success.Render("  " + ui.IconParty + " All clear! Nothing left to do."))
 	} else {
 		fmt.Printf("  %s\n", ui.Muted.Render(fmt.Sprintf("  %d remaining", open)))
 	}
@@ -300,7 +300,7 @@ func runTodoDone(_ *cobra.Command, args []string) error {
 func runTodoRm(_ *cobra.Command, args []string) error {
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid todo ID: %s", args[0])
+		return fmt.Errorf("%q is not a valid todo ID — use `mine todo` to see IDs", args[0])
 	}
 
 	db, err := store.Open()
@@ -322,7 +322,7 @@ func runTodoRm(_ *cobra.Command, args []string) error {
 func runTodoEdit(_ *cobra.Command, args []string) error {
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		return fmt.Errorf("invalid todo ID: %s", args[0])
+		return fmt.Errorf("%q is not a valid todo ID — use `mine todo` to see IDs", args[0])
 	}
 	newTitle := strings.Join(args[1:], " ")
 

@@ -67,6 +67,16 @@ Files in `cmd/` are orchestration only. They:
 
 They do **not** contain business logic or direct database queries.
 
+**Hook wrapping is mandatory.** Every Cobra command handler must use `RunE` (not `Run`) and be wrapped with `hook.Wrap`:
+
+```go
+var myCmd = &cobra.Command{
+    RunE: hook.Wrap("domain.subcommand", runMyCommand),
+}
+```
+
+This ensures all commands are observable and extensible by plugins and user hooks. A command that bypasses `hook.Wrap` breaks the extensibility guarantee. The hook name must follow the `domain.subcommand` convention (e.g. `plugin.install`, `todo.add`).
+
 ```mermaid
 sequenceDiagram
     User->>cmd: mine todo add "task"

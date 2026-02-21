@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/rnwolfe/mine/internal/version"
 	"github.com/spf13/cobra"
@@ -12,10 +13,10 @@ var aboutCmd = &cobra.Command{
 	Use:   "about",
 	Short: "The story, the version, the vibe",
 	Long:  "Everything you ever wanted to know about mine — who made it, what it does, and why it exists.",
-	Run:   runAbout,
+	RunE:  hook.Wrap("about", runAbout),
 }
 
-func runAbout(_ *cobra.Command, _ []string) {
+func runAbout(_ *cobra.Command, _ []string) error {
 	fmt.Println()
 	fmt.Println(ui.Title.Render("  " + ui.IconGem + " mine"))
 	fmt.Println(ui.Muted.Render("  ────────────────────────────────────────────"))
@@ -34,4 +35,5 @@ func runAbout(_ *cobra.Command, _ []string) {
 	fmt.Println()
 	ui.Tip("run `mine help` to explore everything mine can do")
 	fmt.Println()
+	return nil
 }

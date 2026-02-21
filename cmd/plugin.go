@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/plugin"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
@@ -18,20 +19,20 @@ var pluginCmd = &cobra.Command{
 	Use:   "plugin",
 	Short: "Manage plugins",
 	Long:  `Install, remove, and manage mine plugins from GitHub repositories.`,
-	RunE:  runPluginList,
+	RunE:  hook.Wrap("plugin", runPluginList),
 }
 
 var pluginListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List installed plugins",
-	RunE:  runPluginList,
+	RunE:  hook.Wrap("plugin.list", runPluginList),
 }
 
 var pluginInfoCmd = &cobra.Command{
 	Use:   "info <name>",
 	Short: "Show detailed plugin info",
 	Args:  cobra.ExactArgs(1),
-	RunE:  runPluginInfo,
+	RunE:  hook.Wrap("plugin.info", runPluginInfo),
 }
 
 var pluginInstallCmd = &cobra.Command{
@@ -43,7 +44,7 @@ Examples:
   mine plugin install ./my-plugin
   mine plugin install /path/to/mine-plugin-obsidian`,
 	Args: cobra.ExactArgs(1),
-	RunE: runPluginInstall,
+	RunE: hook.Wrap("plugin.install", runPluginInstall),
 }
 
 var pluginRemoveCmd = &cobra.Command{
@@ -51,14 +52,14 @@ var pluginRemoveCmd = &cobra.Command{
 	Aliases: []string{"rm", "uninstall"},
 	Short:   "Remove an installed plugin",
 	Args:    cobra.ExactArgs(1),
-	RunE:    runPluginRemove,
+	RunE:    hook.Wrap("plugin.remove", runPluginRemove),
 }
 
 var pluginSearchCmd = &cobra.Command{
 	Use:   "search <query>",
 	Short: "Search GitHub for mine plugins",
 	Args:  cobra.MaximumNArgs(1),
-	RunE:  runPluginSearch,
+	RunE:  hook.Wrap("plugin.search", runPluginSearch),
 }
 
 var pluginSearchTag string

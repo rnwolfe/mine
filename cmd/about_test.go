@@ -15,7 +15,9 @@ func TestAboutCommand(t *testing.T) {
 	os.Stdout = w
 
 	// Run the command
-	runAbout(nil, nil)
+	if err := runAbout(nil, nil); err != nil {
+		t.Fatalf("runAbout: %v", err)
+	}
 
 	// Restore stdout
 	w.Close()

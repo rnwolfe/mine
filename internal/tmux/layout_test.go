@@ -323,19 +323,19 @@ func TestApplyLayoutToSession_Stubbed(t *testing.T) {
 		t.Fatalf("applyLayoutToSession failed: %v", err)
 	}
 
-	// First window should be renamed via index 0 with session prefix.
+	// First window should be renamed via current-window target (no index assumed).
 	if len(commands) == 0 {
 		t.Fatal("expected tmux commands to be issued")
 	}
 	found := false
 	for _, cmd := range commands {
-		if cmd == "rename-window -t myapp:0 editor" {
+		if cmd == "rename-window -t myapp: editor" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("expected 'rename-window -t myapp:0 editor' in commands: %v", commands)
+		t.Errorf("expected 'rename-window -t myapp: editor' in commands: %v", commands)
 	}
 
 	// select-window should use session:window format.

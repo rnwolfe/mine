@@ -204,8 +204,9 @@ func WriteLayout(layout *Layout) error {
 func applyLayoutToSession(layout *Layout, sessionName string) error {
 	for i, w := range layout.Windows {
 		if i == 0 {
-			// Rename the first window (index 0) of the target session.
-			if _, err := tmuxCmd("rename-window", "-t", sessionName+":0", w.Name); err != nil {
+			// Rename the current window of the target session without assuming a
+			// specific base-index (works regardless of tmux base-index setting).
+			if _, err := tmuxCmd("rename-window", "-t", sessionName+":", w.Name); err != nil {
 				return fmt.Errorf("renaming window to %q: %w", w.Name, err)
 			}
 		} else {

@@ -267,9 +267,12 @@ func TestResolveProjectSession_NamedDir(t *testing.T) {
 		return nil, nil
 	}
 
-	name, exists, err := ResolveProjectSession("/home/user/code/myapp")
+	resolvedDir, name, exists, err := ResolveProjectSession("/home/user/code/myapp")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolvedDir != "/home/user/code/myapp" {
+		t.Fatalf("expected resolvedDir '/home/user/code/myapp', got %q", resolvedDir)
 	}
 	if name != "myapp" {
 		t.Fatalf("expected session name 'myapp', got %q", name)
@@ -287,11 +290,14 @@ func TestResolveProjectSession_CwdFallback(t *testing.T) {
 		return nil, nil
 	}
 
-	name, exists, err := ResolveProjectSession("")
+	resolvedDir, name, exists, err := ResolveProjectSession("")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Session name should equal the basename of the working directory.
+	if resolvedDir == "" {
+		t.Fatal("expected non-empty resolvedDir from cwd fallback")
+	}
 	if name == "" {
 		t.Fatal("expected non-empty session name from cwd fallback")
 	}
@@ -311,7 +317,7 @@ func TestResolveProjectSession_AttachIfExists(t *testing.T) {
 		}, nil
 	}
 
-	name, exists, err := ResolveProjectSession("/code/myapp")
+	_, name, exists, err := ResolveProjectSession("/code/myapp")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -333,7 +339,7 @@ func TestResolveProjectSession_NoMatchInList(t *testing.T) {
 		}, nil
 	}
 
-	name, exists, err := ResolveProjectSession("/code/myapp")
+	_, name, exists, err := ResolveProjectSession("/code/myapp")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

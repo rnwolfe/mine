@@ -74,17 +74,21 @@ func listSessionsReal() ([]Session, error) {
 }
 
 // NewSession creates a new tmux session. If name is empty, it auto-names
-// from the current working directory basename. Returns the resolved session name.
-func NewSession(name string) (string, error) {
+// from the current working directory basename. If dir is non-empty, the session
+// starts in that directory. Returns the resolved session name.
+func NewSession(name, dir string) (string, error) {
 	if name == "" {
-		dir, err := os.Getwd()
+		d, err := os.Getwd()
 		if err != nil {
 			return "", err
 		}
-		name = filepath.Base(dir)
+		name = filepath.Base(d)
 	}
 
 	args := []string{"new-session", "-d", "-s", name}
+	if dir != "" {
+		args = append(args, "-c", dir)
+	}
 	_, err := tmuxCmd(args...)
 	if err != nil {
 		return "", fmt.Errorf("creating session %q: %w", name, err)
@@ -134,12 +138,12 @@ func FindSessionByName(name string, sessions []Session) *Session {
 
 // ResolveProjectSession resolves the session name from a directory path (or the
 // current working directory if dir is empty) and checks whether a tmux session
-// with that name already exists. Returns (sessionName, exists, error).
-func ResolveProjectSession(dir string) (string, bool, error) {
+// with that name already exists. Returns (resolvedDir, sessionName, exists, error).
+func ResolveProjectSession(dir string) (string, string, bool, error) {
 	if dir == "" {
 		d, err := os.Getwd()
 		if err != nil {
-			return "", false, err
+			return "", "", false, err
 		}
 		dir = d
 	}
@@ -148,7 +152,7 @@ func ResolveProjectSession(dir string) (string, bool, error) {
 	if strings.HasPrefix(dir, "~/") {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return "", false, err
+			return "", "", false, err
 		}
 		dir = filepath.Join(home, dir[2:])
 	}
@@ -157,15 +161,13 @@ func ResolveProjectSession(dir string) (string, bool, error) {
 
 	sessions, err := ListSessions()
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 
-	for _, s := range sessions {
-		if s.Name == sessionName {
-			return sessionName, true, nil
-		}
+	if s := FindSessionByName(sessionName, sessions); s != nil {
+		return dir, sessionName, true, nil
 	}
-	return sessionName, false, nil
+	return dir, sessionName, false, nil
 }
 
 // FuzzyFindSession returns the first session whose name fuzzy-matches the query,

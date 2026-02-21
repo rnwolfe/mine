@@ -106,7 +106,7 @@ func runTmuxNew(_ *cobra.Command, args []string) error {
 		name = args[0]
 	}
 
-	resolved, err := tmux.NewSession(name)
+	resolved, err := tmux.NewSession(name, "")
 	if err != nil {
 		return err
 	}
@@ -144,14 +144,14 @@ func runTmuxProject(cmd *cobra.Command, args []string) error {
 	}
 
 	// Pre-validate layout before doing any session work.
-	layout, _ := cmd.Flags().GetString("layout")
+	layout := tmuxProjectLayout
 	if layout != "" {
 		if _, err := tmux.ReadLayout(layout); err != nil {
 			return fmt.Errorf("layout %q not found — save it first with: mine tmux layout save %s", layout, layout)
 		}
 	}
 
-	sessionName, exists, err := tmux.ResolveProjectSession(dir)
+	resolvedDir, sessionName, exists, err := tmux.ResolveProjectSession(dir)
 	if err != nil {
 		return err
 	}
@@ -163,8 +163,8 @@ func runTmuxProject(cmd *cobra.Command, args []string) error {
 		return tmux.AttachSession(sessionName)
 	}
 
-	// Create the session (detached).
-	if _, err := tmux.NewSession(sessionName); err != nil {
+	// Create the session (detached) starting in the project directory.
+	if _, err := tmux.NewSession(sessionName, resolvedDir); err != nil {
 		return err
 	}
 

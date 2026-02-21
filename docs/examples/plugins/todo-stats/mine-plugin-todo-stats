@@ -1,0 +1,39 @@
+#!/bin/sh
+set -e
+
+STATS_FILE="${HOME}/.local/share/mine/todo-stats.log"
+
+INPUT=$(cat)
+
+TYPE=$(echo "$INPUT" | sed -n 's/.*"type":"\([^"]*\)".*/\1/p')
+COMMAND=$(echo "$INPUT" | sed -n 's/.*"command":"\([^"]*\)".*/\1/p')
+EVENT=$(echo "$INPUT" | sed -n 's/.*"event":"\([^"]*\)".*/\1/p')
+
+case "$TYPE" in
+  hook)
+    mkdir -p "$(dirname "$STATS_FILE")"
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) todo.done" >> "$STATS_FILE"
+    ;;
+  command)
+    if [ "$COMMAND" = "summary" ]; then
+      if [ ! -f "$STATS_FILE" ]; then
+        echo "No completions recorded yet."
+        exit 0
+      fi
+      COUNT=$(wc -l < "$STATS_FILE" | tr -d ' ')
+      FIRST=$(head -1 "$STATS_FILE" | cut -d' ' -f1)
+      LAST=$(tail -1 "$STATS_FILE" | cut -d' ' -f1)
+      echo "Todo completions: $COUNT"
+      echo "First: $FIRST"
+      echo "Latest: $LAST"
+    else
+      echo "Unknown command: $COMMAND" >&2
+      exit 1
+    fi
+    ;;
+  lifecycle)
+    if [ "$EVENT" = "health" ]; then
+      echo '{"status": "ok"}'
+    fi
+    ;;
+esac

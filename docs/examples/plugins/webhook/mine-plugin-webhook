@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""mine plugin: webhook — send notifications on todo events."""
+
+import json
+import os
+import sys
+import urllib.request
+import urllib.error
+
+
+def send_webhook(payload):
+    """POST payload to WEBHOOK_URL. Silently ignores failures."""
+    url = os.environ.get("WEBHOOK_URL")
+    if not url:
+        return
+    try:
+        data = json.dumps(payload).encode()
+        req = urllib.request.Request(
+            url, data=data, headers={"Content-Type": "application/json"}
+        )
+        urllib.request.urlopen(req, timeout=10)
+    except (urllib.error.URLError, OSError):
+        pass
+
+
+def error_response(message, code="PLUGIN_ERROR"):
+    json.dump({"status": "error", "error": message, "code": code}, sys.stderr)
+    sys.exit(1)
+
+
+def main():
+    inv = json.load(sys.stdin)
+
+    version = inv.get("protocol_version", "")
+    if not version.startswith("1."):
+        error_response(
+            f"unsupported protocol version: {version}", "UNSUPPORTED_PROTOCOL"
+        )
+
+    inv_type = inv.get("type")
+
+    if inv_type == "hook":
+        mode = inv.get("mode")
+        ctx = inv.get("context", {})
+
+        if mode == "transform":
+            args = ctx.get("args", [])
+            if not args:
+                error_response("todo text is required", "VALIDATION_ERROR")
+            json.dump({"status": "ok", "context": ctx}, sys.stdout)
+
+        elif mode == "notify":
+            send_webhook({"event": "todo.done", "context": ctx})
+
+    elif inv_type == "command":
+        url = os.environ.get("WEBHOOK_URL", "(not set)")
+        print(f"Webhook plugin configuration:")
+        print(f"  WEBHOOK_URL = {url}")
+        print()
+        print("Set WEBHOOK_URL in your plugin permissions to enable notifications.")
+        print("The URL receives POST requests with JSON payloads on todo events.")
+
+    elif inv_type == "lifecycle":
+        event = inv.get("event")
+        if event == "health":
+            json.dump({"status": "ok"}, sys.stdout)
+
+
+if __name__ == "__main__":
+    main()

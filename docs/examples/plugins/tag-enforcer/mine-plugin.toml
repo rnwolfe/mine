@@ -1,0 +1,25 @@
+[plugin]
+name = "tag-enforcer"
+version = "0.1.0"
+description = "Enforce tagging policies on todos"
+author = "mine-examples"
+license = "MIT"
+min_mine_version = "0.2.0"
+protocol_version = "1.0.0"
+
+[[hooks]]
+command = "todo.add"
+stage = "prevalidate"
+mode = "transform"
+
+[[hooks]]
+command = "todo.*"
+stage = "postexec"
+mode = "transform"
+
+[[commands]]
+name = "policy"
+description = "Show current tagging policy"
+
+[permissions]
+config_read = true

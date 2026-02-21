@@ -29,6 +29,10 @@
           "slug": "contributors/architecture"
         },
         {
+          "label": "Building Plugins",
+          "slug": "contributors/building-plugins"
+        },
+        {
           "label": "Plugin Protocol",
           "slug": "contributors/plugin-protocol"
         },

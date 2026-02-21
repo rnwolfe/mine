@@ -1,0 +1,17 @@
+[plugin]
+name = "todo-stats"
+version = "0.1.0"
+description = "Track todo completion stats and show a summary"
+author = "mine-examples"
+license = "MIT"
+min_mine_version = "0.2.0"
+protocol_version = "1.0.0"
+
+[[hooks]]
+command = "todo.done"
+stage = "notify"
+mode = "notify"
+
+[[commands]]
+name = "summary"
+description = "Show todo completion stats"

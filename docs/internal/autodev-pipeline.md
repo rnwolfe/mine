@@ -287,7 +287,7 @@ label an issue could queue arbitrary code generation. `pick-issue.sh` verifies t
 1. Fetches the issue timeline via `gh api repos/{owner}/{repo}/issues/{N}/timeline`
 2. Finds the last `labeled` event where `label.name == "agent-ready"`
 3. Checks `actor.login` against `AUTODEV_TRUSTED_USERS` in `config.sh`
-4. Only proceeds if the labeler is trusted (see [L-017](lessons-learned.md#l-017))
+4. Only proceeds if the labeler is trusted (see [L-017](lessons-learned.md#l-017-label-based-triggers-need-trust-verification))
 
 ### Protected files
 

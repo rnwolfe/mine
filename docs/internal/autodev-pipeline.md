@@ -2,7 +2,7 @@
 
 The autodev pipeline is an event-driven GitHub Actions system that autonomously implements
 GitHub issues end-to-end. A human creates an issue with acceptance criteria and labels it
-`agent-ready`; the pipeline picks it up, creates a branch, implements the feature, opens a
+`backlog/ready`; the pipeline picks it up, creates a branch, implements the feature, opens a
 PR, iterates on reviewer feedback (Copilot then Claude), and stops at the final gate: human
 merge. A weekly audit monitors pipeline health and files a report.
 
@@ -19,7 +19,7 @@ flowchart TB
     end
 
     subgraph Dispatch["autodev-dispatch.yml"]
-        pick["pick-issue.sh<br/>Select oldest agent-ready issue"]
+        pick["pick-issue.sh<br/>Select oldest backlog/ready issue"]
     end
 
     subgraph Implement["autodev-implement.yml"]
@@ -73,7 +73,7 @@ sequenceDiagram
     participant RF as Review-Fix
     participant CR as Claude Review
 
-    H->>G: Create issue + label agent-ready
+    H->>G: Create issue + label backlog/ready
     D->>G: pick-issue.sh (cron or manual)
     G-->>D: Issue #N selected
     D->>I: Trigger with issue_number
@@ -98,7 +98,7 @@ sequenceDiagram
     end
 
     RF->>G: Transition to claude phase
-    RF->>G: Add label claude-review-requested
+    RF->>G: Add label agent/review-claude
     G->>CR: Label triggers review workflow
     CR->>G: Posts review comments
 
@@ -124,8 +124,8 @@ sequenceDiagram
 | Concurrency | `autodev-dispatch` (serialized) |
 | Permissions | contents:read, issues:write, actions:write |
 
-**What it does:** Runs `pick-issue.sh` to find the oldest `agent-ready` issue from a
-trusted user, labels it `in-progress`, and dispatches `autodev-implement` with the issue
+**What it does:** Runs `pick-issue.sh` to find the oldest `backlog/ready` issue from a
+trusted user, labels it `agent/implementing`, and dispatches `autodev-implement` with the issue
 number. Exits cleanly if no issues are ready.
 
 ### 2. autodev-implement
@@ -147,7 +147,7 @@ number. Exits cleanly if no issues are ready.
    PR description and title requirements)
 4. Reverts any changes to protected files (CLAUDE.md, workflows, autodev scripts)
 5. Commits, pushes, and calls `open-pr.sh` to create the PR
-6. If no changes produced: comments on issue, adds `needs-human` label
+6. If no changes produced: comments on issue, adds `human/blocked` label
 
 **Agent output files:**
 - `/tmp/pr-title.txt` — conventional commit PR title (`type: description`)
@@ -169,7 +169,7 @@ number. Exits cleanly if no issues are ready.
 ```mermaid
 flowchart TB
     start["Review event received"]
-    start --> isAutodev{"Has autodev label?"}
+    start --> isAutodev{"Has via/actions label?"}
     isAutodev -->|No| skip["Skip"]
     isAutodev -->|Yes| readPhase["Read phase from PR body"]
 
@@ -177,7 +177,7 @@ flowchart TB
     phase -->|done| skip
     phase -->|copilot| copilotCheck{"Copilot review?<br/>Has feedback?<br/>Iterations < 3?"}
     copilotCheck -->|"Yes to all"| copilotFix["Copilot fix path"]
-    copilotCheck -->|"No feedback or >= 3 iters"| triggerClaude["Transition to claude phase<br/>Add claude-review-requested label"]
+    copilotCheck -->|"No feedback or >= 3 iters"| triggerClaude["Transition to claude phase<br/>Add agent/review-claude label"]
 
     phase -->|claude| claudeCheck{"Claude review<br/>completed?"}
     claudeCheck -->|Yes| claudeFix["Claude fix path"]
@@ -186,20 +186,20 @@ flowchart TB
     reconcile1 --> parse1["parse-reviews.sh"]
     parse1 --> agent1["Claude agent fixes feedback"]
     agent1 -->|success| commit1["Commit + push + bump iteration"]
-    agent1 -->|failure| error1["Add needs-human label<br/>No changes committed"]
+    agent1 -->|failure| error1["Add human/blocked label<br/>No changes committed"]
 
     claudeFix --> reconcile2["git pull --rebase"]
     reconcile2 --> parse2["parse-reviews.sh"]
     parse2 --> agent2["Claude agent final fix"]
     agent2 -->|success| commit2["Commit + push"]
-    agent2 -->|failure| error2["Add needs-human label<br/>No changes committed"]
+    agent2 -->|failure| error2["Add human/blocked label<br/>No changes committed"]
     commit2 --> markDone["Phase → done<br/>Post completion comment"]
 ```
 
 **Key safety features:**
 - Branch reconciliation (`git pull --rebase`) before each agent run
 - Post-agent steps gated on `steps.<agent>.outcome == 'success'`
-- Agent failure adds `needs-human` label; no partial changes committed
+- Agent failure adds `human/blocked` label; no partial changes committed
 - Protected files reverted after successful agent runs
 
 ### 4. claude-code-review
@@ -208,7 +208,7 @@ flowchart TB
 
 | Property | Value |
 |----------|-------|
-| Triggers | `claude-review-requested` label, `@claude` PR comment |
+| Triggers | `agent/review-claude` label, `@claude` PR comment |
 | Agent | Claude with `code-review` plugin |
 
 **What it does:** Runs the Claude Code Review plugin which posts review comments on the PR.
@@ -229,7 +229,7 @@ fix path.
 **What it does:** Runs a Claude agent that analyzes recent autodev PRs (metrics, code
 quality, review themes, stale state) and writes a report to `/tmp/audit-report.md`. The
 workflow then creates a GitHub issue titled "Autodev Pipeline Audit — YYYY-MM-DD" with
-label `autodev-audit`. If the agent fails, a fallback issue links to the workflow logs.
+label `report/pipeline-audit`. If the agent fails, a fallback issue links to the workflow logs.
 
 ## Phase State Machine
 
@@ -245,7 +245,7 @@ stateDiagram-v2
     [*] --> copilot: PR created by open-pr.sh
 
     copilot --> copilot: Copilot feedback + iteration < 3\n(increment copilot_iterations)
-    copilot --> claude: No feedback OR iterations >= 3\n(add claude-review-requested label)
+    copilot --> claude: No feedback OR iterations >= 3\n(add agent/review-claude label)
 
     claude --> done: Claude fix applied\n(remove label, post comment)
 
@@ -271,8 +271,8 @@ All scripts live in `scripts/autodev/` and source `config.sh` for shared constan
 | Script | Purpose | Called by |
 |--------|---------|----------|
 | `config.sh` | Shared constants (repo, labels, limits, trusted users) + logging + `autodev_slugify()` | All scripts |
-| `pick-issue.sh` | Select next `agent-ready` issue; verify trusted labeler via timeline API; label `in-progress` | `autodev-dispatch` |
-| `open-pr.sh` | Read agent-generated title/description; create PR with `autodev` label + state tracker | `autodev-implement` |
+| `pick-issue.sh` | Select next `backlog/ready` issue; verify trusted labeler via timeline API; label `agent/implementing` | `autodev-dispatch` |
+| `open-pr.sh` | Read agent-generated title/description; create PR with `via/actions` label + state tracker | `autodev-implement` |
 | `parse-reviews.sh` | Extract review bodies + inline comments with `[comment_id: N]` tags for agent replies | `autodev-review-fix` |
 | `check-gates.sh` | Verify quality gates (CI status, iteration count, no pending reviews, mergeable) | Available for local testing |
 | `agent-exec.sh` | Local testing abstraction; routes to configured provider (`AUTODEV_PROVIDER`) | Local dev only |
@@ -281,11 +281,11 @@ All scripts live in `scripts/autodev/` and source `config.sh` for shared constan
 
 ### Trust verification
 
-The `agent-ready` label triggers the entire pipeline. Without verification, anyone who can
+The `backlog/ready` label triggers the entire pipeline. Without verification, anyone who can
 label an issue could queue arbitrary code generation. `pick-issue.sh` verifies the labeler:
 
 1. Fetches the issue timeline via `gh api repos/{owner}/{repo}/issues/{N}/timeline`
-2. Finds the last `labeled` event where `label.name == "agent-ready"`
+2. Finds the last `labeled` event where `label.name == "backlog/ready"`
 3. Checks `actor.login` against `AUTODEV_TRUSTED_USERS` in `config.sh`
 4. Only proceeds if the labeler is trusted (see [L-017](lessons-learned.md#l-017-label-based-triggers-need-trust-verification))
 
@@ -315,12 +315,12 @@ NOT protected — agents are encouraged to update them.
 
 | Label | Applied by | Meaning |
 |-------|-----------|---------|
-| `agent-ready` | Human | Issue is ready for autonomous implementation |
-| `in-progress` | `pick-issue.sh` | Issue is being worked on |
-| `autodev` | `open-pr.sh` | PR was created by the pipeline |
-| `needs-human` | Workflow (on failure) | Pipeline hit a limit or error |
-| `claude-review-requested` | `autodev-review-fix` | Copilot phase done, triggers Claude review |
-| `autodev-audit` | `autodev-audit` workflow | Weekly health report issue |
+| `backlog/ready` | Human | Issue is ready for autonomous implementation |
+| `agent/implementing` | `pick-issue.sh` | Issue is being worked on |
+| `via/actions` | `open-pr.sh` | PR was created by the pipeline |
+| `human/blocked` | Workflow (on failure) | Pipeline hit a limit or error |
+| `agent/review-claude` | `autodev-review-fix` | Copilot phase done, triggers Claude review |
+| `report/pipeline-audit` | `autodev-audit` workflow | Weekly health report issue |
 
 ### Circuit breakers
 
@@ -343,7 +343,7 @@ NOT protected — agents are encouraged to update them.
 
 ### Agent failed, no changes committed
 
-**Symptoms:** PR gets `needs-human` label, comment says "No changes were committed."
+**Symptoms:** PR gets `human/blocked` label, comment says "No changes were committed."
 
 **Diagnosis:**
 1. Click the workflow logs link in the PR comment
@@ -360,14 +360,14 @@ NOT protected — agents are encouraged to update them.
 
 **Recovery:** Manually rebase the branch: `git pull --rebase origin <branch> && git push --force-with-lease`.
 
-### Stale in-progress issue with no PR
+### Stale agent/implementing issue with no PR
 
-**Symptoms:** Issue stuck with `in-progress` label, no open PR.
+**Symptoms:** Issue stuck with `agent/implementing` label, no open PR.
 
 **Diagnosis:** Implementation workflow failed before creating the PR (agent produced no
 changes, or push failed).
 
-**Recovery:** Remove `in-progress` label. If the issue is still valid, re-add `agent-ready`.
+**Recovery:** Remove `agent/implementing` label. If the issue is still valid, re-add `backlog/ready`.
 
 ### Copilot reviews not triggering review-fix
 

@@ -169,8 +169,8 @@ jobs:
             --body "⚠️ Autodev agent failed during implementation. No changes were committed. This issue needs human attention. [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
           gh issue edit "${{ inputs.issue_number }}" \
             --repo "${{ github.repository }}" \
-            --add-label "needs-human" \
-            --remove-label "in-progress"
+            --add-label "human/blocked" \
+            --remove-label "agent/implementing"
 
       - name: Revert protected file changes
         if: steps.agent.outcome == 'success'
@@ -223,5 +223,5 @@ jobs:
 
           gh issue edit "${{ inputs.issue_number }}" \
             --repo "${{ github.repository }}" \
-            --add-label "needs-human" \
-            --remove-label "in-progress"
+            --add-label "human/blocked" \
+            --remove-label "agent/implementing"

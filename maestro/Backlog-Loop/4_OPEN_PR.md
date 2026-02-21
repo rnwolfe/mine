@@ -70,7 +70,7 @@ Commit all changes in the worktree, push the branch, and create a detailed PR. T
   - [ ] Criterion — why it wasn't met (if any)
   ```
 
-  Add the `maestro` label: `--label maestro`
+  Add the `via/maestro` label: `--label via/maestro`
 
   Run the `gh pr create` command from the worktree directory so it picks up the correct branch.
 

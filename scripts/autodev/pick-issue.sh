@@ -7,7 +7,7 @@ set -euo pipefail
 #   scripts/autodev/pick-issue.sh [ISSUE_NUMBER]
 #
 # If ISSUE_NUMBER is provided, uses that issue (manual override).
-# Otherwise, picks the oldest agent-ready issue not already in-progress.
+# Otherwise, picks the oldest backlog/ready issue not already being implemented.
 # Exits 0 with empty output if nothing to do.
 
 source "$(dirname "$0")/config.sh"
@@ -52,22 +52,22 @@ if [ -n "$ISSUE_NUMBER" ]; then
 
     # Verify label was applied by a trusted user
     verify_trusted_labeler "$ISSUE_NUMBER" \
-        || autodev_fatal "Issue #$ISSUE_NUMBER: agent-ready label not applied by a trusted user"
+        || autodev_fatal "Issue #$ISSUE_NUMBER: backlog/ready label not applied by a trusted user"
 
     # Label in-progress atomically to prevent race conditions
-    gh issue edit "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --add-label "$AUTODEV_LABEL_IN_PROGRESS" >/dev/null
+    gh issue edit "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --add-label "$AUTODEV_LABEL_IMPLEMENTING" >/dev/null
 
     echo "$ISSUE_NUMBER"
     exit 0
 fi
 
-# Auto-pick: oldest agent-ready issue not in-progress
+# Auto-pick: oldest backlog/ready issue not already being implemented
 CANDIDATES=$(gh issue list \
     --repo "$AUTODEV_REPO" \
     --label "$AUTODEV_LABEL_READY" \
     --state open \
     --json number,labels \
-    --jq "[.[] | select(.labels | map(.name) | index(\"$AUTODEV_LABEL_IN_PROGRESS\") | not)] | sort_by(.number)")
+    --jq "[.[] | select(.labels | map(.name) | index(\"$AUTODEV_LABEL_IMPLEMENTING\") | not)] | sort_by(.number)")
 
 # Find the first candidate with a trusted labeler
 ISSUE_NUMBER=""
@@ -79,11 +79,11 @@ for row in $(echo "$CANDIDATES" | jq -r '.[].number'); do
 done
 
 if [ -z "$ISSUE_NUMBER" ]; then
-    autodev_info "No agent-ready issues from trusted users found. Nothing to do."
+    autodev_info "No backlog/ready issues from trusted users found. Nothing to do."
     exit 0
 fi
 
 # Label in-progress atomically to prevent race conditions
-gh issue edit "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --add-label "$AUTODEV_LABEL_IN_PROGRESS" >/dev/null
+gh issue edit "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --add-label "$AUTODEV_LABEL_IMPLEMENTING" >/dev/null
 
 echo "$ISSUE_NUMBER"

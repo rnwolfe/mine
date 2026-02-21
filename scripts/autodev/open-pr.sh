@@ -4,7 +4,7 @@ set -euo pipefail
 # scripts/autodev/open-pr.sh — Create a PR for an autodev implementation
 #
 # Usage:
-#   scripts/autodev/open-pr.sh ISSUE_NUMBER BRANCH_NAME
+#   scripts/autodev/open-pr.sh ISSUE_NUMBER BRANCH_NAME [ORIGIN_LABEL]
 #
 # Uses agent-generated PR description from /tmp/pr-description.md if available,
 # otherwise falls back to a basic template.
@@ -14,6 +14,7 @@ source "$(dirname "$0")/config.sh"
 
 ISSUE_NUMBER="${1:?Usage: open-pr.sh ISSUE_NUMBER BRANCH_NAME}"
 BRANCH_NAME="${2:?Usage: open-pr.sh ISSUE_NUMBER BRANCH_NAME}"
+ORIGIN_LABEL="${3:-$AUTODEV_LABEL_VIA_ACTIONS}"
 
 # ── Read issue ─────────────────────────────────────────────────────
 
@@ -70,7 +71,7 @@ PR_URL=$(gh pr create \
     --base "$AUTODEV_BASE_BRANCH" \
     --title "$PR_TITLE" \
     --body "$PR_BODY" \
-    --label "$AUTODEV_LABEL_AUTODEV")
+    --label "$ORIGIN_LABEL" --label "$AUTODEV_LABEL_REVIEW_COPILOT")
 
 autodev_info "Created PR: $PR_URL"
 

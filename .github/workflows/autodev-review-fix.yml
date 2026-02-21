@@ -43,8 +43,8 @@ jobs:
           if [ "${{ github.event_name }}" = "schedule" ]; then
             # Scheduled poll: find open autodev PRs not in "done" phase
             PR_NUMBER=$(gh pr list --repo "${{ github.repository }}" \
-              --label "autodev" --state open --json number,body \
-              --jq '[.[] | select(.body | test("autodev-state") | not) // select(.body | test("\"phase\": \"done\"") | not)] | first | .number // empty')
+              --state open --json number,body,labels \
+              --jq '[.[] | select(.labels | map(.name) | any(startswith("via/"))) | select(.body | test("autodev-state") | not) // select(.body | test("\"phase\": \"done\"") | not)] | first | .number // empty')
             if [ -z "$PR_NUMBER" ]; then
               echo "No actionable autodev PRs found. Skipping."
               echo "action=skip" >> "$GITHUB_OUTPUT"
@@ -69,7 +69,7 @@ jobs:
 
           # Check if PR has autodev label
           HAS_AUTODEV=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" \
-            --json labels --jq '[.labels[].name] | any(. == "autodev")')
+            --json labels --jq '[.labels[].name] | any(startswith("via/"))')
           if [ "$HAS_AUTODEV" != "true" ]; then
             echo "PR #$PR_NUMBER is not an autodev PR. Skipping."
             echo "action=skip" >> "$GITHUB_OUTPUT"
@@ -323,7 +323,7 @@ jobs:
           echo "::error::See logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           gh pr edit "${{ steps.route.outputs.pr_number }}" \
             --repo "${{ github.repository }}" \
-            --add-label "needs-human"
+            --add-label "human/blocked"
           gh pr comment "${{ steps.route.outputs.pr_number }}" \
             --repo "${{ github.repository }}" \
             --body "⚠️ Autodev agent failed during copilot review fix (iteration $(( ${{ steps.route.outputs.copilot_iterations }} + 1 ))). No changes were committed. [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
@@ -399,7 +399,8 @@ jobs:
           # Add label to trigger Claude Code Review
           gh pr edit "${{ steps.route.outputs.pr_number }}" \
             --repo "${{ github.repository }}" \
-            --add-label "claude-review-requested"
+            --add-label "agent/review-claude" \
+            --remove-label "agent/review-copilot"
 
       # ── Claude fix path ───────────────────────────────────────────
       - name: Reconcile branch (claude fix)
@@ -486,7 +487,7 @@ jobs:
           echo "::error::See logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           gh pr edit "${{ steps.route.outputs.pr_number }}" \
             --repo "${{ github.repository }}" \
-            --add-label "needs-human"
+            --add-label "human/blocked"
           gh pr comment "${{ steps.route.outputs.pr_number }}" \
             --repo "${{ github.repository }}" \
             --body "⚠️ Autodev agent failed during final Claude review fix. No changes were committed. This PR needs human attention. [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
@@ -542,14 +543,15 @@ jobs:
             --repo "${{ github.repository }}" \
             --body "$UPDATED_BODY"
 
-          # Remove the claude-review-requested label
+          # Remove review label and add merge-ready label
           if ! gh pr edit "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
-            --remove-label "claude-review-requested"; then
-            echo "::warning::Failed to remove label 'claude-review-requested' from PR #$PR_NUMBER. The label may not exist or there may be permission/API issues."
+            --remove-label "agent/review-claude" \
+            --add-label "human/review-merge"; then
+            echo "::warning::Failed to update labels on PR #$PR_NUMBER. There may be permission/API issues."
           fi
 
           # Post completion comment
           gh pr comment "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
-            --body "Autodev review pipeline complete. Copilot and Claude reviews have been addressed. Ready for human merge."
+            --body "Autodev review pipeline complete. Copilot and Claude reviews have been addressed. Labeled \`human/review-merge\` — ready for human merge."

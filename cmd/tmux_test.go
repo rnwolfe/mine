@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -178,24 +177,10 @@ func TestRunTmuxLayoutPreviewOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Capture stdout.
-	old := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	os.Stdout = w
-
-	runErr := runTmuxLayoutPreview(nil, []string{"dev-setup"})
-
-	w.Close()
-	os.Stdout = old
-
-	var buf bytes.Buffer
-	if _, err := buf.ReadFrom(r); err != nil {
-		t.Fatal(err)
-	}
-	output := buf.String()
+	var runErr error
+	output := captureStdout(t, func() {
+		runErr = runTmuxLayoutPreview(nil, []string{"dev-setup"})
+	})
 
 	if runErr != nil {
 		t.Fatalf("expected no error, got: %v", runErr)
@@ -207,6 +192,7 @@ func TestRunTmuxLayoutPreviewOutput(t *testing.T) {
 		"editor",
 		"server",
 		"/home/user/code",
+		"/home/user/code/api",
 	} {
 		if !strings.Contains(output, want) {
 			t.Errorf("output missing %q\nGot:\n%s", want, output)

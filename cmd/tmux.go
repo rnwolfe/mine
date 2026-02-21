@@ -591,7 +591,7 @@ func runTmuxLayoutPreview(_ *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Printf("  %s  %s\n", ui.Muted.Render("Layout:"), ui.Accent.Render(layout.Name))
 	if !layout.SavedAt.IsZero() {
-		fmt.Printf("  %s  %s\n", ui.Muted.Render("Saved: "), ui.Muted.Render(layout.SavedAt.Format("2006-01-02 15:04")))
+		fmt.Printf("  %s  %s\n", ui.Muted.Render("Saved:"), ui.Muted.Render(layout.SavedAt.Format("2006-01-02 15:04")))
 	}
 	fmt.Println()
 

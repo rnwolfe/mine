@@ -82,6 +82,72 @@ func TestParseSetArgRequiresValue(t *testing.T) {
 	}
 }
 
+func TestRunEnvEditMissingEditor(t *testing.T) {
+	t.Setenv("EDITOR", "")
+	t.Setenv("MINE_ENV_PASSPHRASE", "test")
+
+	err := runEnvEdit(nil, nil)
+	if err == nil {
+		t.Fatal("expected error when $EDITOR is not set")
+	}
+	if !strings.Contains(err.Error(), "$EDITOR") {
+		t.Fatalf("expected $EDITOR mention in error, got: %v", err)
+	}
+}
+
+func TestParseEnvFileValid(t *testing.T) {
+	content := "API_KEY=secret\nDB_URL=postgres://localhost/db\n"
+	vars, err := parseEnvFile(content)
+	if err != nil {
+		t.Fatalf("parseEnvFile: %v", err)
+	}
+	if vars["API_KEY"] != "secret" {
+		t.Fatalf("API_KEY: got %q", vars["API_KEY"])
+	}
+	if vars["DB_URL"] != "postgres://localhost/db" {
+		t.Fatalf("DB_URL: got %q", vars["DB_URL"])
+	}
+}
+
+func TestParseEnvFileInvalidKey(t *testing.T) {
+	content := "VALID_KEY=ok\n123INVALID=bad\n"
+	_, err := parseEnvFile(content)
+	if err == nil {
+		t.Fatal("expected error for invalid key")
+	}
+	if !strings.Contains(err.Error(), "123INVALID") {
+		t.Fatalf("expected invalid key name in error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "changes discarded") {
+		t.Fatalf("expected 'changes discarded' in error, got: %v", err)
+	}
+}
+
+func TestParseEnvFileIgnoresBlankAndComments(t *testing.T) {
+	content := "# comment line\n\nAPI_KEY=value\n   \n#another comment\n"
+	vars, err := parseEnvFile(content)
+	if err != nil {
+		t.Fatalf("parseEnvFile: %v", err)
+	}
+	if len(vars) != 1 {
+		t.Fatalf("expected 1 var, got %d: %v", len(vars), vars)
+	}
+	if vars["API_KEY"] != "value" {
+		t.Fatalf("API_KEY: got %q", vars["API_KEY"])
+	}
+}
+
+func TestParseEnvFileValueWithEquals(t *testing.T) {
+	content := "TOKEN=abc=def=ghi\n"
+	vars, err := parseEnvFile(content)
+	if err != nil {
+		t.Fatalf("parseEnvFile: %v", err)
+	}
+	if vars["TOKEN"] != "abc=def=ghi" {
+		t.Fatalf("TOKEN: got %q", vars["TOKEN"])
+	}
+}
+
 func TestMergedEnv(t *testing.T) {
 	base := []string{
 		"A=old",

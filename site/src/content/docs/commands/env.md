@@ -57,6 +57,25 @@ mine env unset API_TOKEN
 
 Removes a variable from the active profile permanently.
 
+## Edit Profile in $EDITOR
+
+```bash
+mine env edit
+mine env edit staging
+```
+
+Decrypts the active profile (or a named profile) to a secure temp file and opens it in `$EDITOR`. On clean editor exit, the file is re-encrypted and saved. The temp file is removed on all exit paths — success, editor error, or save error.
+
+The temp file format is sorted `KEY=VALUE` lines (one per variable). Blank lines and lines starting with `#` are ignored on re-read.
+
+| Behaviour | Detail |
+|-----------|--------|
+| `$EDITOR` not set | Non-zero exit with hint to set `EDITOR` or use `mine env set` |
+| Editor exits non-zero | Changes discarded; original profile unchanged |
+| Invalid key in edited file | Changes discarded; all invalid keys listed in error |
+| Named profile does not exist | Non-zero exit — profile must exist before editing |
+| Temp file permissions | `0600` — owner read/write only |
+
 ## Compare Profiles
 
 ```bash
@@ -148,6 +167,8 @@ On fish, `menv` automatically uses fish-compatible export syntax. In all shells,
 | Missing profile on `switch` | Non-zero exit, profile name in error |
 | No passphrase in non-interactive mode | Non-zero exit, instructive error |
 | Invalid key name | Non-zero exit before any disk writes |
+| `$EDITOR` not set (`env edit`) | Non-zero exit with fallback hint |
+| Editor exits non-zero (`env edit`) | Non-zero exit; original profile unchanged |
 
 ## Storage Location
 

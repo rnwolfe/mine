@@ -272,3 +272,47 @@ func TestCorruptedProfileInvalidKey(t *testing.T) {
 		t.Fatalf("expected ErrCorruptedProfile, got %v", err)
 	}
 }
+
+func TestEditRoundTrip(t *testing.T) {
+	mgr, projectPath, done := setupTestManager(t, "secret-pass")
+	defer done()
+
+	// Seed initial vars.
+	initial := map[string]string{"API_KEY": "old-secret", "DB_URL": "postgres://localhost/db"}
+	if err := mgr.SaveProfile(projectPath, "local", initial); err != nil {
+		t.Fatalf("SaveProfile initial: %v", err)
+	}
+
+	// Simulate an edit: modify one var, add another, remove one.
+	edited := map[string]string{"API_KEY": "new-secret", "NEW_VAR": "hello"}
+	if err := mgr.SaveProfile(projectPath, "local", edited); err != nil {
+		t.Fatalf("SaveProfile edited: %v", err)
+	}
+
+	got, err := mgr.LoadProfile(projectPath, "local")
+	if err != nil {
+		t.Fatalf("LoadProfile after edit: %v", err)
+	}
+	if got["API_KEY"] != "new-secret" {
+		t.Fatalf("API_KEY: got %q", got["API_KEY"])
+	}
+	if got["NEW_VAR"] != "hello" {
+		t.Fatalf("NEW_VAR: got %q", got["NEW_VAR"])
+	}
+	if _, ok := got["DB_URL"]; ok {
+		t.Fatalf("DB_URL should have been removed, got %#v", got)
+	}
+}
+
+func TestSaveProfileRejectsInvalidKey(t *testing.T) {
+	mgr, projectPath, done := setupTestManager(t, "secret-pass")
+	defer done()
+
+	err := mgr.SaveProfile(projectPath, "local", map[string]string{"VALID": "ok", "bad-key": "bad"})
+	if err == nil {
+		t.Fatal("expected error for invalid key in SaveProfile")
+	}
+	if !strings.Contains(err.Error(), "bad-key") {
+		t.Fatalf("expected key name in error, got: %v", err)
+	}
+}

@@ -117,7 +117,7 @@ Rules:
     Profile files are age-encrypted JSON stored at `$XDG_DATA_HOME/mine/envs/<sha256(project_path)>/<profile>.age`.
     Active profile per project is tracked in the `env_projects` SQLite table (defaults to `local`).
     Passphrase sourced from `MINE_ENV_PASSPHRASE`, `MINE_VAULT_PASSPHRASE`, or TTY prompt — never stored.
-    CLI: `mine env show/set/unset/diff/switch/export/template/inject`. Shell helper: `menv`.
+    CLI: `mine env show/set/unset/diff/switch/export/template/inject/edit`. Shell helper: `menv`.
 13. **Project context registry**: `internal/proj` persists project membership in SQLite
     (`projects` table) and project-local settings in `~/.config/mine/projects.toml`.
     Current/previous project pointers are tracked via `kv` keys (`proj.current`,
@@ -530,7 +530,7 @@ that mode, or the picker can become invisible/hang despite stdin being interacti
 | `internal/tmux/tmux.go` | Tmux session management (list, new, attach, kill) |
 | `internal/tmux/layout.go` | Layout persistence (save/load/list, TOML in XDG config) |
 | `cmd/tmux.go` | Tmux CLI commands with TUI picker integration |
-| `cmd/env.go` | Env CLI commands (show, set, unset, diff, switch, export, template, inject) |
+| `cmd/env.go` | Env CLI commands (show, set, unset, diff, switch, export, template, inject, edit) |
 | `internal/env/env.go` | Env manager: profile CRUD, age encryption/decryption, active profile tracking, diff, export |
 | `scripts/autodev/config.sh` | Autodev shared constants, logging, utilities |
 | `scripts/autodev/pick-issue.sh` | Issue selection with concurrency guard |

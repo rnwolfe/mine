@@ -372,6 +372,51 @@ Workflow:
 3. When ready to implement, create a branch from the issue
 4. Issues reference the spec; PRs reference the issue
 
+## Autonomous Implementation Skill
+
+`/autodev` is the CLI counterpart to the GitHub Actions autodev pipeline. It runs the
+full implementation loop locally: pick an issue, create a worktree, implement, verify,
+and open a PR — all without leaving the terminal.
+
+| Skill | Purpose | Example |
+|-------|---------|---------|
+| `/autodev` | Pick highest-value `agent-ready` issue and implement it end-to-end | `/autodev`, `/autodev 42` |
+
+Key behaviors:
+- Auto-picks from `agent-ready` issues; evaluates by value/impact if multiple exist
+- Creates a fresh git worktree at `.worktrees/<branch>` off `origin/main`
+- Runs `make test` + `make build` before opening a PR — never ships broken code
+- Applies the same concurrency guard as the GH Actions pipeline (max 1 open autodev PR)
+- Follows the full GitHub Issue Workflow: closes the issue, verifies acceptance criteria
+
+Key file: `.claude/skills/autodev/SKILL.md`
+
+## Strategic Product Skill
+
+`/product` is the roadmap owner and vision guardian. It does not generate feature
+ideas — it maintains the strategic coherence of the product over time. Before any
+feature gets into the backlog, `/product` asks: does this make `mine` more completely
+what it's trying to be?
+
+| Skill | Purpose | Example |
+|-------|---------|---------|
+| `/product` | Full roadmap health check: phase gaps, vision drift, priorities | `/product` |
+| `/product spec` | Draft spec for highest-value unspecced roadmap feature | `/product spec` |
+| `/product spec "idea"` | Evaluate a specific idea for fit; draft spec if it passes | `/product spec "focus + todos"` |
+| `/product sync` | Update VISION.md and STATUS.md to reflect current reality | `/product sync` |
+| `/product eval N` | Score an open issue on vision, phase, and principle fit | `/product eval 42` |
+
+Key behaviors:
+- Reads VISION.md, STATUS.md, DECISIONS.md, all open issues, and existing specs before
+  any output — never forms opinions without full context
+- Applies a four-part vision filter to every idea: identity test, principle test, phase
+  test, replacement test — fails any idea that doesn't clear all four
+- Says no explicitly and with reasoning when an idea doesn't fit the vision
+- Creates spec documents in `docs/internal/specs/` before GitHub issues
+- Can update living docs (VISION.md, STATUS.md) and commit the changes
+
+Key file: `.claude/skills/product/SKILL.md`
+
 ## Backlog Curation Skills
 
 Five Claude Code skills form a backlog quality and personality pipeline. All are
@@ -387,10 +432,10 @@ issues or modify user-facing strings.
 | `/personality-audit` | Audit CLI output, docs, and site for tone consistency | `/personality-audit cli`, `/personality-audit docs` |
 | `/autodev-audit` | Audit autodev pipeline health, PR quality, and improvement opportunities | `/autodev-audit`, `/autodev-audit pipeline`, `/autodev-audit code` |
 
-The pipeline flow: `/sweep-issues` labels issues needing work with `needs-refinement` →
-`/refine-issue` (no args) auto-picks from that queue → `/personality-audit` ensures
-user-facing strings stay consistent with the project voice. `/brainstorm` and `/draft-issue`
-feed new issues into the backlog that `/sweep-issues` later evaluates.
+The pipeline flow: `/product` sets strategic direction and creates specs → `/brainstorm`
+and `/draft-issue` feed issues into the backlog → `/sweep-issues` labels issues needing
+work with `needs-refinement` → `/refine-issue` auto-picks from that queue → `/autodev`
+implements → `/personality-audit` ensures user-facing strings stay consistent.
 
 All skills target the gold-standard issue template (based on issue #35) defined in
 `.claude/skills/shared/issue-quality-checklist.md`. The template includes: summary,
@@ -398,6 +443,7 @@ subcommands table, architecture notes, integration points, acceptance criteria, 
 documentation requirements.
 
 Key files:
+- `.claude/skills/product/SKILL.md` — strategic roadmap ownership skill
 - `.claude/skills/brainstorm/SKILL.md` — feature ideation skill
 - `.claude/skills/sweep-issues/SKILL.md` — backlog quality audit skill
 - `.claude/skills/refine-issue/SKILL.md` — issue refinement skill (with auto-pick)

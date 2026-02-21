@@ -246,9 +246,14 @@ A Python plugin that validates todo input (transform hook) and sends webhook not
 - Manifest: `docs/examples/plugins/webhook/mine-plugin.toml`
 - Binary: `docs/examples/plugins/webhook/mine-plugin-webhook`
 
-### Go
+### Go: tag-enforcer
 
-For Go plugins, build a static binary and set the `entrypoint` field in the manifest to match the binary name. The same JSON protocol applies -- use `encoding/json` to read from stdin and write to stdout. See the [Plugin Protocol](/contributors/plugin-protocol/) page for a complete Go example.
+A Go plugin that enforces tagging policies on todos. Demonstrates prevalidate and postexec hooks, wildcard pattern matching, and protocol version checking.
+
+- Manifest: `docs/examples/plugins/tag-enforcer/mine-plugin.toml`
+- Binary: `docs/examples/plugins/tag-enforcer/main.go` (build with `go build -o mine-plugin-tag-enforcer .`)
+
+For Go plugins, build a static binary and set the `entrypoint` field in the manifest to match the binary name. The same JSON protocol applies — use `encoding/json` to read from stdin and write to stdout.
 
 ## Permissions
 

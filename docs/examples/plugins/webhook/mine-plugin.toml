@@ -18,6 +18,10 @@ stage = "notify"
 mode = "notify"
 timeout = "15s"
 
+[[commands]]
+name = "help"
+description = "Show webhook configuration and current WEBHOOK_URL status"
+
 [permissions]
 network = true
 env_vars = ["WEBHOOK_URL"]

@@ -156,6 +156,32 @@ For example, before implementing a new `mine tmux` subcommand, read:
 
 ---
 
+## Step 5.5 — Pre-Commit Quality Review
+
+Before running `make test`, review your implementation against these checks:
+
+**Reference implementation**: If the issue cites a reference file (e.g. "follow the
+pattern in `cmd/config.go:174`"), verify you read it and matched its patterns. Check:
+editor invocation, error message style, stdin/stdout/stderr wiring, temp file cleanup.
+
+**Testing quality**:
+- Integration tests exercise the actual `runXxx` handler, not just internal helpers
+- External tools (editors, shells) are mocked with fake scripts in `t.TempDir()`
+- Error paths are tested end-to-end (handler → error), not just at the helper level
+- If the issue says "integration test for X", the test must call the handler function
+
+**Error messages**:
+- Command suggestions use `ui.Accent.Render()` (see `cmd/config.go:180`)
+- Invalid input errors include the expected format/pattern
+- Errors are wrapped with operation context (`"saving profile: %w"`)
+
+**Documentation completeness**:
+- CLAUDE.md key files table updated if new files were added
+- CLAUDE.md architecture pattern updated if CLI surface changed
+- Site docs updated with new commands, flags, and error table entries
+
+---
+
 ## Step 6 — Verify
 
 From the worktree directory, run:

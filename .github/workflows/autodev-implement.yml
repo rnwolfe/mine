@@ -99,6 +99,13 @@ jobs:
               - Command reference: site/src/content/docs/commands/<command>.md
               - Follow existing pages for format (YAML frontmatter, then markdown)
             - Write tests for new functionality
+            - QUALITY GATE — Before committing, verify:
+              - If the issue references a file pattern to follow, you have read it and matched it
+              - Integration tests call the actual runXxx handler, not just helper functions
+              - External tool tests use fake scripts in t.TempDir() (see cmd/tmux_test.go:59)
+              - Error messages use ui.Accent.Render() for command suggestions (see cmd/config.go:180)
+              - Invalid input errors include the expected format
+              - All CLAUDE.md references in acceptance criteria are actually updated
             - Keep files under 500 lines
 
             ## Issue #${{ inputs.issue_number }}: ${{ steps.prep.outputs.title }}

@@ -1,5 +1,8 @@
 # Review Fix Playbook
 
+> **Experimental**: Maestro is not a production implementation path. The two production
+> paths are `/autodev` (interactive CLI) and GitHub Actions (always-on pipeline).
+
 A looping Auto Run playbook that addresses PR review feedback, replies to comments, and iterates until reviews are clean.
 
 ## Requirements

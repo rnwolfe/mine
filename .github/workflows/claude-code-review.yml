@@ -1,7 +1,7 @@
 name: Claude Code Review
 
 on:
-  # Label trigger: autodev pipeline adds "claude-review-requested" label
+  # Label trigger: autodev pipeline adds "agent/review-claude" label
   pull_request:
     types: [labeled]
   # Comment trigger: anyone comments with "@claude" on a PR
@@ -11,11 +11,11 @@ on:
 jobs:
   claude-review:
     # Only run when:
-    # 1. "claude-review-requested" label is added (autodev pipeline)
+    # 1. "agent/review-claude" label is added (autodev pipeline)
     # 2. A PR comment explicitly requests Claude review via @claude mention
     if: |
       github.actor != 'vercel[bot]' && (
-        (github.event_name == 'pull_request' && github.event.label.name == 'claude-review-requested') ||
+        (github.event_name == 'pull_request' && github.event.label.name == 'agent/review-claude') ||
         (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude'))
       )
 

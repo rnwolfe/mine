@@ -10,19 +10,19 @@
 
 ## Objective
 
-Select the next `agent-ready` issue from the GitHub backlog, verify it was labeled by a trusted user, create a fresh git worktree for implementation, and output the issue details for downstream documents.
+Select the next `backlog/ready` issue from the GitHub backlog, verify it was labeled by a trusted user, create a fresh git worktree for implementation, and output the issue details for downstream documents.
 
 ## Tasks
 
-- [ ] **Check concurrency**: Run `gh pr list --repo rnwolfe/mine --label maestro --state open --json number --jq 'length'`. If the count is >= 3, write "BLOCKED: concurrency limit reached (3 maestro PRs open)" to `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md` and mark this task complete without proceeding further.
+- [ ] **Check concurrency**: Run `gh pr list --repo rnwolfe/mine --label via/maestro --state open --json number --jq 'length'`. If the count is >= 3, write "BLOCKED: concurrency limit reached (3 via/maestro PRs open)" to `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md` and mark this task complete without proceeding further.
 
-- [ ] **Find candidate issue**: Run `gh issue list --repo rnwolfe/mine --label agent-ready --state open --json number,title,labels --jq '[.[] | select(.labels | map(.name) | (index("in-progress") | not) and (index("maestro") | not))] | sort_by(.number) | first'`. This excludes issues already labeled `in-progress` or `maestro` (being worked by another instance). If no issues found, write "BLOCKED: no agent-ready issues available" to `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md` and mark complete.
+- [ ] **Find candidate issue**: Run `gh issue list --repo rnwolfe/mine --label backlog/ready --state open --json number,title,labels --jq '[.[] | select(.labels | map(.name) | (index("agent/implementing") | not) and (index("via/maestro") | not))] | sort_by(.number) | first'`. This excludes issues already labeled `agent/implementing` or `via/maestro` (being worked by another instance). If no issues found, write "BLOCKED: no backlog/ready issues available" to `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md` and mark complete.
 
-- [ ] **Verify trusted labeler**: Use `gh api repos/rnwolfe/mine/issues/ISSUE_NUMBER/timeline --paginate --jq '[.[] | select(.event == "labeled" and .label.name == "agent-ready")] | last | .actor.login // empty'` to check who applied the label. Only proceed if the labeler is `rnwolfe`. If the result is empty or the labeler is untrusted, write "BLOCKED: untrusted labeler" to the issue file and mark complete.
+- [ ] **Verify trusted labeler**: Use `gh api repos/rnwolfe/mine/issues/ISSUE_NUMBER/timeline --paginate --jq '[.[] | select(.event == "labeled" and .label.name == "backlog/ready")] | last | .actor.login // empty'` to check who applied the label. Only proceed if the labeler is `rnwolfe`. If the result is empty or the labeler is untrusted, write "BLOCKED: untrusted labeler" to the issue file and mark complete.
 
-- [ ] **Label issue**: Apply both `maestro` and `in-progress` labels to claim the issue:
+- [ ] **Label issue**: Apply both `via/maestro` and `agent/implementing` labels to claim the issue:
   ```
-  gh issue edit ISSUE_NUMBER --repo rnwolfe/mine --add-label maestro --add-label in-progress
+  gh issue edit ISSUE_NUMBER --repo rnwolfe/mine --add-label via/maestro --add-label agent/implementing
   ```
   This prevents other parallel instances from picking the same issue.
 

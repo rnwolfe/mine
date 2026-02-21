@@ -178,19 +178,19 @@ For a comprehensive architecture deep-dive with diagrams, see
 Four workflows form the core loop, plus a weekly audit:
 
 1. **`autodev-dispatch`** — Runs on a 4-hour cron (or manual trigger). Picks the oldest
-   `agent-ready` issue, labels it `in-progress`, and triggers the implement workflow.
+   `backlog/ready` issue, labels it `agent/implementing`, and triggers the implement workflow.
 2. **`autodev-implement`** — Checks out `main`, creates a branch, runs the agent (Claude
    via `claude-code-action@v1`) to implement the issue, pushes, and opens a PR.
    The PR triggers CI and Copilot review.
 3. **`autodev-review-fix`** — Phased review pipeline that routes fixes based on review phase:
    - **Copilot phase**: Iterates on Copilot feedback up to 3 times
-   - **Claude phase**: Triggered after Copilot is satisfied (adds `claude-review-requested` label)
+   - **Claude phase**: Triggered after Copilot is satisfied (adds `agent/review-claude` label)
    - **Done**: Agent addresses Claude's feedback, creates follow-up issues for unresolved items
-4. **`claude-code-review`** — Only triggers when explicitly requested: via `claude-review-requested`
+4. **`claude-code-review`** — Only triggers when explicitly requested: via `agent/review-claude`
    label (autodev pipeline) or `@claude` mention in a PR comment (manual request).
 5. **`autodev-audit`** — Weekly (Monday 9 AM UTC) or manual. Runs a Claude agent to
    analyze recent autodev PRs, compute health metrics, spot-check code quality, and
-   file a structured report as a GitHub issue labeled `autodev-audit`.
+   file a structured report as a GitHub issue labeled `report/pipeline-audit`.
 
 ### Review pipeline flow
 
@@ -222,14 +222,33 @@ Phases: `copilot` → `claude` → `done`
 
 ### Labels
 
+**Pipeline stage labels** (mutually exclusive per issue/PR):
+
 | Label | Meaning |
 |-------|---------|
-| `agent-ready` | Issue is ready for autonomous implementation |
-| `in-progress` | Issue is currently being worked on |
-| `autodev` | PR was created by the autonomous workflow |
-| `needs-human` | Autodev hit a limit and needs human intervention |
-| `claude-review-requested` | Copilot phase done, ready for Claude review |
-| `autodev-audit` | Weekly pipeline health report issue |
+| `backlog/triage` | New issue, needs evaluation |
+| `backlog/needs-spec` | Passed evaluation, needs specification |
+| `backlog/needs-refinement` | Has spec, needs refinement before implementation |
+| `backlog/ready` | Issue is ready for autonomous implementation |
+| `agent/implementing` | Issue is currently being implemented by an agent |
+| `agent/review-copilot` | Agent is addressing Copilot review feedback |
+| `agent/review-claude` | Agent is addressing Claude review feedback |
+| `human/blocked` | Agent hit a limit and needs human intervention |
+| `human/review-merge` | All automated reviews done, needs human merge |
+
+**Origin labels** (persistent, one per PR):
+
+| Label | Meaning |
+|-------|---------|
+| `via/autodev` | PR created by `/autodev` CLI skill |
+| `via/actions` | PR created by GitHub Actions pipeline |
+| `via/maestro` | PR created by Maestro (experimental) |
+
+**Report labels**:
+
+| Label | Meaning |
+|-------|---------|
+| `report/pipeline-audit` | Weekly pipeline health report issue |
 
 ### Secrets required
 
@@ -246,7 +265,7 @@ Phases: `copilot` → `claude` → `done`
 - **Timeouts**: 60 min for implementation, 45 min for review fixes
 - **Max turns**: 100 for implementation, 50 for review fixes (high to allow complex work, prevents infinite loops)
 - **Protected files**: Agent cannot modify CLAUDE.md, workflows, or autodev scripts
-- **Trusted users**: Only users in `AUTODEV_TRUSTED_USERS` (config.sh) can trigger autodev via `agent-ready` label
+- **Trusted users**: Only users in `AUTODEV_TRUSTED_USERS` (config.sh) can trigger autodev via `backlog/ready` label
 - **Scheduled review poll**: Every 4 hours fallback catches reviews from bot actors gated by GitHub's contributor approval
 - **Weekly audit**: Monday 9 AM UTC pipeline health report filed as GitHub issue
 
@@ -260,7 +279,7 @@ Each workflow has a clearly delimited `AGENT EXECUTION` block. To swap providers
 ### Triggering autonomous development
 
 1. Create a GitHub issue with clear acceptance criteria
-2. Add the `agent-ready` label
+2. Add the `backlog/ready` label
 3. Wait for the next cron run, or manually trigger `autodev-dispatch` from the Actions tab
 4. Optionally pass a specific issue number via the workflow dispatch input
 
@@ -372,6 +391,67 @@ Workflow:
 3. When ready to implement, create a branch from the issue
 4. Issues reference the spec; PRs reference the issue
 
+## Product Development Lifecycle
+
+The full pipeline — from roadmap to shipped feature — is documented in:
+
+`docs/internal/LIFECYCLE.md`
+
+**7 phases**: Roadmap → Feature Definition → Backlog Quality → Implementation → Review → Merge → Feedback → (repeat)
+
+**3 implementation paths** (Phase 4): Maestro Auto Run (`maestro/Backlog-Loop/`) · `/autodev` skill · GitHub Actions pipeline
+
+**Audit layer** (cross-cutting, cadence-driven): `/sweep-issues` · `/refine-issue` · `/autodev-audit` · `/personality-audit`
+
+Entry point when you don't know where to start: `/product`
+
+---
+
+## Autonomous Implementation Skill
+
+`/autodev` is the CLI counterpart to the GitHub Actions autodev pipeline. It runs the
+full implementation loop locally: pick an issue, create a worktree, implement, verify,
+and open a PR — all without leaving the terminal.
+
+| Skill | Purpose | Example |
+|-------|---------|---------|
+| `/autodev` | Pick highest-value `backlog/ready` issue and implement it end-to-end | `/autodev`, `/autodev 42` |
+
+Key behaviors:
+- Auto-picks from `backlog/ready` issues; evaluates by value/impact if multiple exist
+- Creates a fresh git worktree at `.worktrees/<branch>` off `origin/main`
+- Runs `make test` + `make build` before opening a PR — never ships broken code
+- Applies the same concurrency guard as the GH Actions pipeline (max 1 open autodev PR)
+- Follows the full GitHub Issue Workflow: closes the issue, verifies acceptance criteria
+
+Key file: `.claude/skills/autodev/SKILL.md`
+
+## Strategic Product Skill
+
+`/product` is the roadmap owner and vision guardian. It does not generate feature
+ideas — it maintains the strategic coherence of the product over time. Before any
+feature gets into the backlog, `/product` asks: does this make `mine` more completely
+what it's trying to be?
+
+| Skill | Purpose | Example |
+|-------|---------|---------|
+| `/product` | Full roadmap health check: phase gaps, vision drift, priorities | `/product` |
+| `/product spec` | Draft spec for highest-value unspecced roadmap feature | `/product spec` |
+| `/product spec "idea"` | Evaluate a specific idea for fit; draft spec if it passes | `/product spec "focus + todos"` |
+| `/product sync` | Update VISION.md and STATUS.md to reflect current reality | `/product sync` |
+| `/product eval N` | Score an open issue on vision, phase, and principle fit | `/product eval 42` |
+
+Key behaviors:
+- Reads VISION.md, STATUS.md, DECISIONS.md, all open issues, and existing specs before
+  any output — never forms opinions without full context
+- Applies a four-part vision filter to every idea: identity test, principle test, phase
+  test, replacement test — fails any idea that doesn't clear all four
+- Says no explicitly and with reasoning when an idea doesn't fit the vision
+- Creates spec documents in `docs/internal/specs/` before GitHub issues
+- Can update living docs (VISION.md, STATUS.md) and commit the changes
+
+Key file: `.claude/skills/product/SKILL.md`
+
 ## Backlog Curation Skills
 
 Five Claude Code skills form a backlog quality and personality pipeline. All are
@@ -387,10 +467,10 @@ issues or modify user-facing strings.
 | `/personality-audit` | Audit CLI output, docs, and site for tone consistency | `/personality-audit cli`, `/personality-audit docs` |
 | `/autodev-audit` | Audit autodev pipeline health, PR quality, and improvement opportunities | `/autodev-audit`, `/autodev-audit pipeline`, `/autodev-audit code` |
 
-The pipeline flow: `/sweep-issues` labels issues needing work with `needs-refinement` →
-`/refine-issue` (no args) auto-picks from that queue → `/personality-audit` ensures
-user-facing strings stay consistent with the project voice. `/brainstorm` and `/draft-issue`
-feed new issues into the backlog that `/sweep-issues` later evaluates.
+The pipeline flow is documented in full in `docs/internal/LIFECYCLE.md`.
+Short version: `/product` (strategy) → `/product spec` (spec) → `/draft-issue` / issue
+creation (backlog entry) → `/sweep-issues` + `/refine-issue` (quality) → `/autodev`
+(implementation) → `/product sync` (living docs) → repeat.
 
 All skills target the gold-standard issue template (based on issue #35) defined in
 `.claude/skills/shared/issue-quality-checklist.md`. The template includes: summary,
@@ -398,6 +478,8 @@ subcommands table, architecture notes, integration points, acceptance criteria, 
 documentation requirements.
 
 Key files:
+- `docs/internal/LIFECYCLE.md` — full pipeline: how all skills connect
+- `.claude/skills/product/SKILL.md` — strategic roadmap ownership skill
 - `.claude/skills/brainstorm/SKILL.md` — feature ideation skill
 - `.claude/skills/sweep-issues/SKILL.md` — backlog quality audit skill
 - `.claude/skills/refine-issue/SKILL.md` — issue refinement skill (with auto-pick)

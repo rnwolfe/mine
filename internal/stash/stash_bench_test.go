@@ -257,7 +257,7 @@ func BenchmarkRestoreToSource_LargeFile(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// RestoreToSource is idempotent: writes the same HEAD content each iteration.
 		// No source mutation needed between iterations.
-		if _, err := RestoreToSource(safeName, "HEAD"); err != nil {
+		if _, err := RestoreToSource(safeName, "HEAD", false); err != nil {
 			b.Fatal(err)
 		}
 	}

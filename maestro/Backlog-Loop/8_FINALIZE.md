@@ -10,20 +10,20 @@
 
 ## Objective
 
-Mark the PR and issue as ready for human review by applying the `maestro/review-ready` label. Clean up the git worktree. This signals to the maintainer that autonomous work is complete and the PR is ready for final review and merge.
+Mark the PR and issue as ready for human review by applying the `human/review-merge` label. Clean up the git worktree. This signals to the maintainer that autonomous work is complete and the PR is ready for final review and merge.
 
 ## Tasks
 
 - [ ] **Read PR and issue details**: Read `{{AUTORUN_FOLDER}}/LOOP_{{LOOP_NUMBER}}_ISSUE.md` and extract the issue number, PR number, and worktree path. If no PR section exists (issue was blocked), skip to the cleanup step.
 
-- [ ] **Label PR as review-ready**: Add the `maestro/review-ready` label to the PR:
+- [ ] **Label PR as review-ready**: Add the `human/review-merge` label to the PR:
   ```
-  gh pr edit PR_NUMBER --repo rnwolfe/mine --add-label "maestro/review-ready"
+  gh pr edit PR_NUMBER --repo rnwolfe/mine --add-label "human/review-merge"
   ```
 
-- [ ] **Label issue as review-ready**: Add the `maestro/review-ready` label to the issue:
+- [ ] **Label issue as review-ready**: Add the `human/review-merge` label to the issue:
   ```
-  gh issue edit ISSUE_NUMBER --repo rnwolfe/mine --add-label "maestro/review-ready"
+  gh issue edit ISSUE_NUMBER --repo rnwolfe/mine --add-label "human/review-merge"
   ```
 
 - [ ] **Remove worktree**: Clean up the git worktree used for this implementation:
@@ -40,18 +40,18 @@ Mark the PR and issue as ready for human review by applying the `maestro/review-
   ### Loop {{LOOP_NUMBER}} — Finalized
   - **Issue:** #ISSUE_NUMBER
   - **PR:** #PR_NUMBER
-  - **Status:** maestro/review-ready — awaiting human review
+  - **Status:** human/review-merge — awaiting human review
   - **Worktree:** cleaned up
   ```
 
 ## Guidelines
 
-- The `maestro/review-ready` label signals to the maintainer that:
+- The `human/review-merge` label signals to the maintainer that:
   1. Implementation is complete
   2. Copilot review feedback has been addressed
   3. Self-review loop passed
   4. Documentation is up to date
   5. Follow-up issues have been created
-- Do NOT remove the `in-progress` or `maestro` labels — the maintainer will remove those when merging
+- Do NOT remove the `agent/implementing` or `via/maestro` labels — the maintainer will remove those when merging
 - Always clean up worktrees to avoid disk space accumulation across loops
 - If the worktree remove fails (dirty state), force-remove it — the branch and commits are already pushed

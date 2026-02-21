@@ -398,7 +398,13 @@ func Restore(file string, version string) ([]byte, error) {
 
 // RestoreToSource restores a file to its original source location.
 // Returns the Entry for the restored file to avoid duplicate FindEntry calls.
-func RestoreToSource(file string, version string) (*Entry, error) {
+//
+// When force is false (default), the restored file inherits the current source
+// file's permissions, falling back to 0644 if the source does not exist yet.
+// When force is true, the restored file uses the permissions recorded in the
+// stash copy (captured at track/commit time), overriding the current source
+// file's permissions.
+func RestoreToSource(file string, version string, force bool) (*Entry, error) {
 	entry, err := FindEntry(file)
 	if err != nil {
 		return nil, err
@@ -409,21 +415,34 @@ func RestoreToSource(file string, version string) (*Entry, error) {
 		return nil, err
 	}
 
-	// Determine permissions for the source file: preserve existing mode when present,
-	// otherwise fall back to 0644 (user read/write, group and others read-only, non-executable).
-	// When the file exists, remove it before recreating so that read-only source
-	// files (e.g. 0444) can be restored without a permission error — on most
-	// Unix filesystems, the directory write permission governs deletion, not the
-	// file's own mode bits, so a file owner can typically remove their own files
-	// regardless of the file's permissions.
+	stashPath := filepath.Join(Dir(), entry.SafeName)
+
+	// Determine permissions for the restored file.
+	// In all cases the existing source file is removed before recreating so that
+	// read-only source files (e.g. 0444) can be written without a permission
+	// error — on most Unix filesystems, the directory write permission governs
+	// deletion, not the file's own mode bits.
 	srcPerm := os.FileMode(0o644)
-	if info, err := os.Stat(entry.Source); err == nil {
-		srcPerm = info.Mode().Perm()
+	if force {
+		// Use permissions from the stash copy (captured at track/commit time),
+		// ignoring the current source file's permissions.
+		if info, err := os.Stat(stashPath); err == nil {
+			srcPerm = info.Mode().Perm()
+		}
 		if err := os.Remove(entry.Source); err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("removing existing %s before restore: %w", entry.Source, err)
 		}
-	} else if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("stat source %s: %w", entry.Source, err)
+	} else {
+		// Preserve existing source file permissions when present,
+		// otherwise fall back to 0644.
+		if info, err := os.Stat(entry.Source); err == nil {
+			srcPerm = info.Mode().Perm()
+			if err := os.Remove(entry.Source); err != nil && !os.IsNotExist(err) {
+				return nil, fmt.Errorf("removing existing %s before restore: %w", entry.Source, err)
+			}
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("stat source %s: %w", entry.Source, err)
+		}
 	}
 
 	if err := os.WriteFile(entry.Source, content, srcPerm); err != nil {
@@ -431,8 +450,6 @@ func RestoreToSource(file string, version string) (*Entry, error) {
 	}
 
 	// Also update the stash copy.
-	stashPath := filepath.Join(Dir(), entry.SafeName)
-
 	stashPerm := os.FileMode(0o600)
 	if info, err := os.Stat(stashPath); err == nil {
 		stashPerm = info.Mode().Perm()

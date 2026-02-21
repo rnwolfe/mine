@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var tmuxProjectLayout string
+
 var tmuxCmd = &cobra.Command{
 	Use:     "tmux",
 	Aliases: []string{"tx"},
@@ -30,10 +32,13 @@ func init() {
 	tmuxCmd.AddCommand(tmuxKillCmd)
 	tmuxCmd.AddCommand(tmuxRenameCmd)
 	tmuxCmd.AddCommand(tmuxLayoutCmd)
+	tmuxCmd.AddCommand(tmuxProjectCmd)
 
 	tmuxLayoutCmd.AddCommand(tmuxLayoutSaveCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutLoadCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutLsCmd)
+
+	tmuxProjectCmd.Flags().StringVar(&tmuxProjectLayout, "layout", "", "Apply a saved layout on creation (skipped on attach)")
 }
 
 // --- mine tmux (bare) — fuzzy session picker ---
@@ -110,6 +115,69 @@ func runTmuxNew(_ *cobra.Command, args []string) error {
 	fmt.Printf("  Attach: %s\n", ui.Muted.Render("mine tmux attach "+resolved))
 	fmt.Println()
 	return nil
+}
+
+// --- mine tmux project ---
+
+var tmuxProjectCmd = &cobra.Command{
+	Use:     "project [dir]",
+	Aliases: []string{"proj"},
+	Short:   "Create or attach to a session for a project directory",
+	Long: `Create a new tmux session named after the project directory, or attach if
+one already exists. Session name is derived from the directory basename.
+
+If --layout is specified, the saved layout is applied after creating a new
+session (not applied when attaching to an existing one). The layout must
+already exist or an error is returned.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: hook.Wrap("tmux.project", runTmuxProject),
+}
+
+func runTmuxProject(cmd *cobra.Command, args []string) error {
+	if !tmux.Available() {
+		return fmt.Errorf("tmux not found in PATH — install tmux first")
+	}
+
+	var dir string
+	if len(args) > 0 {
+		dir = args[0]
+	}
+
+	// Pre-validate layout before doing any session work.
+	layout, _ := cmd.Flags().GetString("layout")
+	if layout != "" {
+		if _, err := tmux.ReadLayout(layout); err != nil {
+			return fmt.Errorf("layout %q not found — save it first with: mine tmux layout save %s", layout, layout)
+		}
+	}
+
+	sessionName, exists, err := tmux.ResolveProjectSession(dir)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		fmt.Println()
+		fmt.Printf("  Session %s already running — attaching\n", ui.Accent.Render(sessionName))
+		fmt.Println()
+		return tmux.AttachSession(sessionName)
+	}
+
+	// Create the session (detached).
+	if _, err := tmux.NewSession(sessionName); err != nil {
+		return err
+	}
+
+	// Apply layout to the new session before attaching.
+	if layout != "" {
+		if err := tmux.LoadLayoutToSession(layout, sessionName); err != nil {
+			return err
+		}
+	}
+
+	ui.Ok(fmt.Sprintf("Session %s created", ui.Accent.Render(sessionName)))
+	fmt.Println()
+	return tmux.AttachSession(sessionName)
 }
 
 // --- mine tmux ls ---

@@ -60,6 +60,16 @@ func LoadLayout(name string) error {
 	return applyLayout(layout)
 }
 
+// LoadLayoutToSession applies a saved layout to a named session without
+// requiring the caller to be inside that session.
+func LoadLayoutToSession(layoutName, sessionName string) error {
+	layout, err := ReadLayout(layoutName)
+	if err != nil {
+		return err
+	}
+	return applyLayoutToSession(layout, sessionName)
+}
+
 // ReadLayout reads a layout from disk without applying it.
 func ReadLayout(name string) (*Layout, error) {
 	path := layoutPath(name)
@@ -187,6 +197,59 @@ func writeLayout(layout *Layout) error {
 // WriteLayout is exported for testing — writes a layout struct to disk.
 func WriteLayout(layout *Layout) error {
 	return writeLayout(layout)
+}
+
+// applyLayoutToSession applies a layout to a named session by targeting all
+// windows and panes with "sessionName:window" identifiers.
+func applyLayoutToSession(layout *Layout, sessionName string) error {
+	for i, w := range layout.Windows {
+		if i == 0 {
+			// Rename the first window (index 0) of the target session.
+			if _, err := tmuxCmd("rename-window", "-t", sessionName+":0", w.Name); err != nil {
+				return fmt.Errorf("renaming window to %q: %w", w.Name, err)
+			}
+		} else {
+			if _, err := tmuxCmd("new-window", "-t", sessionName+":", "-n", w.Name); err != nil {
+				return fmt.Errorf("creating window %q: %w", w.Name, err)
+			}
+		}
+
+		windowTarget := sessionName + ":" + w.Name
+
+		// Create additional panes.
+		for j := 1; j < w.PaneCount; j++ {
+			if _, err := tmuxCmd("split-window", "-t", windowTarget); err != nil {
+				return fmt.Errorf("splitting pane %d in window %q: %w", j, w.Name, err)
+			}
+		}
+
+		// Apply the layout string.
+		if w.Layout != "" {
+			if _, err := tmuxCmd("select-layout", "-t", windowTarget, w.Layout); err != nil {
+				return fmt.Errorf("applying layout to window %q: %w", w.Name, err)
+			}
+		}
+
+		// Set pane directories.
+		for j, p := range w.Panes {
+			if p.Dir != "" {
+				paneTarget := fmt.Sprintf("%s:%s.%d", sessionName, w.Name, j)
+				if _, err := tmuxCmd("send-keys", "-t", paneTarget,
+					fmt.Sprintf("cd %q && clear", p.Dir), "Enter"); err != nil {
+					return fmt.Errorf("sending cd to pane %s: %w", paneTarget, err)
+				}
+			}
+		}
+	}
+
+	// Select the first window.
+	if len(layout.Windows) > 0 {
+		if _, err := tmuxCmd("select-window", "-t", sessionName+":"+layout.Windows[0].Name); err != nil {
+			return fmt.Errorf("selecting window %q: %w", layout.Windows[0].Name, err)
+		}
+	}
+
+	return nil
 }
 
 // applyLayout creates windows and panes from a saved layout.

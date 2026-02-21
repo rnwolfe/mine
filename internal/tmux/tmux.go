@@ -122,6 +122,52 @@ func RenameSession(oldName, newName string) error {
 	return nil
 }
 
+// FindSessionByName returns the session with the given exact name, or nil if not found.
+func FindSessionByName(name string, sessions []Session) *Session {
+	for i := range sessions {
+		if sessions[i].Name == name {
+			return &sessions[i]
+		}
+	}
+	return nil
+}
+
+// ResolveProjectSession resolves the session name from a directory path (or the
+// current working directory if dir is empty) and checks whether a tmux session
+// with that name already exists. Returns (sessionName, exists, error).
+func ResolveProjectSession(dir string) (string, bool, error) {
+	if dir == "" {
+		d, err := os.Getwd()
+		if err != nil {
+			return "", false, err
+		}
+		dir = d
+	}
+
+	// Expand leading ~/ to home directory.
+	if strings.HasPrefix(dir, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", false, err
+		}
+		dir = filepath.Join(home, dir[2:])
+	}
+
+	sessionName := filepath.Base(dir)
+
+	sessions, err := ListSessions()
+	if err != nil {
+		return "", false, err
+	}
+
+	for _, s := range sessions {
+		if s.Name == sessionName {
+			return sessionName, true, nil
+		}
+	}
+	return sessionName, false, nil
+}
+
 // FuzzyFindSession returns the first session whose name fuzzy-matches the query,
 // or an error if no match is found. Used by attach/kill for flexible name matching.
 func FuzzyFindSession(query string, sessions []Session) (*Session, error) {

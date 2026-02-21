@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/version"
 	"github.com/spf13/cobra"
 )
@@ -14,13 +15,16 @@ var (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print mine version",
-	Run: func(_ *cobra.Command, _ []string) {
-		if versionShort {
-			fmt.Println(version.Short())
-		} else {
-			fmt.Printf("mine %s\n", version.Full())
-		}
-	},
+	RunE:  hook.Wrap("version", runVersion),
+}
+
+func runVersion(_ *cobra.Command, _ []string) error {
+	if versionShort {
+		fmt.Println(version.Short())
+	} else {
+		fmt.Printf("mine %s\n", version.Full())
+	}
+	return nil
 }
 
 func init() {

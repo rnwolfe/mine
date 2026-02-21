@@ -51,7 +51,9 @@ func TestVersionCommand(t *testing.T) {
 			os.Stdout = w
 
 			// Run the command directly (flag is already set by ParseFlags)
-			versionCmd.Run(nil, nil)
+			if err := runVersion(nil, nil); err != nil {
+				t.Fatalf("runVersion: %v", err)
+			}
 
 			// Restore stdout
 			w.Close()

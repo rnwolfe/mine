@@ -29,20 +29,33 @@ Commands lean into this naturally without being forced.
 
 ## Command Map
 
-| Command | Description | Status |
-|---------|-------------|--------|
-| `mine` | Dashboard — your world at a glance | Phase 1 |
-| `mine init` | First-time setup, guided onboarding | Phase 1 |
-| `mine todo` | Fast task management with priorities | Phase 1 |
-| `mine stash` | Dotfile & environment management | Phase 1 |
-| `mine craft` | Project scaffolding & dev tool bootstrap | Phase 2 |
-| `mine dig` | Deep work / focus mode tools | Phase 2 |
-| `mine shell` | Shell aliases, functions, completions | Phase 2 |
-| `mine ai` | AI tool integrations (Claude, Copilot, etc.) | Phase 2 |
-| `mine vault` | Secrets & credential management | Phase 3 |
-| `mine grow` | Career growth tracking & learning | Phase 3 |
-| `mine dash` | Full TUI dashboard | Phase 3 |
-| `mine config` | Configuration management | Phase 1 |
+| Command | Description | Phase | Status |
+|---------|-------------|-------|--------|
+| `mine` | Dashboard — your world at a glance | 1 | Shipped |
+| `mine init` | First-time setup, guided onboarding | 1 | Shipped |
+| `mine todo` | Fast task management with priorities | 1 | Shipped |
+| `mine stash` | Dotfile & environment management | 1 | Shipped |
+| `mine config` | Configuration management (get/set/list) | 1 | Shipped |
+| `mine version` | Build-time version info | 1 | Shipped |
+| `mine craft` | Project scaffolding & dev tool bootstrap | 2 | Shipped |
+| `mine dig` | Deep work / focus mode tools | 2 | Shipped |
+| `mine shell` | Shell aliases, functions, completions | 2 | Shipped |
+| `mine ai` | AI tool integrations (Claude, OpenAI, etc.) | 2 | Shipped |
+| `mine env` | Encrypted per-project environment profiles | 2 | Shipped |
+| `mine proj` | Project registry & context switching | 2 | Shipped |
+| `mine git` | Git helpers (sweep, PR, changelog, wip) | 2 | Shipped |
+| `mine tmux` | Tmux session & layout management | 2 | Shipped |
+| `mine ssh` | SSH connection management | 2 | Shipped |
+| `mine hook` | Hook pipeline management | 2 | Shipped |
+| `mine tips` | Contextual tips | 2 | Shipped |
+| `mine doctor` | Health check & diagnostics | 2 | Shipped |
+| `mine meta` | About / build information | 2 | Shipped |
+| `mine contrib` | Community contribution helpers | 2 | Shipped |
+| `mine plugin` | Plugin system (install, search, manage) | 3 | Shipped |
+| `mine vault` | Secrets & credential management | 3 | Shipped |
+| `mine agents` | Coding agent configuration manager | 2 | Planned |
+| `mine grow` | Career growth tracking & learning | 3 | Planned |
+| `mine dash` | Full TUI dashboard | 3 | Planned |
 
 ## Tech Stack
 
@@ -59,21 +72,31 @@ Commands lean into this naturally without being forced.
 mine (binary)
 ├── cmd/              # Cobra command definitions (thin layer)
 ├── internal/
+│   ├── ai/           # Multi-provider AI integrations
+│   ├── analytics/    # Anonymous usage telemetry
 │   ├── config/       # TOML config management (~/.config/mine/)
+│   ├── contrib/      # Community contribution helpers
+│   ├── craft/        # Recipe-driven scaffolding engine
+│   ├── env/          # Encrypted per-project env profiles
+│   ├── git/          # Git helpers (sweep, PR, changelog)
+│   ├── hook/         # Four-stage hook pipeline
+│   ├── meta/         # Build/about information
+│   ├── plugin/       # Plugin system (manifest, lifecycle, runtime)
+│   ├── proj/         # Project registry + context switching
+│   ├── shell/        # Completions, functions, shell init
+│   ├── ssh/          # SSH connection management
+│   ├── stash/        # Dotfile tracking + git-backed history
 │   ├── store/        # SQLite data layer (~/.local/share/mine/)
-│   ├── ui/           # Shared TUI components, styles, themes
+│   ├── tips/         # Contextual tips system
+│   ├── tmux/         # Session + layout management
 │   ├── todo/         # Todo domain logic
-│   ├── env/          # Environment/dotfile management
-│   ├── craft/        # Project scaffolding engine
-│   ├── shell/        # Shell integration layer
-│   ├── ai/           # AI provider integrations
-│   ├── vault/        # Encrypted secrets store
-│   ├── grow/         # Growth tracking domain
-│   └── dash/         # Dashboard composition
-├── docs/             # All documentation
-├── scripts/          # Build, install, release scripts
-├── config/           # Default/example configurations
-└── examples/         # Example configs and workflows
+│   ├── tui/          # Reusable fuzzy-search picker
+│   ├── ui/           # Theme, styles, print helpers
+│   ├── vault/        # Age-encrypted secrets store
+│   └── version/      # Build metadata
+├── site/             # Astro Starlight documentation site
+├── docs/             # Internal specs, plans, decisions
+└── scripts/          # Build, install, release, autodev helpers
 ```
 
 ## Data Locations (XDG-compliant)

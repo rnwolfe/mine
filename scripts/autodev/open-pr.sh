@@ -20,6 +20,17 @@ BRANCH_NAME="${2:?Usage: open-pr.sh ISSUE_NUMBER BRANCH_NAME}"
 ISSUE_JSON=$(gh issue view "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --json title,body)
 ISSUE_TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
 
+# ── Read agent-generated PR title ─────────────────────────────────
+
+PR_TITLE_FILE="/tmp/pr-title.txt"
+if [ -f "$PR_TITLE_FILE" ] && [ -s "$PR_TITLE_FILE" ]; then
+    autodev_info "Using agent-generated PR title"
+    PR_TITLE=$(head -1 "$PR_TITLE_FILE")
+else
+    autodev_warn "No agent-generated PR title found, falling back to issue title"
+    PR_TITLE="$ISSUE_TITLE"
+fi
+
 # ── Build PR body ─────────────────────────────────────────────────
 
 PR_DESC_FILE="/tmp/pr-description.md"
@@ -57,7 +68,7 @@ PR_URL=$(gh pr create \
     --repo "$AUTODEV_REPO" \
     --head "$BRANCH_NAME" \
     --base "$AUTODEV_BASE_BRANCH" \
-    --title "$ISSUE_TITLE" \
+    --title "$PR_TITLE" \
     --body "$PR_BODY" \
     --label "$AUTODEV_LABEL_AUTODEV")
 

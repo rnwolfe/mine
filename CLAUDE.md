@@ -82,6 +82,11 @@ Rules:
   - `features/` — high-level feature overview pages (what it does, quick example, how it works)
   - `commands/` — full command reference pages (all flags, subcommands, error table)
 - Agentic/internal docs live in `docs/internal/`, `docs/plans/`
+- When adding a new feature or command, create/update the corresponding doc pages:
+  - Feature overview: `site/src/content/docs/features/<feature>.md`
+  - Command reference: `site/src/content/docs/commands/<command>.md`
+  - Follow the pattern of existing pages (YAML frontmatter with title/description)
+  - The sidebar auto-generates from files — no config changes needed
 
 ## Architecture Patterns
 
@@ -165,10 +170,12 @@ Rules:
 ## Autonomous Development Workflow
 
 An event-driven GitHub Actions pipeline that autonomously implements issues end-to-end.
+For a comprehensive architecture deep-dive with diagrams, see
+[docs/internal/autodev-pipeline.md](docs/internal/autodev-pipeline.md).
 
 ### How it works
 
-Three workflows form a loop with a phased review pipeline:
+Four workflows form the core loop, plus a weekly audit:
 
 1. **`autodev-dispatch`** — Runs on a 4-hour cron (or manual trigger). Picks the oldest
    `agent-ready` issue, labels it `in-progress`, and triggers the implement workflow.
@@ -181,6 +188,9 @@ Three workflows form a loop with a phased review pipeline:
    - **Done**: Agent addresses Claude's feedback, creates follow-up issues for unresolved items
 4. **`claude-code-review`** — Only triggers when explicitly requested: via `claude-review-requested`
    label (autodev pipeline) or `@claude` mention in a PR comment (manual request).
+5. **`autodev-audit`** — Weekly (Monday 9 AM UTC) or manual. Runs a Claude agent to
+   analyze recent autodev PRs, compute health metrics, spot-check code quality, and
+   file a structured report as a GitHub issue labeled `autodev-audit`.
 
 ### Review pipeline flow
 
@@ -219,6 +229,7 @@ Phases: `copilot` → `claude` → `done`
 | `autodev` | PR was created by the autonomous workflow |
 | `needs-human` | Autodev hit a limit and needs human intervention |
 | `claude-review-requested` | Copilot phase done, ready for Claude review |
+| `autodev-audit` | Weekly pipeline health report issue |
 
 ### Secrets required
 
@@ -229,7 +240,7 @@ Phases: `copilot` → `claude` → `done`
 
 ### Circuit breakers
 
-- **Max concurrency**: Only 1 `autodev` PR open at a time (prevents merge conflicts)
+- **Max concurrency**: GitHub Actions concurrency groups serialize implementations; multiple PRs can be reviewed in parallel
 - **Copilot iterations**: Up to 3 fix cycles on Copilot feedback before transitioning to Claude
 - **Claude fix**: 1 final fix cycle after Claude review
 - **Timeouts**: 60 min for implementation, 45 min for review fixes
@@ -237,6 +248,7 @@ Phases: `copilot` → `claude` → `done`
 - **Protected files**: Agent cannot modify CLAUDE.md, workflows, or autodev scripts
 - **Trusted users**: Only users in `AUTODEV_TRUSTED_USERS` (config.sh) can trigger autodev via `agent-ready` label
 - **Scheduled review poll**: Every 4 hours fallback catches reviews from bot actors gated by GitHub's contributor approval
+- **Weekly audit**: Monday 9 AM UTC pipeline health report filed as GitHub issue
 
 ### Model-agnostic design
 
@@ -373,6 +385,7 @@ issues or modify user-facing strings.
 | `/refine-issue` | Iteratively improve an existing issue via Q&A (auto-picks `needs-refinement`) | `/refine-issue 35`, `/refine-issue` |
 | `/draft-issue` | Turn a rough idea into a structured issue | `/draft-issue recurring todos` |
 | `/personality-audit` | Audit CLI output, docs, and site for tone consistency | `/personality-audit cli`, `/personality-audit docs` |
+| `/autodev-audit` | Audit autodev pipeline health, PR quality, and improvement opportunities | `/autodev-audit`, `/autodev-audit pipeline`, `/autodev-audit code` |
 
 The pipeline flow: `/sweep-issues` labels issues needing work with `needs-refinement` →
 `/refine-issue` (no args) auto-picks from that queue → `/personality-audit` ensures
@@ -390,159 +403,14 @@ Key files:
 - `.claude/skills/refine-issue/SKILL.md` — issue refinement skill (with auto-pick)
 - `.claude/skills/draft-issue/SKILL.md` — issue drafting skill
 - `.claude/skills/personality-audit/SKILL.md` — tone and voice audit skill
+- `.claude/skills/autodev-audit/SKILL.md` — pipeline health and code quality audit skill
 - `.claude/skills/shared/issue-quality-checklist.md` — shared quality template
 
 ## Lessons Learned
 
-### L-001: Git config name parsing
-Git config values may be quoted (`name = "Ryan Wolfe"`). Always strip quotes
-when parsing gitconfig values. Fixed in `cmd/init.go:gitUserName()`.
-
-### L-002: TOML encoding of pre-quoted strings
-If a value already contains quotes, TOML encoder will double-escape them.
-Always clean input before saving to config.
-
-### L-003: Working directory drift
-When using `cd` in Bash tool calls (e.g., `cd site && vercel deploy`), the CWD
-persists across subsequent calls. Always use absolute paths or explicitly `cd`
-back to project root for subsequent commands.
-
-### L-004: Vercel project naming
-When deploying from a subdirectory (`site/`), Vercel uses the directory name
-as the project name. Deploy from project root or use `--name` flag to control.
-
-### L-005: GitHub Rulesets API schema sensitivity
-The rulesets API (`POST /repos/{owner}/{repo}/rulesets`) is very picky about
-the `rules[].parameters` shape. The `pull_request` type requires ALL five boolean
-params to be present. When in doubt, create the ruleset in UI first, export it,
-and use that JSON as the template.
-
-### L-006: Self-approval impossible on GitHub
-When pushing PRs via `gh` under your own token, you can't approve your own PRs.
-Branch protection requiring approvals blocks the author. Solution: use CI checks
-as the gate and Copilot for automated review, human merges manually.
-
-### L-007: Third-party scaffolding cleanup
-The claude-flow CLI scaffolded 355 files (.claude/agents/, .claude-flow/, .swarm/,
-.mcp.json, hooks in settings.json) as part of initial setup. These were generic
-templates unrelated to the Go project. Lesson: audit scaffolding tools before
-committing. Remove attribution settings (`settings.json.attribution`) immediately
-to prevent unwanted co-author credits in git history.
-
-### L-008: Copilot review catches real issues
-Copilot code review found 7 legitimate issues on first PR: bc dependency in CI,
-unchecked errors in tests, duplicated test setup, unsafe `rm $(which ...)`,
-missing curl safety note, and doc/code mismatch. Treat it as a real reviewer.
-
-### L-009: Plugin stage/mode pairing matters
-Notify mode hooks only make sense at the notify stage. A hook declared as
-`stage = "preexec"` with `mode = "notify"` will silently never execute because
-the pipeline skips notify-mode hooks during transform stages. Manifest validation
-now enforces: notify stage ↔ notify mode, everything else ↔ transform mode.
-
-### L-010: Fire-and-forget means fire-and-forget
-The notify stage was originally blocking via `wg.Wait()`, defeating the purpose.
-Notify hooks should never block command completion — the goroutine is launched
-and the command returns immediately. Tests that verify notify execution need
-polling/deadline logic instead of synchronous assertions.
-
-### L-011: Stream large plugin binaries
-Plugin binaries can be 10-50MB. Reading them entirely into memory via
-`os.ReadFile` wastes memory. Use `io.Copy` between file handles to stream
-the copy. Same pattern applies anywhere large files are moved on disk.
-
-### L-012: Acceptance criteria must be explicitly verified
-Issue #8 was implemented in PR #22, but the acceptance criteria were never verified
-and the issue didn't auto-close because the PR didn't use closing keywords. Agents
-must read the issue, verify each criterion, update issue checkboxes, and use
-`Fixes #N` / `Closes #N` / `Resolves #N` in the PR body. See "GitHub Issue Workflow"
-section for the full workflow.
-
-### L-013: Iteration tracking via HTML comments
-Autodev tracks review-fix iteration count in PR body HTML comments
-(`<!-- autodev-state: {"iteration": N} -->`). This survives PR body edits and is
-invisible to readers. `grep -oP` extracts the value. Always bump the counter after
-each review-fix cycle, and check it before starting a new one.
-
-### L-014: GITHUB_TOKEN cannot trigger downstream workflows
-GitHub's security policy prevents ALL events created by GITHUB_TOKEN from triggering
-other workflows (not just pushes — also PR open/close/reopen). The close/reopen
-workaround doesn't work because those events also come from GITHUB_TOKEN. Use a
-Personal Access Token (PAT) stored as a repo secret (`AUTODEV_TOKEN`) for operations
-that need to trigger CI, code review, or other downstream workflows.
-
-### L-015: Copilot review state is COMMENTED, not changes_requested
-GitHub Copilot's pull request reviewer posts reviews with state `COMMENTED`, not
-`changes_requested`. A workflow filtering on `review.state == 'changes_requested'`
-will never trigger on Copilot reviews. The fix is to check for the reviewer identity
-(`copilot-pull-request-reviewer[bot]`) and inspect whether the review has any actionable
-comments in either its body or its inline comments, rather than relying solely on the review state.
-
-### L-016: Bot actors trigger GitHub Actions approval gates
-When a bot (e.g. `Copilot`) posts a `pull_request_review`, GitHub treats it as a
-first-time contributor and requires manual approval before the triggered workflow runs
-(conclusion: `action_required`, zero jobs execute). This isn't configurable via API for
-public repos. Fix: add a `schedule` trigger as a fallback — a cron that polls for
-unprocessed reviews on autodev PRs regardless of who posted them.
-
-### L-017: Label-based triggers need trust verification
-The `agent-ready` label triggers the entire autonomous pipeline. Without verification,
-anyone who can label an issue could queue arbitrary code generation. Fix: use the issue
-timeline API to check who applied the label and only proceed if they're in the trusted
-users allowlist (`AUTODEV_TRUSTED_USERS` in config.sh).
-
-### L-018: Interactive picker output must handle command substitution
-Shell helpers like `p` use command substitution to capture `--print-path`, which pipes
-stdout. Bubbletea picker rendering must target a real TTY output stream (stderr) in
-that mode, or the picker can become invisible/hang despite stdin being interactive.
+See [docs/internal/lessons-learned.md](docs/internal/lessons-learned.md).
+New entries should follow the `L-NNN` numbering convention.
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `cmd/root.go` | Dashboard, command registration |
-| `cmd/todo.go` | Todo CRUD commands |
-| `cmd/proj.go` | Project CLI commands (add, rm, list, open, scan, config) |
-| `cmd/plugin.go` | Plugin CLI commands (install, remove, search, info) |
-| `internal/ui/theme.go` | Colors, icons, style constants |
-| `internal/store/store.go` | DB connection, migrations |
-| `internal/proj/proj.go` | Project domain logic — registry CRUD, scan, open state, settings |
-| `internal/todo/todo.go` | Todo domain logic + queries |
-| `internal/config/config.go` | Config load/save, XDG paths |
-| `internal/hook/hook.go` | Hook types, Context, Handler interface |
-| `internal/hook/pipeline.go` | Hook pipeline (Wrap, stage execution, flag rewrites) |
-| `internal/hook/discover.go` | User hook discovery, script creation, testing |
-| `internal/hook/registry.go` | Thread-safe hook registry with glob pattern matching |
-| `internal/hook/exec.go` | ExecHandler — runs external hook scripts |
-| `cmd/hook.go` | Hook CLI commands (list, create, test) |
-| `internal/plugin/manifest.go` | Plugin manifest parsing and validation |
-| `internal/plugin/lifecycle.go` | Plugin install, remove, list, registry management |
-| `internal/plugin/runtime.go` | Plugin invocation (hooks, commands, lifecycle events) |
-| `internal/plugin/permissions.go` | Permission sandboxing, env builder, audit log |
-| `internal/plugin/search.go` | GitHub search for mine plugins |
-| `cmd/stash.go` | Stash CLI commands (track, commit, log, restore, sync) |
-| `internal/stash/stash.go` | Stash domain logic — git-backed versioning, manifest, sync |
-| `cmd/craft.go` | Craft CLI commands (dev, ci, git, list) |
-| `internal/craft/recipe.go` | Recipe engine, registry, template execution |
-| `internal/craft/builtins.go` | Built-in recipe definitions (go, node, python, rust, docker, github CI) |
-| `internal/tui/picker.go` | Reusable fuzzy-search picker (Bubbletea model, Run helper) |
-| `internal/tui/fuzzy.go` | Fuzzy matching algorithm (subsequence with scoring) |
-| `internal/tmux/tmux.go` | Tmux session management (list, new, attach, kill) |
-| `internal/tmux/layout.go` | Layout persistence (save/load/list, TOML in XDG config) |
-| `cmd/tmux.go` | Tmux CLI commands with TUI picker integration |
-| `cmd/env.go` | Env CLI commands (show, set, unset, diff, switch, export, template, inject) |
-| `internal/env/env.go` | Env manager: profile CRUD, age encryption/decryption, active profile tracking, diff, export |
-| `scripts/autodev/config.sh` | Autodev shared constants, logging, utilities |
-| `scripts/autodev/pick-issue.sh` | Issue selection with concurrency guard |
-| `scripts/autodev/parse-reviews.sh` | Extract review feedback for agent consumption |
-| `scripts/autodev/check-gates.sh` | Quality gate verification (CI, iterations, mergeable) |
-| `scripts/autodev/open-pr.sh` | PR creation with auto-merge and iteration tracking |
-| `scripts/autodev/agent-exec.sh` | Model-agnostic agent execution abstraction |
-| `site/astro.config.mjs` | Astro + Starlight config (sidebar, social links, plugins) |
-| `site/src/content/docs/index.mdx` | Landing page (hero, features, quick start) |
-| `site/src/content/docs/getting-started/` | Installation and quick start guides |
-| `site/src/content/docs/features/` | Feature overview pages (high-level, links to command reference) |
-| `site/src/content/docs/commands/` | Command reference pages (full flags, subcommands, error tables) |
-| `site/src/content/docs/contributors/` | Architecture and plugin protocol docs |
-| `site/src/styles/custom.css` | Gold/amber brand theming |
-| `site/vercel.json` | Vercel deployment config (Astro preset, rewrites) |
+See [docs/internal/key-files.md](docs/internal/key-files.md).

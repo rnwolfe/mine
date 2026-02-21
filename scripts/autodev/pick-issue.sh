@@ -14,20 +14,6 @@ source "$(dirname "$0")/config.sh"
 
 ISSUE_NUMBER="${1:-}"
 
-# ── Check concurrency limit ────────────────────────────────────────
-
-OPEN_PRS=$(gh pr list \
-    --repo "$AUTODEV_REPO" \
-    --label "$AUTODEV_LABEL_AUTODEV" \
-    --state open \
-    --json number \
-    --jq 'length')
-
-if [ "$OPEN_PRS" -ge "$AUTODEV_MAX_OPEN_PRS" ]; then
-    autodev_info "Concurrency limit reached ($OPEN_PRS/$AUTODEV_MAX_OPEN_PRS autodev PRs open). Skipping."
-    exit 0
-fi
-
 # ── Verify agent-ready label was applied by a trusted user ────────
 
 verify_trusted_labeler() {

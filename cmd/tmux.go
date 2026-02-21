@@ -420,9 +420,9 @@ func runTmuxLayoutSave(_ *cobra.Command, args []string) error {
 // --- mine tmux layout load ---
 
 var tmuxLayoutLoadCmd = &cobra.Command{
-	Use:   "load <name>",
+	Use:   "load [name]",
 	Short: "Restore a saved layout",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  hook.Wrap("tmux.layout.load", runTmuxLayoutLoad),
 }
 
@@ -434,7 +434,62 @@ func runTmuxLayoutLoad(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("not inside a tmux session — attach first")
 	}
 
-	name := args[0]
+	var name string
+
+	if len(args) > 0 {
+		name = args[0]
+	} else {
+		// No name given: open fuzzy picker (TTY) or list layouts (non-TTY).
+		names, err := tmux.ListLayouts()
+		if err != nil {
+			return err
+		}
+
+		if len(names) == 0 {
+			fmt.Println()
+			fmt.Println(ui.Muted.Render("  No saved layouts."))
+			fmt.Printf("  Save one: %s\n", ui.Accent.Render("mine tmux layout save <name>"))
+			fmt.Println()
+			return nil
+		}
+
+		if !tui.IsTTY() {
+			fmt.Println()
+			fmt.Println(ui.Muted.Render("  Specify a layout name or run interactively in a terminal."))
+			fmt.Println()
+			for _, n := range names {
+				fmt.Printf("  %s\n", ui.Accent.Render(n))
+			}
+			fmt.Println()
+			return fmt.Errorf("no layout name given")
+		}
+
+		items := make([]tui.Item, len(names))
+		for i, n := range names {
+			desc := ""
+			if layout, err := tmux.ReadLayout(n); err == nil {
+				w := "windows"
+				if len(layout.Windows) == 1 {
+					w = "window"
+				}
+				desc = fmt.Sprintf("%d %s", len(layout.Windows), w)
+			}
+			items[i] = layoutItem{name: n, description: desc}
+		}
+
+		chosen, err := tui.Run(items,
+			tui.WithTitle(ui.IconPick+"Load layout"),
+			tui.WithHeight(12),
+		)
+		if err != nil {
+			return err
+		}
+		if chosen == nil {
+			return nil // user canceled
+		}
+		name = chosen.Title()
+	}
+
 	if err := tmux.LoadLayout(name); err != nil {
 		return err
 	}
@@ -443,6 +498,16 @@ func runTmuxLayoutLoad(_ *cobra.Command, args []string) error {
 	fmt.Println()
 	return nil
 }
+
+// layoutItem adapts a layout name for the TUI fuzzy picker.
+type layoutItem struct {
+	name        string
+	description string
+}
+
+func (l layoutItem) FilterValue() string { return l.name }
+func (l layoutItem) Title() string       { return l.name }
+func (l layoutItem) Description() string { return l.description }
 
 // --- mine tmux layout ls ---
 

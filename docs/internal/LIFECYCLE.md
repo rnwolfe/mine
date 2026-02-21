@@ -7,49 +7,42 @@ layer. Every skill and workflow maps to exactly one place in this diagram.
 
 ---
 
-## Overview
+## Diagram
 
-```
-  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────────────────────────────┐
-  │ Phase 1  │    │ Phase 2  │    │ Phase 3  │    │          Phase 4                  │
-  │          │    │          │    │          │    │                                  │
-  │ ROADMAP  │───▶│ FEATURE  │───▶│ BACKLOG  │───▶│         IMPLEMENT                │
-  │          │    │   DEF    │    │ QUALITY  │    │                                  │
-  │/product  │    │/product  │    │/sweep    │    │ ┌──────────┐ ┌────────┐ ┌──────┐ │
-  │          │    │  spec    │    │  issues  │    │ │  Maestro │ │/auto   │ │  GH  │ │
-  │          │    │/brainstm │    │/refine   │    │ │ Auto Run │ │  dev   │ │Actns │ │
-  │          │    │/draft-   │    │  issue   │    │ │(parallel)│ │ skill  │ │pipe  │ │
-  │          │    │  issue   │    │/product  │    │ └────┬─────┘ └───┬────┘ └──┬───┘ │
-  │          │    │          │    │  eval N  │    │      └───────────┴─────────┘     │
-  └──────────┘    └──────────┘    └──────────┘    └──────────────┬───────────────────┘
-                                  gate: agent-ready              │ PR opened
-                                                                 ▼
-                                       ┌──────────┐    ┌──────────────────────────────┐
-                                       │ Phase 7  │    │          Phase 5             │
-                                       │          │    │                              │
-                                       │ FEEDBACK │    │          REVIEW              │
-                                       │          │    │                              │
-                              ◀────────│/product  │    │  Copilot review              │
-                              Phase 1  │  sync    │    │  ──▶ fix iterations (≤3)     │
-                                       │          │    │  ──▶ Claude review           │
-                                       └────▲─────┘    │  ──▶ final fix              │
-                                            │          │  ──▶ phase: done             │
-                                       ┌────┴─────┐    └──────────────┬───────────────┘
-                                       │ Phase 6  │                   │ PR approved
-                                       │          │◀──────────────────┘
-                                       │  MERGE   │
-                                       │          │
-                                       │  Human   │
-                                       │ (→ auto) │
-                                       └──────────┘
+```mermaid
+flowchart LR
+    P1["1 · ROADMAP\n/product\n/product sync"]
+    P2["2 · FEATURE DEF\n/product spec\n/brainstorm\n/draft-issue"]
+    P3["3 · BACKLOG QUALITY\n/sweep-issues\n/refine-issue\n/product eval"]
+    GATE{{"agent-\nready?"}}
 
-  ╔══════════════════════════════════════════════════════════════════════════════════╗
-  ║  AUDIT LAYER  (cross-cutting — cadence-driven, not flow-triggered)              ║
-  ║                                                                                  ║
-  ║  Phases 1–3  /sweep-issues · /refine-issue · /product eval N  Backlog quality   ║
-  ║  Phases 4–5  /autodev-audit skill + GH Actions weekly cron    Pipeline health   ║
-  ║  Phase 7     /personality-audit                               Docs & style      ║
-  ╚══════════════════════════════════════════════════════════════════════════════════╝
+    subgraph IMPL["4 · IMPLEMENTATION"]
+        direction TB
+        PA["Path A · Maestro Auto Run\nParallel loops · self-reviewing"]
+        PB["Path B · /autodev skill\nSingle-issue · interactive"]
+        PC["Path C · GitHub Actions\nCron-driven · always-on"]
+    end
+
+    P5["5 · REVIEW\nCopilot ≤3 iterations\n→ Claude → done"]
+    P6["6 · MERGE\nHuman merge\ntarget: automated"]
+    P7["7 · FEEDBACK\n/product sync"]
+
+    P1 --> P2 --> P3 --> GATE
+    GATE -- No --> P3
+    GATE -- Yes --> PA & PB & PC
+    PA & PB & PC -- PR opened --> P5
+    P5 --> P6 --> P7 -- Next cycle --> P1
+
+    subgraph AUDIT["AUDIT LAYER — cadence-driven, not flow-triggered"]
+        direction LR
+        AU1["Phases 1–3 · Backlog quality\n/sweep-issues · /refine-issue · /product eval"]
+        AU2["Phases 4–5 · Pipeline health\n/autodev-audit skill · weekly GH Action"]
+        AU3["Phase 7 · Docs and style\n/personality-audit"]
+    end
+
+    P3 -. audited by .-> AU1
+    IMPL -. audited by .-> AU2
+    P7 -. audited by .-> AU3
 ```
 
 ---

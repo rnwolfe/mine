@@ -75,10 +75,11 @@ Saves the current tmux session's window and pane layout. Must be run from inside
 ### Load a Layout
 
 ```bash
-mine tmux layout load dev-setup
+mine tmux layout load dev-setup   # load by name
+mine tmux layout load             # interactive picker (TTY) or list (piped)
 ```
 
-Restores a previously saved layout. Must be run from inside a tmux session.
+Restores a previously saved layout. Must be run from inside a tmux session. Without a name, opens an interactive fuzzy picker over saved layouts. Falls back to listing available layout names when stdout is not a TTY.
 
 ### List Saved Layouts
 

@@ -26,7 +26,7 @@ func runAbout(_ *cobra.Command, _ []string) {
 	fmt.Println(ui.Muted.Render("  Git helpers. Tmux sessions. AI code review. All in one binary."))
 	fmt.Println()
 	ui.Kv("  Version", version.Full())
-	ui.Kv("  Repo   ", "https://github.com/rnwolfe/mine")
+	ui.Kv("  Repo", "https://github.com/rnwolfe/mine")
 	ui.Kv("  License", "MIT")
 	fmt.Println()
 	fmt.Println(ui.Muted.Render("  Built for developers who got tired of juggling twelve different tools."))

@@ -123,3 +123,79 @@ func TestLayoutItemDescriptionErrorReading(t *testing.T) {
 		t.Errorf("Description: want %q, got %q", "(error reading)", got)
 	}
 }
+
+// TestTmuxLayoutPreviewCmdArgs verifies arg count enforcement on the preview command.
+func TestTmuxLayoutPreviewCmdArgs(t *testing.T) {
+	if err := tmuxLayoutPreviewCmd.Args(tmuxLayoutPreviewCmd, []string{"dev-setup"}); err != nil {
+		t.Errorf("expected 1 arg to be valid, got: %v", err)
+	}
+	if err := tmuxLayoutPreviewCmd.Args(tmuxLayoutPreviewCmd, []string{}); err == nil {
+		t.Error("expected 0 args to be rejected, but got nil error")
+	}
+	if err := tmuxLayoutPreviewCmd.Args(tmuxLayoutPreviewCmd, []string{"a", "b"}); err == nil {
+		t.Error("expected 2 args to be rejected, but got nil error")
+	}
+}
+
+// TestRunTmuxLayoutPreviewNotFound verifies that previewing a missing layout returns an error.
+func TestRunTmuxLayoutPreviewNotFound(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	err := runTmuxLayoutPreview(nil, []string{"nonexistent"})
+	if err == nil {
+		t.Fatal("expected error for nonexistent layout, got nil")
+	}
+	if !strings.Contains(err.Error(), "nonexistent") {
+		t.Errorf("expected error to mention layout name, got: %v", err)
+	}
+}
+
+// TestRunTmuxLayoutPreviewOutput verifies that previewing a known layout prints
+// the layout name, save timestamp, window names, pane counts, and directories.
+func TestRunTmuxLayoutPreviewOutput(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configDir)
+
+	savedAt := time.Date(2024, 1, 15, 14, 30, 0, 0, time.UTC)
+	layout := &tmux.Layout{
+		Name:    "dev-setup",
+		SavedAt: savedAt,
+		Windows: []tmux.WindowLayout{
+			{
+				Name:      "editor",
+				PaneCount: 2,
+				Panes:     []tmux.PaneLayout{{Dir: "/home/user/code"}},
+			},
+			{
+				Name:      "server",
+				PaneCount: 1,
+				Panes:     []tmux.PaneLayout{{Dir: "/home/user/code/api"}},
+			},
+		},
+	}
+	if err := tmux.WriteLayout(layout); err != nil {
+		t.Fatal(err)
+	}
+
+	var runErr error
+	output := captureStdout(t, func() {
+		runErr = runTmuxLayoutPreview(nil, []string{"dev-setup"})
+	})
+
+	if runErr != nil {
+		t.Fatalf("expected no error, got: %v", runErr)
+	}
+
+	for _, want := range []string{
+		"dev-setup",
+		"2024-01-15",
+		"editor",
+		"server",
+		"/home/user/code",
+		"/home/user/code/api",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output missing %q\nGot:\n%s", want, output)
+		}
+	}
+}

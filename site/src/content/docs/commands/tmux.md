@@ -114,6 +114,14 @@ mine tmux layout list
 
 Lists all saved layouts with window counts, window names, and save timestamps.
 
+### Preview a Layout
+
+```bash
+mine tmux layout preview dev-setup
+```
+
+Displays a layout's name, save timestamp, and a table of windows with their pane counts and directories — without loading or modifying any tmux session. Works outside of tmux, making it useful for verifying you have the right layout before running `layout load`.
+
 ### Delete a Layout
 
 ```bash
@@ -143,6 +151,9 @@ mine tmux new myapi
 
 # Save your dev layout (3 panes: editor, server, tests)
 mine tmux layout save dev-3pane
+
+# Preview a layout before loading it
+mine tmux layout preview dev-3pane
 
 # Later, restore it
 mine tmux layout load dev-3pane

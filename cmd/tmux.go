@@ -37,6 +37,7 @@ func init() {
 	tmuxLayoutCmd.AddCommand(tmuxLayoutSaveCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutLoadCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutLsCmd)
+	tmuxLayoutCmd.AddCommand(tmuxLayoutPreviewCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutDeleteCmd)
 
 	tmuxProjectCmd.Flags().StringVar(&tmuxProjectLayout, "layout", "", "Apply a saved layout on creation (skipped on attach)")
@@ -454,6 +455,7 @@ func runTmuxLayoutHelp(_ *cobra.Command, _ []string) error {
 	fmt.Printf("  %s  %s\n", ui.Accent.Render("mine tmux layout save <name>"), ui.Muted.Render("Save current layout"))
 	fmt.Printf("  %s  %s\n", ui.Accent.Render("mine tmux layout load <name>"), ui.Muted.Render("Restore a layout"))
 	fmt.Printf("  %s  %s\n", ui.Accent.Render("mine tmux layout ls"), ui.Muted.Render("List saved layouts"))
+	fmt.Printf("  %s  %s\n", ui.Accent.Render("mine tmux layout preview <name>"), ui.Muted.Render("Preview layout details"))
 	fmt.Printf("  %s  %s\n", ui.Accent.Render("mine tmux layout delete <name>"), ui.Muted.Render("Delete a saved layout"))
 	fmt.Println()
 	return nil
@@ -567,6 +569,56 @@ func runTmuxLayoutLoad(_ *cobra.Command, args []string) error {
 	}
 
 	ui.Ok(fmt.Sprintf("Layout %s restored", ui.Accent.Render(name)))
+	fmt.Println()
+	return nil
+}
+
+// --- mine tmux layout preview ---
+
+var tmuxLayoutPreviewCmd = &cobra.Command{
+	Use:   "preview <name>",
+	Short: "Show layout details without loading it",
+	Long:  `Display layout name, save timestamp, and window details without entering or modifying any tmux session. Works outside of tmux.`,
+	Args:  cobra.ExactArgs(1),
+	RunE:  hook.Wrap("tmux.layout.preview", runTmuxLayoutPreview),
+}
+
+func runTmuxLayoutPreview(_ *cobra.Command, args []string) error {
+	name := args[0]
+	layout, err := tmux.ReadLayout(name)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println()
+	fmt.Printf("  %s  %s\n", ui.Muted.Render("Layout:"), ui.Accent.Render(layout.Name))
+	if !layout.SavedAt.IsZero() {
+		fmt.Printf("  %s  %s\n", ui.Muted.Render("Saved:"), ui.Muted.Render(layout.SavedAt.Format("2006-01-02 15:04")))
+	}
+	fmt.Println()
+
+	if len(layout.Windows) == 0 {
+		fmt.Println(ui.Muted.Render("  No windows in layout."))
+		fmt.Println()
+		return nil
+	}
+
+	fmt.Printf("  %s  %s  %s\n",
+		ui.Muted.Render(fmt.Sprintf("%-20s", "Window")),
+		ui.Muted.Render(fmt.Sprintf("%-6s", "Panes")),
+		ui.Muted.Render("Directory"),
+	)
+	for _, w := range layout.Windows {
+		dir := ""
+		if len(w.Panes) > 0 {
+			dir = w.Panes[0].Dir
+		}
+		fmt.Printf("  %s  %s  %s\n",
+			ui.Accent.Render(fmt.Sprintf("%-20s", w.Name)),
+			fmt.Sprintf("%-6d", w.PaneCount),
+			ui.Muted.Render(dir),
+		)
+	}
 	fmt.Println()
 	return nil
 }

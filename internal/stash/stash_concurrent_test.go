@@ -180,7 +180,7 @@ func TestConcurrentRestore(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			_, errs[i] = RestoreToSource(".zshrc", "HEAD")
+			_, errs[i] = RestoreToSource(".zshrc", "HEAD", false)
 		}(i)
 	}
 	wg.Wait()

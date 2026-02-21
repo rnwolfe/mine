@@ -33,6 +33,7 @@ func init() {
 
 	stashCommitCmd.Flags().StringP("message", "m", "", "Commit message")
 	stashRestoreCmd.Flags().StringP("version", "v", "", "Version hash to restore (default: latest)")
+	stashRestoreCmd.Flags().BoolP("force", "f", false, "Override destination file permissions with stash-recorded permissions")
 }
 
 var stashInitCmd = &cobra.Command{
@@ -306,9 +307,10 @@ func runStashLog(_ *cobra.Command, args []string) error {
 func runStashRestore(cmd *cobra.Command, args []string) error {
 	file := args[0]
 	version, _ := cmd.Flags().GetString("version")
+	force, _ := cmd.Flags().GetBool("force")
 
 	// RestoreToSource returns the Entry, avoiding duplicate FindEntry calls
-	entry, err := stash.RestoreToSource(file, version)
+	entry, err := stash.RestoreToSource(file, version, force)
 	if err != nil {
 		return err
 	}

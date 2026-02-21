@@ -23,6 +23,16 @@ var tmuxCmd = &cobra.Command{
 	RunE:    hook.Wrap("tmux", runTmux),
 }
 
+var tmuxNewLayout string
+
+// Injectable for testing — only used in runTmuxNew.
+var (
+	readLayoutFunc  = tmux.ReadLayout
+	newSessionFunc  = tmux.NewSession
+	loadLayoutFunc  = tmux.LoadLayout
+	killSessionFunc = tmux.KillSession
+)
+
 func init() {
 	rootCmd.AddCommand(tmuxCmd)
 
@@ -40,6 +50,7 @@ func init() {
 	tmuxLayoutCmd.AddCommand(tmuxLayoutPreviewCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutDeleteCmd)
 
+	tmuxNewCmd.Flags().StringVar(&tmuxNewLayout, "layout", "", "Apply a saved layout after creating the session")
 	tmuxProjectCmd.Flags().StringVar(&tmuxProjectLayout, "layout", "", "Apply a saved layout on creation (skipped on attach)")
 }
 
@@ -108,13 +119,34 @@ func runTmuxNew(_ *cobra.Command, args []string) error {
 		name = args[0]
 	}
 
-	resolved, err := tmux.NewSession(name, "")
+	// Validate layout exists before creating the session — fail fast, no side effects.
+	if tmuxNewLayout != "" {
+		if _, err := readLayoutFunc(tmuxNewLayout); err != nil {
+			return fmt.Errorf("layout %q not found — session not created; save a layout first: mine tmux layout save %s",
+				tmuxNewLayout, tmuxNewLayout)
+		}
+	}
+
+	resolved, err := newSessionFunc(name, "")
 	if err != nil {
 		return err
 	}
 
-	ui.Ok(fmt.Sprintf("Session %s created", ui.Accent.Render(resolved)))
-	fmt.Printf("  Attach: %s\n", ui.Muted.Render("mine tmux attach "+resolved))
+	if tmuxNewLayout != "" {
+		if err := loadLayoutFunc(tmuxNewLayout); err != nil {
+			// Best-effort cleanup: kill the newly created session to avoid leaving it orphaned.
+			if killErr := killSessionFunc(resolved); killErr != nil {
+				return fmt.Errorf("layout %q failed to apply: %v (also failed to clean up session %q: %v)",
+					tmuxNewLayout, err, resolved, killErr)
+			}
+			return fmt.Errorf("layout %q failed to apply — session %q was cleaned up", tmuxNewLayout, resolved)
+		}
+		ui.Ok(fmt.Sprintf("Session %s created with layout %s",
+			ui.Accent.Render(resolved), ui.Accent.Render(tmuxNewLayout)))
+	} else {
+		ui.Ok(fmt.Sprintf("Session %s created", ui.Accent.Render(resolved)))
+		fmt.Printf("  Attach: %s\n", ui.Muted.Render("mine tmux attach "+resolved))
+	}
 	fmt.Println()
 	return nil
 }

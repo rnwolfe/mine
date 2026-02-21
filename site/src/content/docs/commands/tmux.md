@@ -41,11 +41,14 @@ Add `tp` to your shell with `mine shell init`.
 ## Create a Session
 
 ```bash
-mine tmux new           # auto-names from current directory
-mine tmux new myproject # explicit name
+mine tmux new                        # auto-names from current directory
+mine tmux new myproject              # explicit name
+mine tmux new myproject --layout dev # create and immediately apply a saved layout
 ```
 
 Creates a new tmux session. If no name is given, the session is named after the current directory.
+
+Use `--layout <name>` to apply a saved layout immediately after the session is created. If the named layout does not exist, the session is **not** created and an error is printed — no side effects.
 
 ## List Sessions
 
@@ -152,10 +155,13 @@ mine tmux new myapi
 # Save your dev layout (3 panes: editor, server, tests)
 mine tmux layout save dev-3pane
 
+# Create a new session and immediately apply your saved layout
+mine tmux new myapi --layout dev-3pane
+
 # Preview a layout before loading it
 mine tmux layout preview dev-3pane
 
-# Later, restore it
+# Later, restore a layout into the current session
 mine tmux layout load dev-3pane
 
 # Remove a layout you no longer need

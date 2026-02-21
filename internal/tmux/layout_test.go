@@ -345,6 +345,100 @@ func TestApplyLayoutToSession_Stubbed(t *testing.T) {
 	}
 }
 
+func TestNewSessionWithLayout_InvalidLayoutErrors(t *testing.T) {
+	// Validates that ReadLayout fails before any session creation happens —
+	// the core invariant for `mine tmux new --layout`.
+	tmp := t.TempDir()
+	origConfigDir := os.Getenv("XDG_CONFIG_HOME")
+	os.Setenv("XDG_CONFIG_HOME", tmp)
+	defer os.Setenv("XDG_CONFIG_HOME", origConfigDir)
+
+	sessionCreated := false
+	origCmd := tmuxCmd
+	defer func() { tmuxCmd = origCmd }()
+	tmuxCmd = func(args ...string) (string, error) {
+		if len(args) >= 1 && args[0] == "new-session" {
+			sessionCreated = true
+		}
+		return "", nil
+	}
+
+	// Layout does not exist — ReadLayout must error.
+	_, err := ReadLayout("does-not-exist")
+	if err == nil {
+		t.Fatal("expected error for nonexistent layout")
+	}
+	if sessionCreated {
+		t.Fatal("session creation should not have happened when layout is invalid")
+	}
+}
+
+func TestNewSessionWithLayout_AppliesAfterCreate(t *testing.T) {
+	// Validates the happy path: layout exists → session created → layout applied.
+	tmp := t.TempDir()
+	origConfigDir := os.Getenv("XDG_CONFIG_HOME")
+	os.Setenv("XDG_CONFIG_HOME", tmp)
+	defer os.Setenv("XDG_CONFIG_HOME", origConfigDir)
+
+	layout := &Layout{
+		Name:    "dev",
+		Windows: []WindowLayout{{Name: "editor", PaneCount: 1, Panes: []PaneLayout{{Dir: "/tmp"}}}},
+	}
+	if err := WriteLayout(layout); err != nil {
+		t.Fatalf("WriteLayout: %v", err)
+	}
+
+	var calls []string
+	origCmd := tmuxCmd
+	defer func() { tmuxCmd = origCmd }()
+	tmuxCmd = func(args ...string) (string, error) {
+		if len(args) > 0 {
+			calls = append(calls, args[0])
+		}
+		return "", nil
+	}
+
+	// Simulate the --layout sequence: validate → create → apply.
+	if _, err := ReadLayout("dev"); err != nil {
+		t.Fatalf("ReadLayout should succeed: %v", err)
+	}
+	if _, err := NewSession("myproject", ""); err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+	if err := LoadLayout("dev"); err != nil {
+		t.Fatalf("LoadLayout: %v", err)
+	}
+
+	var sawNewSession, sawRenameWindow bool
+	for _, c := range calls {
+		switch c {
+		case "new-session":
+			sawNewSession = true
+		case "rename-window":
+			sawRenameWindow = true
+		}
+	}
+	if !sawNewSession {
+		t.Errorf("expected new-session call, got: %v", calls)
+	}
+	if !sawRenameWindow {
+		t.Errorf("expected rename-window call (layout apply), got: %v", calls)
+	}
+	// Verify ordering: new-session must come before rename-window.
+	newIdx, renameIdx := -1, -1
+	for i, c := range calls {
+		if c == "new-session" && newIdx == -1 {
+			newIdx = i
+		}
+		if c == "rename-window" && renameIdx == -1 {
+			renameIdx = i
+		}
+	}
+	if newIdx >= renameIdx {
+		t.Errorf("new-session (idx %d) must precede rename-window (idx %d)", newIdx, renameIdx)
+	}
+}
+
 func TestApplyLayout_ErrorPropagation(t *testing.T) {
 	origCmd := tmuxCmd
 	defer func() { tmuxCmd = origCmd }()

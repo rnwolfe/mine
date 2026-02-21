@@ -374,12 +374,15 @@ Workflow:
 
 ## Product Development Lifecycle
 
-The full skill pipeline — from strategic direction to shipped feature — is documented in:
+The full pipeline — from roadmap to shipped feature — is documented in:
 
 `docs/internal/LIFECYCLE.md`
 
-Layers: **Strategy → Discovery → Specification → Backlog Entry → Backlog Quality →
-Implementation → Quality Assurance → (back to Strategy)**
+**7 phases**: Roadmap → Feature Definition → Backlog Quality → Implementation → Review → Merge → Feedback → (repeat)
+
+**3 implementation paths** (Phase 4): Maestro Auto Run (`maestro/Backlog-Loop/`) · `/autodev` skill · GitHub Actions pipeline
+
+**Audit layer** (cross-cutting, cadence-driven): `/sweep-issues` · `/refine-issue` · `/autodev-audit` · `/personality-audit`
 
 Entry point when you don't know where to start: `/product`
 

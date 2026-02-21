@@ -13,6 +13,7 @@ import (
 	"github.com/rnwolfe/mine/internal/plugin"
 	"github.com/rnwolfe/mine/internal/proj"
 	"github.com/rnwolfe/mine/internal/store"
+	"github.com/rnwolfe/mine/internal/tips"
 	"github.com/rnwolfe/mine/internal/todo"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/rnwolfe/mine/internal/version"
@@ -61,6 +62,8 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(aboutCmd)
+	rootCmd.AddCommand(tipsCmd)
+	rootCmd.AddCommand(doctorCmd)
 }
 
 // fireAnalytics sends an anonymous analytics ping synchronously.
@@ -132,10 +135,22 @@ func runDashboard(_ *cobra.Command, _ []string) error {
 	if !config.Initialized() {
 		fmt.Println(ui.Greet(""))
 		fmt.Println()
-		fmt.Println("  " + ui.Subtitle.Render("Looks like this is your first time here!"))
+		fmt.Println("  " + ui.Subtitle.Render("Your personal developer supercharger. Here's what's waiting:"))
 		fmt.Println()
-		fmt.Println(ui.Muted.Render("  mine is your all-in-one dev companion — todos, secrets, env profiles,"))
-		fmt.Println(ui.Muted.Render("  dotfile stashing, git helpers, tmux, and AI code review."))
+		features := []struct{ cmd, desc string }{
+			{"mine todo", "Capture and track tasks without leaving the terminal"},
+			{"mine proj", "Jump between projects instantly with the p helper"},
+			{"mine ai ask", "Get AI answers and code review without browser tabs"},
+			{"mine stash", "Version-control any file, not just code"},
+			{"mine vault", "Encrypted secrets — no more plaintext .env files"},
+		}
+		for _, f := range features {
+			fmt.Printf("  %s %-14s %s\n",
+				ui.Accent.Render("✦"),
+				ui.Accent.Render(f.cmd),
+				ui.Muted.Render(f.desc),
+			)
+		}
 		fmt.Println()
 		fmt.Printf("  Run %s to get set up in about 30 seconds.\n", ui.Accent.Render("mine init"))
 		fmt.Println()
@@ -199,20 +214,7 @@ func runDashboard(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// dashboardTip returns a contextual tip for the dashboard when there are no open todos.
-// Tips rotate based on time to keep the dashboard feeling fresh.
+// dashboardTip returns a daily rotating tip for the dashboard.
 func dashboardTip(t time.Time) string {
-	tips := []string{
-		"`mine todo add \"something awesome\"` to capture an idea.",
-		"`mine stash track ~/.zshrc` to version-control your dotfiles.",
-		"`mine vault set <key> <value>` to lock away a secret.",
-		"`mine env set KEY=VALUE` to manage per-project env vars.",
-		"`mine proj add .` to register this directory as a project.",
-		"`mine proj` to fuzzy-pick and jump between projects.",
-		"`mine ai ask \"explain this function\"` for a quick AI assist.",
-		"`mine git sweep` to delete merged branches in one shot.",
-		"`mine craft dev go` to scaffold a new Go project.",
-		"`mine dig` to start a focused 25-minute work session.",
-	}
-	return tips[t.Minute()%len(tips)]
+	return tips.Daily(t)
 }

@@ -679,7 +679,7 @@ func runTmuxLayoutDelete(_ *cobra.Command, args []string) error {
 
 	items := make([]tui.Item, len(names))
 	for i, n := range names {
-		items[i] = layoutItem(n)
+		items[i] = layoutItem{name: n}
 	}
 
 	chosen, err := tui.Run(items,
@@ -701,13 +701,6 @@ func runTmuxLayoutDelete(_ *cobra.Command, args []string) error {
 	fmt.Println()
 	return nil
 }
-
-// layoutItem wraps a layout name for the TUI picker.
-type layoutItem string
-
-func (l layoutItem) FilterValue() string { return string(l) }
-func (l layoutItem) Title() string       { return string(l) }
-func (l layoutItem) Description() string { return "" }
 
 // --- helpers ---
 

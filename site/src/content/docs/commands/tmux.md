@@ -50,6 +50,16 @@ mine tmux kill               # interactive picker
 
 Kills a tmux session. Supports fuzzy matching and the interactive picker.
 
+## Rename a Session
+
+```bash
+mine tmux rename old new     # rename directly, no prompts
+mine tmux rename oldname     # fuzzy-match session, then prompt for new name
+mine tmux rename             # interactive picker, then prompt for new name
+```
+
+Renames a tmux session. In 2-arg mode the rename happens immediately. In 1-arg mode the session is fuzzy-matched by name and you are prompted for the new name. With no args, an interactive picker lets you select the session and then prompts for the new name.
+
 ## Layouts
 
 Save and restore window/pane layouts.
@@ -93,6 +103,9 @@ mine tmux layout load dev-3pane
 
 # Switch between sessions
 mine tmux
+
+# Rename a session
+mine tmux rename old-name new-name
 
 # Clean up
 mine tmux kill old-project

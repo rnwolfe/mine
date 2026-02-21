@@ -110,6 +110,18 @@ func KillSession(name string) error {
 	return nil
 }
 
+// RenameSession renames an existing tmux session from oldName to newName.
+func RenameSession(oldName, newName string) error {
+	if newName == "" {
+		return fmt.Errorf("new session name cannot be empty")
+	}
+	_, err := tmuxCmd("rename-session", "-t", oldName, newName)
+	if err != nil {
+		return fmt.Errorf("renaming session %q to %q: %w", oldName, newName, err)
+	}
+	return nil
+}
+
 // FuzzyFindSession returns the first session whose name fuzzy-matches the query,
 // or an error if no match is found. Used by attach/kill for flexible name matching.
 func FuzzyFindSession(query string, sessions []Session) (*Session, error) {

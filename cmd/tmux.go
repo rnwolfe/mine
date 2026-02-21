@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/rnwolfe/mine/internal/hook"
@@ -26,6 +28,7 @@ func init() {
 	tmuxCmd.AddCommand(tmuxLsCmd)
 	tmuxCmd.AddCommand(tmuxAttachCmd)
 	tmuxCmd.AddCommand(tmuxKillCmd)
+	tmuxCmd.AddCommand(tmuxRenameCmd)
 	tmuxCmd.AddCommand(tmuxLayoutCmd)
 
 	tmuxLayoutCmd.AddCommand(tmuxLayoutSaveCmd)
@@ -266,6 +269,103 @@ func runTmuxKill(_ *cobra.Command, args []string) error {
 	}
 
 	ui.Ok(fmt.Sprintf("Killed session %s", ui.Accent.Render(target.Name)))
+	fmt.Println()
+	return nil
+}
+
+// --- mine tmux rename ---
+
+var tmuxRenameCmd = &cobra.Command{
+	Use:   "rename [old] [new]",
+	Short: "Rename a tmux session",
+	Long: `Rename a tmux session interactively or directly.
+
+  2 args: rename directly without prompts
+  1 arg:  fuzzy-match session by name, then prompt for new name
+  0 args: open TUI picker to select session, then prompt for new name`,
+	Args: cobra.MaximumNArgs(2),
+	RunE: hook.Wrap("tmux.rename", runTmuxRename),
+}
+
+func runTmuxRename(_ *cobra.Command, args []string) error {
+	if !tmux.Available() {
+		return fmt.Errorf("tmux not found in PATH")
+	}
+
+	sessions, err := tmux.ListSessions()
+	if err != nil {
+		return err
+	}
+
+	if len(sessions) == 0 {
+		return fmt.Errorf("no tmux sessions running")
+	}
+
+	// 2 args: direct rename, no prompts.
+	if len(args) == 2 {
+		oldName, newName := args[0], args[1]
+		if newName == "" {
+			return fmt.Errorf("new session name cannot be empty")
+		}
+		if err := tmux.RenameSession(oldName, newName); err != nil {
+			return err
+		}
+		ui.Ok(fmt.Sprintf("Renamed session %s → %s", ui.Accent.Render(oldName), ui.Accent.Render(newName)))
+		fmt.Println()
+		return nil
+	}
+
+	// Resolve the old session name.
+	var oldName string
+
+	if len(args) == 1 {
+		// 1 arg: fuzzy-match the session.
+		s, err := tmux.FuzzyFindSession(args[0], sessions)
+		if err != nil {
+			return err
+		}
+		oldName = s.Name
+	} else {
+		// 0 args: use TUI picker if TTY, else require a name.
+		if !tui.IsTTY() {
+			fmt.Println()
+			fmt.Println(ui.Muted.Render("  Specify a session name or run interactively in a terminal."))
+			return printSessionList(sessions)
+		}
+
+		items := make([]tui.Item, len(sessions))
+		for i := range sessions {
+			items[i] = sessions[i]
+		}
+
+		chosen, err := tui.Run(items,
+			tui.WithTitle(ui.IconPick+"Rename session"),
+			tui.WithHeight(12),
+		)
+		if err != nil {
+			return err
+		}
+		if chosen == nil {
+			return nil // user canceled
+		}
+		oldName = chosen.Title()
+	}
+
+	// Prompt for new name.
+	fmt.Fprintf(os.Stderr, "  New name for %s: ", ui.Accent.Render(oldName))
+	reader := bufio.NewReader(os.Stdin)
+	line, _ := reader.ReadString('\n')
+	newName := strings.TrimSpace(line)
+
+	if newName == "" {
+		return fmt.Errorf("new session name cannot be empty")
+	}
+
+	if err := tmux.RenameSession(oldName, newName); err != nil {
+		return err
+	}
+
+	ui.Ok(fmt.Sprintf("Renamed session %s → %s", ui.Accent.Render(oldName), ui.Accent.Render(newName)))
 	fmt.Println()
 	return nil
 }

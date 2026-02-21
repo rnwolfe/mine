@@ -1,6 +1,7 @@
 package tmux
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -197,5 +198,49 @@ func TestListSessions_Stubbed(t *testing.T) {
 	}
 	if len(sessions) != 1 || sessions[0].Name != "test" {
 		t.Fatalf("unexpected sessions: %v", sessions)
+	}
+}
+
+func TestRenameSession_Stubbed(t *testing.T) {
+	var capturedArgs []string
+	original := tmuxCmd
+	defer func() { tmuxCmd = original }()
+
+	tmuxCmd = func(args ...string) (string, error) {
+		capturedArgs = args
+		return "", nil
+	}
+
+	if err := RenameSession("old", "new"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(capturedArgs) != 4 ||
+		capturedArgs[0] != "rename-session" ||
+		capturedArgs[1] != "-t" ||
+		capturedArgs[2] != "old" ||
+		capturedArgs[3] != "new" {
+		t.Fatalf("unexpected tmux args: %v", capturedArgs)
+	}
+}
+
+func TestRenameSession_EmptyNewName(t *testing.T) {
+	err := RenameSession("old", "")
+	if err == nil {
+		t.Fatal("expected error for empty new name")
+	}
+}
+
+func TestRenameSession_SessionNotFound(t *testing.T) {
+	original := tmuxCmd
+	defer func() { tmuxCmd = original }()
+
+	tmuxCmd = func(args ...string) (string, error) {
+		return "", fmt.Errorf("exit status 1: can't find session: notexist")
+	}
+
+	err := RenameSession("notexist", "newname")
+	if err == nil {
+		t.Fatal("expected error when session not found")
 	}
 }

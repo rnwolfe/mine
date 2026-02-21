@@ -23,6 +23,14 @@ var tmuxCmd = &cobra.Command{
 
 var tmuxNewLayout string
 
+// Injectable for testing — only used in runTmuxNew.
+var (
+	readLayoutFunc  = tmux.ReadLayout
+	newSessionFunc  = tmux.NewSession
+	loadLayoutFunc  = tmux.LoadLayout
+	killSessionFunc = tmux.KillSession
+)
+
 func init() {
 	rootCmd.AddCommand(tmuxCmd)
 
@@ -107,20 +115,25 @@ func runTmuxNew(_ *cobra.Command, args []string) error {
 
 	// Validate layout exists before creating the session — fail fast, no side effects.
 	if tmuxNewLayout != "" {
-		if _, err := tmux.ReadLayout(tmuxNewLayout); err != nil {
-			return fmt.Errorf("layout %q not found — session not created\n  Save a layout first: %s",
-				tmuxNewLayout, ui.Accent.Render("mine tmux layout save "+tmuxNewLayout))
+		if _, err := readLayoutFunc(tmuxNewLayout); err != nil {
+			return fmt.Errorf("layout %q not found — session not created; save a layout first: mine tmux layout save %s",
+				tmuxNewLayout, tmuxNewLayout)
 		}
 	}
 
-	resolved, err := tmux.NewSession(name)
+	resolved, err := newSessionFunc(name)
 	if err != nil {
 		return err
 	}
 
 	if tmuxNewLayout != "" {
-		if err := tmux.LoadLayout(tmuxNewLayout); err != nil {
-			return err
+		if err := loadLayoutFunc(tmuxNewLayout); err != nil {
+			// Best-effort cleanup: kill the newly created session to avoid leaving it orphaned.
+			if killErr := killSessionFunc(resolved); killErr != nil {
+				return fmt.Errorf("layout %q failed to apply: %v (also failed to clean up session %q: %v)",
+					tmuxNewLayout, err, resolved, killErr)
+			}
+			return fmt.Errorf("layout %q failed to apply — session %q was cleaned up", tmuxNewLayout, resolved)
 		}
 		ui.Ok(fmt.Sprintf("Session %s created with layout %s",
 			ui.Accent.Render(resolved), ui.Accent.Render(tmuxNewLayout)))

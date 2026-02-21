@@ -48,25 +48,26 @@ jobs:
             Fetch the last ${{ inputs.limit || '10' }} autodev PRs:
 
             ```bash
-            gh pr list --repo ${{ github.repository }} --label autodev --state all \
+            gh pr list --repo ${{ github.repository }} --state all \
               --limit ${{ inputs.limit || '10' }} \
-              --json number,title,state,createdAt,mergedAt,closedAt,labels,body,reviewDecision
+              --json number,title,state,createdAt,mergedAt,closedAt,labels,body,reviewDecision \
+              --jq '[.[] | select(.labels | map(.name) | any(startswith("via/")))]'
             ```
 
             For each PR, extract:
             - Phase reached (from `<!-- autodev-state: ... -->` HTML comment in PR body)
             - Copilot iteration count
-            - Whether `needs-human` label was applied
+            - Whether `human/blocked` label was applied
             - Time from creation to merge (if merged)
 
             Also check for stale issues:
 
             ```bash
-            gh issue list --repo ${{ github.repository }} --label in-progress --state open \
+            gh issue list --repo ${{ github.repository }} --label "agent/implementing" --state open \
               --json number,title,createdAt,labels
             ```
 
-            Cross-reference with open PRs — an `in-progress` issue with no corresponding
+            Cross-reference with open PRs — an `agent/implementing` issue with no corresponding
             open autodev PR indicates stale state.
 
             ## Step 2: Compute Pipeline Metrics
@@ -162,7 +163,7 @@ jobs:
             --repo "${{ github.repository }}" \
             --title "Autodev Pipeline Audit — $DATE" \
             --body "$BODY" \
-            --label "autodev-audit"
+            --label "report/pipeline-audit"
 
       - name: Handle agent failure
         if: steps.agent.outcome == 'failure'
@@ -174,4 +175,4 @@ jobs:
             --repo "${{ github.repository }}" \
             --title "Autodev Pipeline Audit — $DATE (failed)" \
             --body "The audit agent failed to complete. Check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
-            --label "autodev-audit"
+            --label "report/pipeline-audit"

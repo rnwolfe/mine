@@ -14,13 +14,13 @@ flowchart LR
     P1["1 · ROADMAP\n/product\n/product sync"]
     P2["2 · FEATURE DEF\n/product spec\n/brainstorm\n/draft-issue"]
     P3["3 · BACKLOG QUALITY\n/sweep-issues\n/refine-issue\n/product eval"]
-    GATE{{"agent-\nready?"}}
+    GATE{{"backlog/\nready?"}}
 
     subgraph IMPL["4 · IMPLEMENTATION"]
         direction TB
-        PA["Path A · Maestro Auto Run\nParallel loops · self-reviewing"]
-        PB["Path B · /autodev skill\nSingle-issue · interactive"]
-        PC["Path C · GitHub Actions\nCron-driven · always-on"]
+        PA["Path A · /autodev skill\nSingle-issue · interactive"]
+        PB["Path B · GitHub Actions\nCron-driven · always-on"]
+        PC["Path C · Maestro Auto Run\nExperimental · self-reviewing"]
     end
 
     P5["5 · REVIEW\nCopilot ≤3 iterations\n→ Claude → done"]
@@ -95,20 +95,20 @@ integration points, acceptance criteria, docs requirements.
 ## Phase 3 — Backlog Quality
 
 **What**: Ensure every issue that enters the implementation queue is specific, correct,
-and achievable. The `agent-ready` label is the quality gate between discovery and building.
+and achievable. The `backlog/ready` label is the quality gate between discovery and building.
 
 **When to run**: Before any implementation batch. After issues accumulate from Phase 2.
 
 | Implementation | How to invoke | What it does |
 |----------------|--------------|--------------|
-| `/sweep-issues [label]` | Claude CLI skill | Scores all open issues on 10-item quality checklist. Labels: `needs-refinement` or suggests `agent-ready` |
-| `/refine-issue [N]` | Claude CLI skill | Interactive Q&A to fill gaps in a `needs-refinement` issue. Suggests `agent-ready` when bar is met |
+| `/sweep-issues [label]` | Claude CLI skill | Scores all open issues on 10-item quality checklist. Labels: `backlog/needs-refinement` or suggests `backlog/ready` |
+| `/refine-issue [N]` | Claude CLI skill | Interactive Q&A to fill gaps in a `backlog/needs-refinement` issue. Suggests `backlog/ready` when bar is met |
 | `/product eval N` | Claude CLI skill | Vision + phase + principle fit check for a single issue. Output: READY / REFINE / DECLINE |
 
-**Output**: Issues labeled `agent-ready` with verified acceptance criteria, architecture
+**Output**: Issues labeled `backlog/ready` with verified acceptance criteria, architecture
 notes, and defined scope.
 
-**Gate to Phase 4**: Issue has `agent-ready` label.
+**Gate to Phase 4**: Issue has `backlog/ready` label.
 
 ---
 
@@ -116,34 +116,9 @@ notes, and defined scope.
 
 **What**: Build the feature. Three distinct paths — choose based on context.
 
-**Gate in**: Issue has `agent-ready` label.
+**Gate in**: Issue has `backlog/ready` label.
 
-### Path A — Maestro Auto Run
-
-**What it is**: A Claude Code Auto Run playbook (`maestro/Backlog-Loop/`) that loops
-through `agent-ready` issues continuously. Supports multiple parallel instances via
-label-based claiming and git worktree isolation.
-
-**When to use**: Steady-state autonomous operation. Drain the backlog without human
-involvement. Run multiple instances in parallel for higher throughput.
-
-**9-step loop per issue**:
-1. Pick issue (concurrency check, trust verify, claim with `maestro` + `in-progress` labels)
-2. Plan implementation approach in fresh worktree
-3. Implement with tests (`make test` + `make build`)
-4. Open PR with full description
-5. Wait for Copilot review + address feedback
-6. Self-review with fresh-context subagent (up to 3 iterations)
-7. Update docs + create follow-up issues
-8. Finalize: label `maestro/review-ready`, clean up worktree
-9. Progress check: more issues? Loop. Otherwise exit.
-
-**Concurrency**: Max 3 open `maestro` PRs at once. Each instance claims different issues
-via labels before other instances can see them.
-
-**Labels**: `maestro`, `in-progress` on issue; `maestro` on PR; `maestro/review-ready` on done.
-
-### Path B — `/autodev` Skill
+### Path A — `/autodev` Skill
 
 **What it is**: A Claude Code skill (`/autodev`) that implements a single issue in a
 fresh worktree and opens a PR. Human-triggered, single-session.
@@ -152,7 +127,7 @@ fresh worktree and opens a PR. Human-triggered, single-session.
 guidance mid-flight, or implement a specific issue on demand.
 
 ```
-/autodev         — auto-pick highest-value agent-ready issue
+/autodev         — auto-pick highest-value backlog/ready issue
 /autodev 42      — implement specific issue #42
 /autodev 42 "name"  — override branch name suffix
 ```
@@ -160,9 +135,9 @@ guidance mid-flight, or implement a specific issue on demand.
 **Steps**: Fetch issue → create worktree → implement → `make test` + `make build` →
 commit → open PR with verified acceptance criteria.
 
-**Labels**: `autodev` on PR. Removes `in-progress` from issue via PR close.
+**Labels**: `via/autodev` on PR. Removes `agent/implementing` from issue via PR close.
 
-### Path C — GitHub Actions Pipeline
+### Path B — GitHub Actions Pipeline
 
 **What it is**: An event-driven GitHub Actions pipeline with four workflows:
 `autodev-dispatch` → `autodev-implement` → `autodev-review-fix` → `claude-code-review`.
@@ -171,16 +146,44 @@ commit → open PR with verified acceptance criteria.
 input. The production autonomous pipeline.
 
 ```
-autodev-dispatch     — 4-hour cron (or manual trigger). Picks oldest agent-ready
-                       issue, labels in-progress, triggers implement.
+autodev-dispatch     — 4-hour cron (or manual trigger). Picks oldest backlog/ready
+                       issue, labels agent/implementing, triggers implement.
 autodev-implement    — Creates branch, runs agent, pushes, opens PR.
                        PR triggers CI + Copilot review.
 autodev-review-fix   — Routes fixes by review phase (see Phase 5).
-claude-code-review   — Triggered by claude-review-requested label or @claude mention.
+claude-code-review   — Triggered by agent/review-claude label or @claude mention.
 ```
 
-**Labels**: `autodev` on PR. Phase tracked in PR body HTML comment:
+**Labels**: `via/actions` on PR. Phase tracked in PR body HTML comment:
 `<!-- autodev-state: {"phase": "copilot", "copilot_iterations": 0} -->`
+
+### Path C — Maestro Auto Run
+
+> **Note**: Maestro is experimental and not a production path. The two production
+> implementation paths are `/autodev` (interactive) and GitHub Actions (always-on).
+
+**What it is**: A Claude Code Auto Run playbook (`maestro/Backlog-Loop/`) that loops
+through `backlog/ready` issues continuously. Supports multiple parallel instances via
+label-based claiming and git worktree isolation.
+
+**When to use**: Steady-state autonomous operation. Drain the backlog without human
+involvement. Run multiple instances in parallel for higher throughput.
+
+**9-step loop per issue**:
+1. Pick issue (concurrency check, trust verify, claim with `via/maestro` + `agent/implementing` labels)
+2. Plan implementation approach in fresh worktree
+3. Implement with tests (`make test` + `make build`)
+4. Open PR with full description
+5. Wait for Copilot review + address feedback
+6. Self-review with fresh-context subagent (up to 3 iterations)
+7. Update docs + create follow-up issues
+8. Finalize: label `human/review-merge`, clean up worktree
+9. Progress check: more issues? Loop. Otherwise exit.
+
+**Concurrency**: Max 3 open `via/maestro` PRs at once. Each instance claims different issues
+via labels before other instances can see them.
+
+**Labels**: `via/maestro`, `agent/implementing` on issue; `via/maestro` on PR; `human/review-merge` on done.
 
 ---
 
@@ -192,7 +195,7 @@ claude-code-review   — Triggered by claude-review-requested label or @claude m
 
 **What**: Automated review iteration until the PR is approved and ready for human merge.
 
-**Note**: Maestro PRs (Path A) arrive here having already completed a Copilot + self-review
+**Note**: Maestro PRs (Path C) arrive here having already completed a Copilot + self-review
 cycle during implementation. They enter this phase at an already-higher quality bar.
 `/autodev` and GitHub Actions PRs go through the full cycle below.
 
@@ -210,7 +213,7 @@ PR opened
             ├── Has comments + iteration >= 3 → transition to claude phase
             └── No comments                  → transition to claude phase
                         │
-            autodev-review-fix adds label: claude-review-requested
+            autodev-review-fix adds label: agent/review-claude
                         │
             claude-code-review.yml triggers
                         │
@@ -219,6 +222,8 @@ PR opened
                         │
             Phase → done, completion comment posted
 ```
+
+Copilot reviews iterate up to 3 times OR until Copilot has no actionable comments, whichever comes first. Then 1 Claude review pass. If at any point an agent fix fails, the PR is labeled `human/blocked`.
 
 **Circuit breakers**:
 - Copilot: max 3 fix iterations before escalating to Claude
@@ -236,16 +241,33 @@ PR opened
 
 **Current state**: Human reviews and merges. CODEOWNERS (`@rnwolfe`) reviews everything.
 
-**Target state**: Automated merge on CI green + review phase done. Blocked by:
-- GitHub's restriction on GITHUB_TOKEN triggering downstream workflows (L-014)
-- Need for auto-merge configuration on the repo
+**Auto-merge criteria** (all must be true before enabling):
+
+*Technical prerequisites*:
+- Branch protection configured with required status checks
+- GitHub auto-merge enabled on the repository
+- `AUTODEV_TOKEN` PAT has merge permissions (or workaround for L-014)
+
+*Per-PR gate conditions*:
+- All required CI checks pass
+- Review pipeline phase is `done` (autodev-state HTML comment)
+- No `human/blocked` label present
+- Origin is trusted (`via/autodev` or `via/actions`)
+- Cooling period elapsed (30 min after last push, configurable)
+- No unresolved review conversations
+
+*Circuit breakers (require human merge even if gates pass)*:
+- PR adds/modifies more than 500 lines
+- Dependency changes (`go.mod`, `go.sum`)
+- Security-sensitive files (`internal/env/`, encryption)
+- Touches more than 10 files
 
 **Until automated**: The human merge is the intentional quality gate. Review the PR,
 check acceptance criteria verification in the PR body, merge.
 
 **On merge**:
 - Issue auto-closes via `Closes #N` / `Fixes #N` in PR body
-- `in-progress` label removed
+- `agent/implementing` label removed
 - Branch deleted
 
 ---
@@ -284,7 +306,7 @@ The audit layer runs on cadence, not triggered by the main pipeline. It evaluate
 | Implementation | How to invoke | Cadence | What it checks |
 |----------------|--------------|---------|----------------|
 | `/autodev-audit` | Claude CLI skill | Monthly or after 5–10 autodev PRs | PR quality, code pattern compliance, iteration stats |
-| `autodev-audit` GH Action | GitHub Actions (manual or weekly cron Mon 9AM UTC) | Weekly | Same as skill but files report as GitHub issue labeled `autodev-audit` |
+| `autodev-audit` GH Action | GitHub Actions (manual or weekly cron Mon 9AM UTC) | Weekly | Same as skill but files report as GitHub issue labeled `report/pipeline-audit` |
 
 ### Docs & Style (Phase 7)
 
@@ -307,9 +329,9 @@ The audit layer runs on cadence, not triggered by the main pipeline. It evaluate
 | Backlog has grown, preparing a work batch | 3 | `/sweep-issues` |
 | An issue needs improvement | 3 | `/refine-issue N` |
 | Checking if one issue is ready to build | 3 | `/product eval N` |
-| Drain backlog autonomously, hands-off | 4A | Start Maestro Auto Run |
-| Implement a specific issue, interactive | 4B | `/autodev N` |
-| Let the background pipeline handle it | 4C | GitHub Actions (always running) |
+| Implement a specific issue, interactive | 4A | `/autodev N` |
+| Let the background pipeline handle it | 4B | GitHub Actions (always running) |
+| Drain backlog autonomously, hands-off | 4C | Start Maestro Auto Run (experimental) |
 | Review cycle seems stuck | 5 | Check `autodev-review-fix` workflow logs |
 | PR is done, ready to ship | 6 | Human merge |
 | Post-release, update what shipped | 7 | `/product sync` |
@@ -332,9 +354,9 @@ The audit layer runs on cadence, not triggered by the main pipeline. It evaluate
 | `/sweep-issues` | Main + Audit | 3 — Backlog Quality |
 | `/refine-issue` | Main + Audit | 3 — Backlog Quality |
 | `/product eval N` | Main + Audit | 3 — Backlog Quality |
-| Maestro Auto Run | Main | 4A — Implementation |
-| `/autodev` | Main | 4B — Implementation |
-| GitHub Actions autodev pipeline | Main | 4C + 5 — Implementation + Review |
+| `/autodev` | Main | 4A — Implementation |
+| GitHub Actions autodev pipeline | Main | 4B + 5 — Implementation + Review |
+| Maestro Auto Run | Main | 4C — Implementation (experimental) |
 | `autodev-review-fix` workflow | Main | 5 — Review |
 | `claude-code-review` workflow | Main | 5 — Review |
 | Human merge | Main | 6 — Merge |

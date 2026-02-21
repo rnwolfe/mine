@@ -13,7 +13,7 @@ pick an issue, create a fresh worktree, implement it, verify it, and open a PR.
 
 The user may provide an issue number as an argument: `$ARGUMENTS`
 
-- `/autodev` — auto-pick the highest-value `agent-ready` issue
+- `/autodev` — auto-pick the highest-value `backlog/ready` issue
 - `/autodev 42` — implement a specific issue number
 - `/autodev 42 "custom branch suffix"` — optional branch name override
 
@@ -36,33 +36,33 @@ gh issue view $ISSUE_NUMBER --repo rnwolfe/mine --json number,title,body,labels,
 
 Validate:
 - Issue is open
-- Issue has the `agent-ready` label (warn but proceed if missing — the user is overriding)
-- Issue is not already `in-progress` (abort if it is and tell the user why)
+- Issue has the `backlog/ready` label (warn but proceed if missing — the user is overriding)
+- Issue is not already `agent/implementing` (abort if it is and tell the user why)
 
 ### If no issue number was provided
 
 **Check concurrency guard first:**
 
 ```bash
-gh pr list --repo rnwolfe/mine --label "autodev" --state open --json number,title
+gh pr list --repo rnwolfe/mine --label "via/autodev" --state open --json number,title
 ```
 
-If there's already 1 or more open `autodev` PRs, **stop and report** what's in flight. Do
+If there's already 1 or more open `via/autodev` PRs, **stop and report** what's in flight. Do
 not start new work when there are open autodev PRs. Ask the user if they want to override.
 
 **Fetch candidates:**
 
 ```bash
 gh issue list --repo rnwolfe/mine \
-  --label "agent-ready" \
+  --label "backlog/ready" \
   --state open \
   --json number,title,body,labels \
   --limit 30
 ```
 
-Filter out any issues that already have the `in-progress` label.
+Filter out any issues that already have the `agent/implementing` label.
 
-If no `agent-ready` issues exist, broaden the search:
+If no `backlog/ready` issues exist, broaden the search:
 
 ```bash
 gh issue list --repo rnwolfe/mine \
@@ -77,7 +77,7 @@ gh issue list --repo rnwolfe/mine \
 - Self-contained scope (touches one domain, not multiple systems)
 - User-visible impact (commands users actually use daily)
 - Dependencies: avoid issues blocked by other open issues
-- Avoid issues with `needs-human`, `blocked`, or `wip` labels
+- Avoid issues with `human/blocked`, `blocked`, or `wip` labels
 
 Present your selection with a brief rationale (1-2 sentences) before proceeding.
 Give the user a moment to redirect if they disagree — but do not wait for approval
@@ -104,7 +104,7 @@ BRANCH="autodev/issue-${ISSUE_NUMBER}-${SLUG}"
 Mark the issue in-progress:
 
 ```bash
-gh issue edit $ISSUE_NUMBER --repo rnwolfe/mine --add-label "in-progress"
+gh issue edit $ISSUE_NUMBER --repo rnwolfe/mine --add-label "agent/implementing"
 ```
 
 ---
@@ -169,27 +169,29 @@ If tests fail: fix them. Do not open a PR with failing tests.
 If build fails: fix it. Do not open a PR that doesn't compile.
 
 If you cannot make tests pass after a reasonable attempt (2-3 iterations), add the
-`needs-human` label and stop:
+`human/blocked` label and stop:
 
 ```bash
 gh issue edit $ISSUE_NUMBER --repo rnwolfe/mine \
-  --add-label "needs-human" \
-  --remove-label "in-progress"
+  --add-label "human/blocked" \
+  --remove-label "agent/implementing"
 ```
 
 ---
 
 ## Step 7 — Commit
 
-Stage and commit all changes:
+Stage and commit all changes. `git add -A` is safe here because the worktree
+is an isolated copy containing only intentional changes — no risk of staging
+sensitive files or unrelated work.
 
 ```bash
 cd $WORKTREE_PATH
 git add -A
-git commit -m "$(cat <<'EOF'
-feat: implement #$ISSUE_NUMBER — $ISSUE_TITLE
+git commit -m "$(cat <<EOF
+feat: implement #${ISSUE_NUMBER} — ${ISSUE_TITLE}
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+Co-Authored-By: Claude <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -256,7 +258,7 @@ gh pr create \
   --body "$(cat /tmp/pr-description-${ISSUE_NUMBER}.md)
 
 <!-- autodev-state: {\"phase\": \"copilot\", \"copilot_iterations\": 0} -->" \
-  --label "autodev"
+  --label "via/autodev"
 ```
 
 ---
@@ -279,7 +281,7 @@ To clean up after merge: git worktree remove .worktrees/<name>
 
 ## Guardrails
 
-- **One PR at a time**: If an `autodev` PR is already open, report it and stop.
+- **One PR at a time**: If a `via/autodev` PR is already open, report it and stop.
 - **Never force-push main**: Only push to the new feature branch.
 - **Never modify protected files**: CLAUDE.md, `.github/workflows/`, `scripts/autodev/`
 - **Tests must pass**: Never open a PR with failing `make test` or broken `make build`.
@@ -297,8 +299,8 @@ To clean up after merge: git worktree remove .worktrees/<name>
 
 | Situation | Action |
 |-----------|--------|
-| Tests fail after 3 attempts | Add `needs-human` label, clean up worktree, report to user |
+| Tests fail after 3 attempts | Add `human/blocked` label, clean up worktree, report to user |
 | Issue has no acceptance criteria | Note it in PR, implement based on title/description |
-| No `agent-ready` issues exist | Broaden to open `feature`/`enhancement` issues, pick highest value |
+| No `backlog/ready` issues exist | Broaden to open `feature`/`enhancement` issues, pick highest value |
 | Worktree already exists | Remove it first: `git worktree remove --force <path>`, then recreate |
 | Push fails (auth) | Report the error — never force-push or bypass auth |

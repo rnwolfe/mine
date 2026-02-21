@@ -81,4 +81,4 @@ When evaluating an issue, check each item:
 | `phase:3` | Advanced features (vault, grow, dash, plugins) |
 | `good-first-issue` | Clear scope, isolated domain, good for new contributors |
 | `spec` | Has a spec document in `docs/internal/specs/` |
-| `agent-ready` | Issue is well-defined enough for autonomous implementation |
+| `backlog/ready` | Issue is well-defined enough for autonomous implementation |

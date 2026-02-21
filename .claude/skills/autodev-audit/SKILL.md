@@ -27,7 +27,7 @@ Examples:
 Fetch recent autodev PRs (default last 5, or user-specified limit):
 
 ```bash
-gh pr list --repo rnwolfe/mine --label autodev --state all --limit <N> \
+gh pr list --repo rnwolfe/mine --label via/autodev --state all --limit <N> \
   --json number,title,state,createdAt,mergedAt,closedAt,labels,body,reviewDecision
 ```
 
@@ -36,16 +36,16 @@ For each PR, gather:
 - Phase reached (`copilot`, `claude`, `done`)
 - Whether it was merged, closed, or is still open
 - Time from creation to merge (if merged)
-- Whether `needs-human` label was applied
+- Whether `human/blocked` label was applied
 
 Also check for stale issues:
 
 ```bash
-gh issue list --repo rnwolfe/mine --label in-progress --state open \
+gh issue list --repo rnwolfe/mine --label agent/implementing --state open \
   --json number,title,createdAt,labels
 ```
 
-Cross-reference with open PRs — an `in-progress` issue with no corresponding open PR
+Cross-reference with open PRs — an `agent/implementing` issue with no corresponding open PR
 indicates a stale state that needs cleanup.
 
 ### 2. Analyze Pipeline Health
@@ -58,17 +58,17 @@ Compute and present:
 | Merged | N (%) |
 | Closed without merge | N (%) |
 | Still open | N (%) |
-| Needed human intervention | N (%) |
+| Needed human intervention (`human/blocked`) | N (%) |
 | Avg copilot iterations | N |
 | Avg time to merge | N hours |
 | Reached claude phase | N (%) |
-| Stale in-progress issues | N |
+| Stale `agent/implementing` issues | N |
 
 Flag any concerning patterns:
 - High failure rate (> 30% closed without merge)
 - Excessive copilot iterations (avg > 2)
 - PRs stuck in open state > 48 hours
-- Stale `in-progress` issues with no PR
+- Stale `agent/implementing` issues with no PR
 
 ### 3. Audit Code Quality (if not pipeline-only)
 
@@ -127,7 +127,7 @@ Structure the full report as:
 <ranked list of feedback categories>
 
 ### Stale State
-<in-progress issues without PRs>
+<agent/implementing issues without PRs>
 
 ### Recommendations
 <numbered list of concrete improvements>

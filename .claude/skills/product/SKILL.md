@@ -37,16 +37,16 @@ reasoning is more valuable than a spec for the wrong thing.
 
 Before any output, read all of the following. Do not skip any of these.
 
+Read these files (use the Read tool, not bash):
+- `docs/internal/VISION.md`
+- `docs/internal/STATUS.md`
+- `docs/internal/DECISIONS.md`
+- Every file in `docs/internal/specs/`
+- `CLAUDE.md`
+
+Then fetch live data via bash:
+
 ```bash
-# Core vision and status
-cat docs/internal/VISION.md
-cat docs/internal/STATUS.md
-cat docs/internal/DECISIONS.md
-
-# Existing specs
-ls docs/internal/specs/
-# Read each spec file
-
 # Current backlog
 gh issue list --repo rnwolfe/mine --state open --limit 100 \
   --json number,title,body,labels
@@ -54,12 +54,10 @@ gh issue list --repo rnwolfe/mine --state open --limit 100 \
 # Recent merged work (what's actually shipped)
 gh pr list --repo rnwolfe/mine --state merged --limit 20 \
   --json number,title,body,mergedAt,labels
-
-# Existing skills (the autonomous pipeline)
-ls .claude/skills/
 ```
 
-Also read `CLAUDE.md` for architecture patterns and design principles.
+Also list the existing skills directory (`ls .claude/skills/`) to understand
+the current autonomous pipeline.
 
 This context read is non-negotiable. You cannot form a coherent product view without
 understanding what's been decided, what's been built, and what's already in the queue.
@@ -355,7 +353,7 @@ and a one-sentence explanation.
 
 After scoring, output one of three recommendations:
 
-**READY** — Passes all dimensions. Add `agent-ready` label and it's good for `/autodev`.
+**READY** — Passes all dimensions. Add `backlog/ready` label and it's good for `/autodev`.
 
 **REFINE** — Passes vision/phase/principle but has spec quality gaps. List exactly what's
 missing. Suggest using `/refine-issue N` to improve the spec quality.

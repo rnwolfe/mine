@@ -461,7 +461,7 @@ func runTmuxLayoutLoad(_ *cobra.Command, args []string) error {
 				fmt.Printf("  %s\n", ui.Accent.Render(n))
 			}
 			fmt.Println()
-			return fmt.Errorf("no layout name given")
+			return fmt.Errorf("no layout name given — specify a name: mine tmux layout load <name>")
 		}
 
 		items := make([]tui.Item, len(names))
@@ -473,6 +473,8 @@ func runTmuxLayoutLoad(_ *cobra.Command, args []string) error {
 					w = "window"
 				}
 				desc = fmt.Sprintf("%d %s", len(layout.Windows), w)
+			} else {
+				desc = "(error reading)"
 			}
 			items[i] = layoutItem{name: n, description: desc}
 		}

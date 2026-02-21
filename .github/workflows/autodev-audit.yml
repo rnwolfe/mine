@@ -1,0 +1,178 @@
+name: Autodev Audit
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Every Monday at 9 AM UTC
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Number of recent autodev PRs to audit"
+        default: "10"
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  id-token: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ============================================================
+      # AGENT EXECUTION — Provider: Claude via claude-code-action@v1
+      # ============================================================
+      - name: Run audit agent
+        id: agent
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_bots: "github-actions[bot]"
+          prompt: |
+            You are auditing the autodev pipeline for the mine CLI tool.
+            Your job is to analyze recent autodev activity and produce a structured health report.
+
+            IMPORTANT RULES:
+            - Read CLAUDE.md first for project conventions
+            - Do NOT modify any files in the repository
+            - Write your final report to /tmp/audit-report.md
+
+            ## Step 1: Gather Pipeline Data
+
+            Fetch the last ${{ inputs.limit || '10' }} autodev PRs:
+
+            ```bash
+            gh pr list --repo ${{ github.repository }} --state all \
+              --limit ${{ inputs.limit || '10' }} \
+              --json number,title,state,createdAt,mergedAt,closedAt,labels,body,reviewDecision \
+              --jq '[.[] | select(.labels | map(.name) | any(startswith("via/")))]'
+            ```
+
+            For each PR, extract:
+            - Phase reached (from `<!-- autodev-state: ... -->` HTML comment in PR body)
+            - Copilot iteration count
+            - Whether `human/blocked` label was applied
+            - Time from creation to merge (if merged)
+
+            Also check for stale issues:
+
+            ```bash
+            gh issue list --repo ${{ github.repository }} --label "agent/implementing" --state open \
+              --json number,title,createdAt,labels
+            ```
+
+            Cross-reference with open PRs — an `agent/implementing` issue with no corresponding
+            open autodev PR indicates stale state.
+
+            ## Step 2: Compute Pipeline Metrics
+
+            Calculate and include in your report:
+
+            | Metric | Value |
+            |--------|-------|
+            | PRs analyzed | N |
+            | Merged | N (%) |
+            | Closed without merge | N (%) |
+            | Still open | N (%) |
+            | Needed human intervention | N (%) |
+            | Avg copilot iterations | N |
+            | Avg time to merge | N hours |
+            | Reached claude phase | N (%) |
+            | Stale in-progress issues | N |
+
+            ## Step 3: Code Quality Spot-Check
+
+            For each **merged** PR, fetch the diff and check for:
+
+            ```bash
+            gh pr diff <NUMBER> --repo ${{ github.repository }}
+            ```
+
+            - Missing tests: new functionality without `_test.go` additions
+            - Missing docs: new commands/features without `site/src/content/docs/` updates
+            - File size violations: any file exceeding 500 lines
+            - Style issues: raw `fmt.Println` instead of `internal/ui` helpers
+
+            Summarize findings per PR — keep it concise (1-2 lines each).
+
+            ## Step 4: Review Feedback Themes
+
+            For PRs with review comments, fetch and categorize:
+
+            ```bash
+            gh api repos/${{ github.repository }}/pulls/<NUMBER>/comments --jq '.[].body'
+            ```
+
+            Group into themes: testing gaps, style/formatting, architecture, documentation,
+            error handling, performance. Show which themes appear most frequently.
+
+            ## Step 5: Write Report
+
+            Write the complete report to `/tmp/audit-report.md` with this structure:
+
+            ```markdown
+            ## Pipeline Health
+
+            <metrics table from Step 2>
+
+            ### Concerning Patterns
+            <bullet list of any red flags, or "None identified" if healthy>
+
+            ## Code Quality
+
+            <per-merged-PR findings from Step 3, or "All PRs passed quality checks">
+
+            ## Review Feedback Themes
+
+            <ranked list from Step 4, or "Insufficient data" if < 3 PRs with reviews>
+
+            ## Stale State
+
+            <in-progress issues without PRs, or "No stale state detected">
+
+            ## Recommendations
+
+            <1-3 concrete, actionable improvements based on findings>
+            ```
+
+            Keep the report concise — aim for a GitHub issue that's scannable in under 2 minutes.
+            Do NOT create any GitHub issues yourself. Just write the report file.
+          claude_args: "--model claude-sonnet-4-6 --max-turns 30 --dangerously-skip-permissions"
+      # ============================================================
+
+      - name: Create audit issue
+        if: steps.agent.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+
+          if [ -f /tmp/audit-report.md ] && [ -s /tmp/audit-report.md ]; then
+            BODY=$(cat /tmp/audit-report.md)
+          else
+            BODY="Audit agent completed but did not produce a report file. Check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+          fi
+
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "Autodev Pipeline Audit — $DATE" \
+            --body "$BODY" \
+            --label "report/pipeline-audit"
+
+      - name: Handle agent failure
+        if: steps.agent.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "Autodev Pipeline Audit — $DATE (failed)" \
+            --body "The audit agent failed to complete. Check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
+            --label "report/pipeline-audit"

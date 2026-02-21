@@ -18,12 +18,12 @@ Examples:
 - `/refine-issue 35` — refine issue #35
 - `/refine-issue 42` — refine issue #42
 
-If no number is provided, auto-pick from the `needs-refinement` backlog:
+If no number is provided, auto-pick from the `backlog/needs-refinement` backlog:
 
-1. Query open issues labeled `needs-refinement`:
+1. Query open issues labeled `backlog/needs-refinement`:
 
 ```bash
-gh issue list --state open --label "needs-refinement" --json number,title,createdAt --jq 'sort_by(.createdAt)'
+gh issue list --state open --label "backlog/needs-refinement" --json number,title,createdAt --jq 'sort_by(.createdAt)'
 ```
 
 2. If results exist, present a numbered list with titles and ages:
@@ -40,8 +40,8 @@ Pick a number, or press Enter for the oldest (#42):
 
 3. Let the user pick one, or default to the oldest.
 
-4. If no `needs-refinement` issues exist, suggest:
-   "No issues labeled `needs-refinement`. Run `/sweep-issues` first to identify
+4. If no `backlog/needs-refinement` issues exist, suggest:
+   "No issues labeled `backlog/needs-refinement`. Run `/sweep-issues` first to identify
    issues that need work."
 
 ## Process
@@ -120,7 +120,7 @@ After approval, update the issue:
 gh issue edit $ISSUE_NUMBER --body "<updated_body>"
 ```
 
-Also suggest any label changes if appropriate (e.g., adding `agent-ready` if the issue
+Also suggest any label changes if appropriate (e.g., adding `backlog/ready` if the issue
 is now well-defined enough for autonomous implementation).
 
 Always ask for explicit approval before running `gh issue edit`.

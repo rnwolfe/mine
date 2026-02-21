@@ -4,7 +4,7 @@ set -euo pipefail
 # scripts/autodev/open-pr.sh — Create a PR for an autodev implementation
 #
 # Usage:
-#   scripts/autodev/open-pr.sh ISSUE_NUMBER BRANCH_NAME
+#   scripts/autodev/open-pr.sh ISSUE_NUMBER BRANCH_NAME [ORIGIN_LABEL]
 #
 # Uses agent-generated PR description from /tmp/pr-description.md if available,
 # otherwise falls back to a basic template.
@@ -14,11 +14,23 @@ source "$(dirname "$0")/config.sh"
 
 ISSUE_NUMBER="${1:?Usage: open-pr.sh ISSUE_NUMBER BRANCH_NAME}"
 BRANCH_NAME="${2:?Usage: open-pr.sh ISSUE_NUMBER BRANCH_NAME}"
+ORIGIN_LABEL="${3:-$AUTODEV_LABEL_VIA_ACTIONS}"
 
 # ── Read issue ─────────────────────────────────────────────────────
 
 ISSUE_JSON=$(gh issue view "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --json title,body)
 ISSUE_TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
+
+# ── Read agent-generated PR title ─────────────────────────────────
+
+PR_TITLE_FILE="/tmp/pr-title.txt"
+if [ -f "$PR_TITLE_FILE" ] && [ -s "$PR_TITLE_FILE" ]; then
+    autodev_info "Using agent-generated PR title"
+    PR_TITLE=$(head -1 "$PR_TITLE_FILE")
+else
+    autodev_warn "No agent-generated PR title found, falling back to issue title"
+    PR_TITLE="$ISSUE_TITLE"
+fi
 
 # ── Build PR body ─────────────────────────────────────────────────
 
@@ -57,9 +69,9 @@ PR_URL=$(gh pr create \
     --repo "$AUTODEV_REPO" \
     --head "$BRANCH_NAME" \
     --base "$AUTODEV_BASE_BRANCH" \
-    --title "$ISSUE_TITLE" \
+    --title "$PR_TITLE" \
     --body "$PR_BODY" \
-    --label "$AUTODEV_LABEL_AUTODEV")
+    --label "$ORIGIN_LABEL" --label "$AUTODEV_LABEL_REVIEW_COPILOT")
 
 autodev_info "Created PR: $PR_URL"
 

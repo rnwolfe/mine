@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var tmuxProjectLayout string
+
 var tmuxCmd = &cobra.Command{
 	Use:     "tmux",
 	Aliases: []string{"tx"},
@@ -30,11 +32,14 @@ func init() {
 	tmuxCmd.AddCommand(tmuxKillCmd)
 	tmuxCmd.AddCommand(tmuxRenameCmd)
 	tmuxCmd.AddCommand(tmuxLayoutCmd)
+	tmuxCmd.AddCommand(tmuxProjectCmd)
 
 	tmuxLayoutCmd.AddCommand(tmuxLayoutSaveCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutLoadCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutLsCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutDeleteCmd)
+
+	tmuxProjectCmd.Flags().StringVar(&tmuxProjectLayout, "layout", "", "Apply a saved layout on creation (skipped on attach)")
 }
 
 // --- mine tmux (bare) — fuzzy session picker ---
@@ -102,7 +107,7 @@ func runTmuxNew(_ *cobra.Command, args []string) error {
 		name = args[0]
 	}
 
-	resolved, err := tmux.NewSession(name)
+	resolved, err := tmux.NewSession(name, "")
 	if err != nil {
 		return err
 	}
@@ -111,6 +116,69 @@ func runTmuxNew(_ *cobra.Command, args []string) error {
 	fmt.Printf("  Attach: %s\n", ui.Muted.Render("mine tmux attach "+resolved))
 	fmt.Println()
 	return nil
+}
+
+// --- mine tmux project ---
+
+var tmuxProjectCmd = &cobra.Command{
+	Use:     "project [dir]",
+	Aliases: []string{"proj"},
+	Short:   "Create or attach to a session for a project directory",
+	Long: `Create a new tmux session named after the project directory, or attach if
+one already exists. Session name is derived from the directory basename.
+
+If --layout is specified, the saved layout is applied after creating a new
+session (not applied when attaching to an existing one). The layout must
+already exist or an error is returned.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: hook.Wrap("tmux.project", runTmuxProject),
+}
+
+func runTmuxProject(cmd *cobra.Command, args []string) error {
+	if !tmux.Available() {
+		return fmt.Errorf("tmux not found in PATH — install tmux first")
+	}
+
+	var dir string
+	if len(args) > 0 {
+		dir = args[0]
+	}
+
+	// Pre-validate layout before doing any session work.
+	layout := tmuxProjectLayout
+	if layout != "" {
+		if _, err := tmux.ReadLayout(layout); err != nil {
+			return fmt.Errorf("layout %q not found — save it first with: mine tmux layout save %s", layout, layout)
+		}
+	}
+
+	resolvedDir, sessionName, exists, err := tmux.ResolveProjectSession(dir)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		fmt.Println()
+		fmt.Printf("  Session %s already running — attaching\n", ui.Accent.Render(sessionName))
+		fmt.Println()
+		return tmux.AttachSession(sessionName)
+	}
+
+	// Create the session (detached) starting in the project directory.
+	if _, err := tmux.NewSession(sessionName, resolvedDir); err != nil {
+		return err
+	}
+
+	// Apply layout to the new session before attaching.
+	if layout != "" {
+		if err := tmux.LoadLayoutToSession(layout, sessionName); err != nil {
+			return err
+		}
+	}
+
+	ui.Ok(fmt.Sprintf("Session %s created", ui.Accent.Render(sessionName)))
+	fmt.Println()
+	return tmux.AttachSession(sessionName)
 }
 
 // --- mine tmux ls ---
@@ -422,9 +490,9 @@ func runTmuxLayoutSave(_ *cobra.Command, args []string) error {
 // --- mine tmux layout load ---
 
 var tmuxLayoutLoadCmd = &cobra.Command{
-	Use:   "load <name>",
+	Use:   "load [name]",
 	Short: "Restore a saved layout",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  hook.Wrap("tmux.layout.load", runTmuxLayoutLoad),
 }
 
@@ -436,7 +504,64 @@ func runTmuxLayoutLoad(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("not inside a tmux session — attach first")
 	}
 
-	name := args[0]
+	var name string
+
+	if len(args) > 0 {
+		name = args[0]
+	} else {
+		// No name given: open fuzzy picker (TTY) or list layouts (non-TTY).
+		names, err := tmux.ListLayouts()
+		if err != nil {
+			return err
+		}
+
+		if len(names) == 0 {
+			fmt.Println()
+			fmt.Println(ui.Muted.Render("  No saved layouts."))
+			fmt.Printf("  Save one: %s\n", ui.Accent.Render("mine tmux layout save <name>"))
+			fmt.Println()
+			return nil
+		}
+
+		if !tui.IsTTY() {
+			fmt.Println()
+			fmt.Println(ui.Muted.Render("  Specify a layout name or run interactively in a terminal."))
+			fmt.Println()
+			for _, n := range names {
+				fmt.Printf("  %s\n", ui.Accent.Render(n))
+			}
+			fmt.Println()
+			return fmt.Errorf("no layout name given — specify a name: mine tmux layout load <name>")
+		}
+
+		items := make([]tui.Item, len(names))
+		for i, n := range names {
+			desc := ""
+			if layout, err := tmux.ReadLayout(n); err == nil {
+				w := "windows"
+				if len(layout.Windows) == 1 {
+					w = "window"
+				}
+				desc = fmt.Sprintf("%d %s", len(layout.Windows), w)
+			} else {
+				desc = "(error reading)"
+			}
+			items[i] = layoutItem{name: n, description: desc}
+		}
+
+		chosen, err := tui.Run(items,
+			tui.WithTitle(ui.IconPick+"Load layout"),
+			tui.WithHeight(12),
+		)
+		if err != nil {
+			return err
+		}
+		if chosen == nil {
+			return nil // user canceled
+		}
+		name = chosen.Title()
+	}
+
 	if err := tmux.LoadLayout(name); err != nil {
 		return err
 	}
@@ -445,6 +570,16 @@ func runTmuxLayoutLoad(_ *cobra.Command, args []string) error {
 	fmt.Println()
 	return nil
 }
+
+// layoutItem adapts a layout name for the TUI fuzzy picker.
+type layoutItem struct {
+	name        string
+	description string
+}
+
+func (l layoutItem) FilterValue() string { return l.name }
+func (l layoutItem) Title() string       { return l.name }
+func (l layoutItem) Description() string { return l.description }
 
 // --- mine tmux layout ls ---
 

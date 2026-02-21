@@ -100,7 +100,7 @@ Always ask for explicit approval before running `gh issue create`.
 
 After creating the issue, provide the issue number and URL. Suggest next steps:
 - "Created issue #N. Want to refine it further with `/refine-issue N`?"
-- "This might be a good candidate for `agent-ready` if you want autodev to pick it up."
+- "This might be a good candidate for `backlog/ready` if you want autodev to pick it up."
 
 ## Guidelines
 
@@ -113,5 +113,5 @@ After creating the issue, provide the issue number and URL. Suggest next steps:
 - **Check for duplicates first.** Nobody wants to write an issue that already exists.
 - **Match the project voice.** Issue descriptions should be clear and technical but
   not dry. Match the tone of existing well-written issues.
-- **Suggest `agent-ready` when appropriate.** If the issue is well-defined and
+- **Suggest `backlog/ready` when appropriate.** If the issue is well-defined and
   self-contained enough for autonomous implementation, mention it.

@@ -569,6 +569,49 @@ end`,
   tmux split-window -v
 end`,
 		},
+		{
+			Name: "tp",
+			Desc: "Create or attach to a tmux session for a project directory",
+			Bash: `tp() {
+  if [ "$1" = "--help" ]; then
+    echo "tp — Create or attach to a tmux session for a project directory"
+    echo "Usage: tp [dir]"
+    echo "Example: tp ~/code/myapp"
+    return 0
+  fi
+  if [ -n "$1" ]; then
+    mine tmux project "$1"
+  else
+    mine tmux project
+  fi
+}`,
+			Zsh: `tp() {
+  if [[ "$1" == "--help" ]]; then
+    echo "tp — Create or attach to a tmux session for a project directory"
+    echo "Usage: tp [dir]"
+    echo "Example: tp ~/code/myapp"
+    return 0
+  fi
+  if [[ -n "$1" ]]; then
+    mine tmux project "$1"
+  else
+    mine tmux project
+  fi
+}`,
+			Fish: `function tp
+  if test "$argv[1]" = "--help"
+    echo "tp — Create or attach to a tmux session for a project directory"
+    echo "Usage: tp [dir]"
+    echo "Example: tp ~/code/myapp"
+    return 0
+  end
+  if test (count $argv) -gt 0
+    mine tmux project $argv[1]
+  else
+    mine tmux project
+  end
+end`,
+		},
 		// --- git helpers ---
 		{
 			Name: "gc",

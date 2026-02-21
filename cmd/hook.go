@@ -12,13 +12,13 @@ var hookCmd = &cobra.Command{
 	Use:   "hook",
 	Short: "Automate mine with event-driven scripts",
 	Long:  `Create scripts that fire before or after any mine command. Drop them in ~/.config/mine/hooks/.`,
-	RunE:  runHookList,
+	RunE:  hook.Wrap("hook", runHookList),
 }
 
 var hookListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all active hook scripts",
-	RunE:  runHookList,
+	RunE:  hook.Wrap("hook.list", runHookList),
 }
 
 var hookCreateCmd = &cobra.Command{
@@ -31,14 +31,14 @@ Examples:
   mine hook create "todo.*" notify
   mine hook create "*" postexec`,
 	Args: cobra.ExactArgs(2),
-	RunE: runHookCreate,
+	RunE: hook.Wrap("hook.create", runHookCreate),
 }
 
 var hookTestCmd = &cobra.Command{
 	Use:   "test <file>",
 	Short: "Dry-run a hook with sample input to verify it works",
 	Args:  cobra.ExactArgs(1),
-	RunE:  runHookTest,
+	RunE:  hook.Wrap("hook.test", runHookTest),
 }
 
 func init() {

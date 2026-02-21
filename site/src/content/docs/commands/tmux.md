@@ -14,6 +14,30 @@ mine tx         # alias
 
 Opens a fuzzy-searchable list of running tmux sessions. Select a session and press Enter to attach. Falls back to a plain list when stdout is not a TTY.
 
+## Project Session (Create or Attach)
+
+```bash
+mine tmux project                    # session named after current directory
+mine tmux project ~/code/myapp       # session named "myapp"
+mine tmux project --layout dev-setup # create with a saved layout applied
+mine tmux proj                       # alias
+```
+
+Creates a tmux session named after the target directory's basename, or attaches if a session with that name is already running. This single command replaces the `mine tmux ls` + conditional `new`/`attach` workflow for project-based sessions.
+
+- If the session **does not exist**: it is created and you are attached. With `--layout`, the saved layout is applied to the new session before attaching.
+- If the session **already exists**: you are attached directly. The `--layout` flag is ignored on attach.
+- The `--layout` value is pre-validated — an error is returned immediately if the layout does not exist.
+
+**Shell helper** — `tp` wraps this command for quick use:
+
+```bash
+tp             # project session for cwd
+tp ~/code/api  # project session for ~/code/api
+```
+
+Add `tp` to your shell with `mine shell init`.
+
 ## Create a Session
 
 ```bash
@@ -75,10 +99,11 @@ Saves the current tmux session's window and pane layout. Must be run from inside
 ### Load a Layout
 
 ```bash
-mine tmux layout load dev-setup
+mine tmux layout load dev-setup   # load by name
+mine tmux layout load             # interactive picker (TTY) or list (piped)
 ```
 
-Restores a previously saved layout. Must be run from inside a tmux session.
+Restores a previously saved layout. Must be run from inside a tmux session. Without a name, opens an interactive fuzzy picker over saved layouts. Falls back to listing available layout names when stdout is not a TTY.
 
 ### List Saved Layouts
 
@@ -101,7 +126,19 @@ Permanently removes a saved layout. With no arguments, opens an interactive pick
 ## Examples
 
 ```bash
-# Create and attach to a project session
+# Create or attach to a project session (recommended workflow)
+mine tmux project ~/code/myapi
+
+# Same thing, from inside the project directory
+cd ~/code/myapi && mine tmux project
+
+# Create and attach, applying a saved layout
+mine tmux project ~/code/myapi --layout dev-3pane
+
+# Use the shell helper
+tp ~/code/myapi
+
+# Create and attach to a project session (explicit)
 mine tmux new myapi
 
 # Save your dev layout (3 panes: editor, server, tests)

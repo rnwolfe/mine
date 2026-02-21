@@ -8,18 +8,25 @@
 AUTODEV_REPO="rnwolfe/mine"
 AUTODEV_BASE_BRANCH="main"
 
-# Labels
-AUTODEV_LABEL_READY="agent-ready"
-AUTODEV_LABEL_IN_PROGRESS="in-progress"
-AUTODEV_LABEL_AUTODEV="autodev"
-AUTODEV_LABEL_NEEDS_HUMAN="needs-human"
-AUTODEV_LABEL_CLAUDE_REVIEW="claude-review-requested"
+# Pipeline stage labels (mutually exclusive per issue/PR)
+AUTODEV_LABEL_READY="backlog/ready"
+AUTODEV_LABEL_IMPLEMENTING="agent/implementing"
+AUTODEV_LABEL_REVIEW_COPILOT="agent/review-copilot"
+AUTODEV_LABEL_REVIEW_CLAUDE="agent/review-claude"
+AUTODEV_LABEL_REVIEW_MERGE="human/review-merge"
+AUTODEV_LABEL_BLOCKED="human/blocked"
+
+# Origin labels (persistent, one per PR)
+AUTODEV_LABEL_VIA_ACTIONS="via/actions"
+AUTODEV_LABEL_VIA_AUTODEV="via/autodev"
+
+# Report labels
+AUTODEV_LABEL_PIPELINE_AUDIT="report/pipeline-audit"
 
 # Limits
 AUTODEV_MAX_ITERATIONS=3
-AUTODEV_MAX_OPEN_PRS=1
 
-# Trusted users who can trigger autodev via agent-ready label
+# Trusted users who can trigger autodev via backlog/ready label
 # Only these users (repo owner/collaborators) can queue work for autonomous execution.
 AUTODEV_TRUSTED_USERS=("rnwolfe")
 

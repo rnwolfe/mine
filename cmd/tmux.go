@@ -21,6 +21,8 @@ var tmuxCmd = &cobra.Command{
 	RunE:    hook.Wrap("tmux", runTmux),
 }
 
+var tmuxNewLayout string
+
 func init() {
 	rootCmd.AddCommand(tmuxCmd)
 
@@ -34,6 +36,8 @@ func init() {
 	tmuxLayoutCmd.AddCommand(tmuxLayoutSaveCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutLoadCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutLsCmd)
+
+	tmuxNewCmd.Flags().StringVar(&tmuxNewLayout, "layout", "", "Apply a saved layout after creating the session")
 }
 
 // --- mine tmux (bare) — fuzzy session picker ---
@@ -101,13 +105,29 @@ func runTmuxNew(_ *cobra.Command, args []string) error {
 		name = args[0]
 	}
 
+	// Validate layout exists before creating the session — fail fast, no side effects.
+	if tmuxNewLayout != "" {
+		if _, err := tmux.ReadLayout(tmuxNewLayout); err != nil {
+			return fmt.Errorf("layout %q not found — session not created\n  Save a layout first: %s",
+				tmuxNewLayout, ui.Accent.Render("mine tmux layout save "+tmuxNewLayout))
+		}
+	}
+
 	resolved, err := tmux.NewSession(name)
 	if err != nil {
 		return err
 	}
 
-	ui.Ok(fmt.Sprintf("Session %s created", ui.Accent.Render(resolved)))
-	fmt.Printf("  Attach: %s\n", ui.Muted.Render("mine tmux attach "+resolved))
+	if tmuxNewLayout != "" {
+		if err := tmux.LoadLayout(tmuxNewLayout); err != nil {
+			return err
+		}
+		ui.Ok(fmt.Sprintf("Session %s created with layout %s",
+			ui.Accent.Render(resolved), ui.Accent.Render(tmuxNewLayout)))
+	} else {
+		ui.Ok(fmt.Sprintf("Session %s created", ui.Accent.Render(resolved)))
+		fmt.Printf("  Attach: %s\n", ui.Muted.Render("mine tmux attach "+resolved))
+	}
 	fmt.Println()
 	return nil
 }

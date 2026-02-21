@@ -34,6 +34,7 @@ func init() {
 	tmuxLayoutCmd.AddCommand(tmuxLayoutSaveCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutLoadCmd)
 	tmuxLayoutCmd.AddCommand(tmuxLayoutLsCmd)
+	tmuxLayoutCmd.AddCommand(tmuxLayoutDeleteCmd)
 }
 
 // --- mine tmux (bare) — fuzzy session picker ---
@@ -385,6 +386,7 @@ func runTmuxLayoutHelp(_ *cobra.Command, _ []string) error {
 	fmt.Printf("  %s  %s\n", ui.Accent.Render("mine tmux layout save <name>"), ui.Muted.Render("Save current layout"))
 	fmt.Printf("  %s  %s\n", ui.Accent.Render("mine tmux layout load <name>"), ui.Muted.Render("Restore a layout"))
 	fmt.Printf("  %s  %s\n", ui.Accent.Render("mine tmux layout ls"), ui.Muted.Render("List saved layouts"))
+	fmt.Printf("  %s  %s\n", ui.Accent.Render("mine tmux layout delete <name>"), ui.Muted.Render("Delete a saved layout"))
 	fmt.Println()
 	return nil
 }
@@ -500,6 +502,74 @@ func runTmuxLayoutLs(_ *cobra.Command, _ []string) error {
 	fmt.Println()
 	return nil
 }
+
+// --- mine tmux layout delete ---
+
+var tmuxLayoutDeleteCmd = &cobra.Command{
+	Use:   "delete <name>",
+	Short: "Delete a saved layout",
+	Args:  cobra.MaximumNArgs(1),
+	RunE:  hook.Wrap("tmux.layout.delete", runTmuxLayoutDelete),
+}
+
+func runTmuxLayoutDelete(_ *cobra.Command, args []string) error {
+	if len(args) == 1 {
+		name := args[0]
+		if err := tmux.DeleteLayout(name); err != nil {
+			return err
+		}
+		ui.Ok(fmt.Sprintf("Layout %s deleted", ui.Accent.Render(name)))
+		fmt.Println()
+		return nil
+	}
+
+	// No name: use picker if TTY, else require a name.
+	if !tui.IsTTY() {
+		return fmt.Errorf("specify a layout name or run interactively in a terminal")
+	}
+
+	names, err := tmux.ListLayouts()
+	if err != nil {
+		return err
+	}
+	if len(names) == 0 {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  No saved layouts."))
+		fmt.Println()
+		return nil
+	}
+
+	items := make([]tui.Item, len(names))
+	for i, n := range names {
+		items[i] = layoutItem(n)
+	}
+
+	chosen, err := tui.Run(items,
+		tui.WithTitle(ui.IconPick+"Delete layout"),
+		tui.WithHeight(12),
+	)
+	if err != nil {
+		return err
+	}
+	if chosen == nil {
+		return nil // user canceled
+	}
+
+	name := chosen.Title()
+	if err := tmux.DeleteLayout(name); err != nil {
+		return err
+	}
+	ui.Ok(fmt.Sprintf("Layout %s deleted", ui.Accent.Render(name)))
+	fmt.Println()
+	return nil
+}
+
+// layoutItem wraps a layout name for the TUI picker.
+type layoutItem string
+
+func (l layoutItem) FilterValue() string { return string(l) }
+func (l layoutItem) Title() string       { return string(l) }
+func (l layoutItem) Description() string { return "" }
 
 // --- helpers ---
 

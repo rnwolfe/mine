@@ -89,6 +89,15 @@ mine tmux layout list
 
 Lists all saved layouts with window counts, window names, and save timestamps.
 
+### Delete a Layout
+
+```bash
+mine tmux layout delete dev-setup   # delete by name
+mine tmux layout delete             # interactive picker (TTY)
+```
+
+Permanently removes a saved layout. With no arguments, opens an interactive picker to select which layout to delete. Returns an error if the named layout does not exist.
+
 ## Examples
 
 ```bash
@@ -100,6 +109,9 @@ mine tmux layout save dev-3pane
 
 # Later, restore it
 mine tmux layout load dev-3pane
+
+# Remove a layout you no longer need
+mine tmux layout delete dev-3pane
 
 # Switch between sessions
 mine tmux

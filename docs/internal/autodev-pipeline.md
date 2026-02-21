@@ -306,7 +306,7 @@ NOT protected — agents are encouraged to update them.
 | Secret | Purpose | Why not GITHUB_TOKEN? |
 |--------|---------|----------------------|
 | `GITHUB_TOKEN` | Read operations, issue comments, label edits | Default, sufficient for reads |
-| `AUTODEV_TOKEN` (PAT) | Push branches, create PRs, edit PRs that trigger workflows | GITHUB_TOKEN events cannot trigger other workflows ([L-014](lessons-learned.md#l-014)) |
+| `AUTODEV_TOKEN` (PAT) | Push branches, create PRs, edit PRs that trigger workflows | GITHUB_TOKEN events cannot trigger other workflows ([L-014](lessons-learned.md#l-014-github_token-cannot-trigger-downstream-workflows)) |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Authenticate Claude agent executions | Separate credential for AI provider |
 
 ## Configuration
@@ -337,7 +337,7 @@ NOT protected — agents are encouraged to update them.
 | Review-fix max turns | 50 | Tighter limit for focused fixes |
 | Audit max turns | 30 | Read-only analysis |
 | Weekly audit | Monday 9 AM UTC | Pipeline health feedback loop |
-| Scheduled review poll | Every 4h (offset 30m) | Catches bot reviews gated by approval ([L-016](lessons-learned.md#l-016)) |
+| Scheduled review poll | Every 4h (offset 30m) | Catches bot reviews gated by approval ([L-016](lessons-learned.md#l-016-bot-actors-trigger-github-actions-approval-gates)) |
 
 ## Debugging Guide
 
@@ -374,7 +374,7 @@ changes, or push failed).
 **Symptoms:** Copilot posts a review but `autodev-review-fix` never runs.
 
 **Diagnosis:** Bot actors trigger GitHub's first-time contributor approval gate
-([L-016](lessons-learned.md#l-016)). The scheduled fallback should catch it within 4 hours.
+([L-016](lessons-learned.md#l-016-bot-actors-trigger-github-actions-approval-gates)). The scheduled fallback should catch it within 4 hours.
 
 **Recovery:** Manually approve the workflow run in the Actions tab, or wait for the
 scheduled poll at `:30` past the next 4-hour mark.
@@ -394,11 +394,11 @@ These entries in [lessons-learned.md](lessons-learned.md) document hard-won pipe
 
 | Entry | Topic |
 |-------|-------|
-| [L-013](lessons-learned.md) | Iteration tracking via HTML comments |
-| [L-014](lessons-learned.md) | GITHUB_TOKEN cannot trigger downstream workflows |
-| [L-015](lessons-learned.md) | Copilot review state is COMMENTED, not changes_requested |
-| [L-016](lessons-learned.md) | Bot actors trigger GitHub Actions approval gates |
-| [L-017](lessons-learned.md) | Label-based triggers need trust verification |
+| [L-013](lessons-learned.md#l-013-iteration-tracking-via-html-comments) | Iteration tracking via HTML comments |
+| [L-014](lessons-learned.md#l-014-github_token-cannot-trigger-downstream-workflows) | GITHUB_TOKEN cannot trigger downstream workflows |
+| [L-015](lessons-learned.md#l-015-copilot-review-state-is-commented-not-changes_requested) | Copilot review state is COMMENTED, not changes_requested |
+| [L-016](lessons-learned.md#l-016-bot-actors-trigger-github-actions-approval-gates) | Bot actors trigger GitHub Actions approval gates |
+| [L-017](lessons-learned.md#l-017-label-based-triggers-need-trust-verification) | Label-based triggers need trust verification |
 
 ## Related Files
 

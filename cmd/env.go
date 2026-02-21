@@ -41,6 +41,7 @@ func init() {
 	envCmd.AddCommand(envExportCmd)
 	envCmd.AddCommand(envTemplateCmd)
 	envCmd.AddCommand(envInjectCmd)
+	envCmd.AddCommand(envEditCmd)
 
 	envShowCmd.Flags().BoolVar(&envReveal, "reveal", false, "Show raw values (default: masked)")
 	envExportCmd.Flags().StringVar(&envShellType, "shell", "posix", "Export format: posix or fish")
@@ -100,6 +101,13 @@ var envInjectCmd = &cobra.Command{
 	Short: "Run a command with env vars injected",
 	Args:  cobra.ArbitraryArgs,
 	RunE:  hook.Wrap("env.inject", runEnvInject),
+}
+
+var envEditCmd = &cobra.Command{
+	Use:   "edit [profile]",
+	Short: "Open a profile in $EDITOR for bulk editing",
+	Args:  cobra.MaximumNArgs(1),
+	RunE:  hook.Wrap("env.edit", runEnvEdit),
 }
 
 func runEnvBare(_ *cobra.Command, _ []string) error {
@@ -271,6 +279,134 @@ func runEnvInject(_ *cobra.Command, args []string) error {
 	cmd.Stderr = os.Stderr
 	cmd.Env = mergedEnv(os.Environ(), vars)
 	return cmd.Run()
+}
+
+func runEnvEdit(_ *cobra.Command, args []string) error {
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		return fmt.Errorf(
+			"$EDITOR is not set\n\nSet it in your shell profile:\n  export EDITOR=vim\n\nOr set individual vars without an editor:\n  %s",
+			ui.Accent.Render("mine env set KEY=VALUE"),
+		)
+	}
+
+	m, projectPath, err := envManager()
+	if err != nil {
+		return err
+	}
+	defer m.Close()
+
+	var profile string
+	if len(args) > 0 {
+		profile = args[0]
+	} else {
+		profile, err = m.manager.ActiveProfile(projectPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	vars, err := m.manager.LoadProfile(projectPath, profile)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			if len(args) > 0 {
+				return fmt.Errorf(
+					"profile %q does not exist\n\nCreate variables in the active profile first with:\n  %s",
+					profile, ui.Accent.Render("mine env set KEY=VALUE"),
+				)
+			}
+			vars = map[string]string{}
+		} else {
+			return err
+		}
+	}
+
+	// Create temp file; deferred cleanup zero-fills then removes it on all paths.
+	tmp, err := os.CreateTemp(os.TempDir(), "mine-env-*.env")
+	if err != nil {
+		return fmt.Errorf("creating temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer func() {
+		_ = os.Truncate(tmpPath, 0)
+		_ = os.Remove(tmpPath)
+	}()
+	if err := os.Chmod(tmpPath, 0o600); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("setting temp file permissions: %w", err)
+	}
+
+	keys := make([]string, 0, len(vars))
+	for k := range vars {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var sb strings.Builder
+	for _, k := range keys {
+		sb.WriteString(k)
+		sb.WriteString("=")
+		sb.WriteString(vars[k])
+		sb.WriteString("\n")
+	}
+	if _, err := tmp.WriteString(sb.String()); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("writing temp file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("closing temp file: %w", err)
+	}
+
+	parts := strings.Fields(editor)
+	editorArgs := append(parts[1:], tmpPath)
+	cmd := exec.Command(parts[0], editorArgs...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("editor exited with an error — no changes saved: %w", err)
+	}
+
+	content, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return fmt.Errorf("reading temp file after edit: %w", err)
+	}
+
+	edited, invalidKeys := parseEnvFile(string(content))
+	if len(invalidKeys) > 0 {
+		return fmt.Errorf(
+			"invalid key names in edited file: %s\n\nNo changes saved. Keys must match [A-Za-z_][A-Za-z0-9_]*",
+			strings.Join(invalidKeys, ", "),
+		)
+	}
+
+	if err := m.manager.SaveProfile(projectPath, profile, edited); err != nil {
+		return fmt.Errorf("saving profile: %w", err)
+	}
+
+	ui.Ok(fmt.Sprintf("Profile %s saved (%d var(s))", ui.Accent.Render(profile), len(edited)))
+	return nil
+}
+
+// parseEnvFile parses KEY=VALUE lines from env file content.
+// Blank lines and lines starting with # are ignored.
+// Returns the parsed vars and a list of invalid key names found.
+func parseEnvFile(content string) (map[string]string, []string) {
+	vars := make(map[string]string)
+	var invalidKeys []string
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, _ := strings.Cut(line, "=")
+		key = strings.TrimSpace(key)
+		if err := env.ValidateKey(key); err != nil {
+			invalidKeys = append(invalidKeys, key)
+			continue
+		}
+		vars[key] = val
+	}
+	return vars, invalidKeys
 }
 
 func showActive(reveal bool) error {

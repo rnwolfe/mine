@@ -110,6 +110,25 @@ mine env inject -- env | grep API_
 
 Runs a command with the active profile variables injected into the subprocess environment. Profile variables override any matching inherited environment variables. Your shell session is not affected.
 
+## Edit a Profile in $EDITOR
+
+```bash
+mine env edit
+mine env edit staging
+```
+
+Opens the active profile (or a named profile) in `$EDITOR` for bulk editing. The profile is decrypted to a secure temp file, opened in your editor, then re-encrypted and saved on clean exit.
+
+The temp file format is one `KEY=VALUE` line per variable, sorted alphabetically. Blank lines and lines starting with `#` are ignored on re-read.
+
+**Behaviour:**
+
+- If `$EDITOR` is not set, the command fails with an actionable error suggesting how to set it and the `mine env set` fallback.
+- If the editor exits non-zero, all edits are discarded and the original profile is unchanged.
+- If any key in the edited file is invalid (doesn't match `[A-Za-z_][A-Za-z0-9_]*`), the command fails and the original profile is unchanged.
+- If a named profile does not exist, the command errors rather than silently creating an empty profile.
+- The temp file is removed (with best-effort zero-fill) on all exit paths — success, editor error, or parse error.
+
 ## Shell Integration
 
 Install the `menv` helper by adding `eval "$(mine shell init)"` to your shell config:
@@ -146,8 +165,12 @@ On fish, `menv` automatically uses fish-compatible export syntax. In all shells,
 | Wrong passphrase | Non-zero exit, explicit error with hint |
 | Corrupted profile | Non-zero exit, explicit error with hint |
 | Missing profile on `switch` | Non-zero exit, profile name in error |
+| Missing named profile on `edit` | Non-zero exit, profile name in error |
 | No passphrase in non-interactive mode | Non-zero exit, instructive error |
 | Invalid key name | Non-zero exit before any disk writes |
+| `$EDITOR` not set on `edit` | Non-zero exit, suggests `export EDITOR=vim` and `mine env set` fallback |
+| Editor exits non-zero on `edit` | Non-zero exit, original profile unchanged |
+| Invalid key in edited file | Non-zero exit listing bad keys, original profile unchanged |
 
 ## Storage Location
 

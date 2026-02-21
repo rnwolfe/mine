@@ -252,6 +252,66 @@ func TestCorruptedProfile(t *testing.T) {
 	}
 }
 
+func TestEditRoundTrip(t *testing.T) {
+	mgr, projectPath, done := setupTestManager(t, "secret-pass")
+	defer done()
+
+	if err := mgr.SaveProfile(projectPath, "local", map[string]string{
+		"API_KEY": "abc",
+		"PORT":    "8080",
+	}); err != nil {
+		t.Fatalf("SaveProfile: %v", err)
+	}
+
+	vars, err := mgr.LoadProfile(projectPath, "local")
+	if err != nil {
+		t.Fatalf("LoadProfile: %v", err)
+	}
+
+	vars["PORT"] = "9000"
+	vars["NEW_VAR"] = "hello"
+	delete(vars, "API_KEY")
+
+	if err := mgr.SaveProfile(projectPath, "local", vars); err != nil {
+		t.Fatalf("SaveProfile after edit: %v", err)
+	}
+
+	got, err := mgr.LoadProfile(projectPath, "local")
+	if err != nil {
+		t.Fatalf("LoadProfile after edit: %v", err)
+	}
+	if got["PORT"] != "9000" {
+		t.Errorf("expected PORT=9000, got %q", got["PORT"])
+	}
+	if got["NEW_VAR"] != "hello" {
+		t.Errorf("expected NEW_VAR=hello, got %q", got["NEW_VAR"])
+	}
+	if _, ok := got["API_KEY"]; ok {
+		t.Errorf("expected API_KEY to be deleted")
+	}
+}
+
+func TestSaveProfileInvalidKeyRejection(t *testing.T) {
+	mgr, projectPath, done := setupTestManager(t, "secret-pass")
+	defer done()
+
+	err := mgr.SaveProfile(projectPath, "local", map[string]string{
+		"VALID_KEY":   "ok",
+		"INVALID-KEY": "bad",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid key")
+	}
+	if !strings.Contains(err.Error(), "INVALID-KEY") {
+		t.Errorf("error should mention the invalid key, got: %v", err)
+	}
+
+	_, loadErr := mgr.LoadProfile(projectPath, "local")
+	if !errors.Is(loadErr, os.ErrNotExist) {
+		t.Errorf("profile should not exist after failed save, got loadErr: %v", loadErr)
+	}
+}
+
 func TestCorruptedProfileInvalidKey(t *testing.T) {
 	mgr, projectPath, done := setupTestManager(t, "secret-pass")
 	defer done()

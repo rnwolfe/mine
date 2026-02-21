@@ -184,7 +184,7 @@ func runDashboard(_ *cobra.Command, _ []string) error {
 	ui.Kv("  "+ui.IconCalendar+" Today", now.Format("Monday, January 2"))
 
 	// Version
-	ui.Kv("  "+ui.IconSettings+"Mine", version.Short())
+	ui.Kv("  "+ui.IconSettings+" Mine", version.Short())
 
 	// Tip
 	if open > 0 && overdue > 0 {

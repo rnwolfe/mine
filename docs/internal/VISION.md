@@ -49,7 +49,9 @@ Commands lean into this naturally without being forced.
 | `mine hook` | Hook pipeline management | 2 | Shipped |
 | `mine tips` | Contextual tips | 2 | Shipped |
 | `mine doctor` | Health check & diagnostics | 2 | Shipped |
-| `mine meta` | About / build information | 2 | Shipped |
+| `mine meta` | Interact with mine-as-a-product (feature requests, bug reports) | 2 | Shipped |
+| `mine about` | About / build information | 2 | Shipped |
+| `mine status` | Mine status for shell prompt integration | 2 | Shipped |
 | `mine contrib` | Community contribution helpers | 2 | Shipped |
 | `mine plugin` | Plugin system (install, search, manage) | 3 | Shipped |
 | `mine vault` | Secrets & credential management | 3 | Shipped |
@@ -80,7 +82,7 @@ mine (binary)
 │   ├── env/          # Encrypted per-project env profiles
 │   ├── git/          # Git helpers (sweep, PR, changelog)
 │   ├── hook/         # Four-stage hook pipeline
-│   ├── meta/         # Build/about information
+│   ├── meta/         # Feature request and bug report formatting
 │   ├── plugin/       # Plugin system (manifest, lifecycle, runtime)
 │   ├── proj/         # Project registry + context switching
 │   ├── shell/        # Completions, functions, shell init

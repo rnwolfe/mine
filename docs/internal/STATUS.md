@@ -36,6 +36,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - [x] **Doctor** (`mine doctor`) — Health check and diagnostics
 - [x] **Meta** (`mine meta`) — Interact with mine-as-a-product (feature requests, bug reports, contribution workflows)
 - [x] **About** (`mine about`) — About/build information
+- [x] **Status** (`mine status`) — Mine status for shell prompt integration (JSON, compact prompt segment)
 - [x] **Contrib** (`mine contrib`) — Community contribution helpers
 - [ ] **Agents** (`mine agents`) — Unified coding agent configuration manager (10 issues filed: #146–#156)
 - [ ] **Task system evolution** — Project-aware, focus-integrated todo system (#159)
@@ -78,7 +79,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 │   ├── env/         2 files — encrypted per-project env profiles
 │   ├── git/         2 files — git helpers (sweep, pr, changelog)
 │   ├── hook/        7 files — four-stage hook pipeline
-│   ├── meta/        2 files — build/about information
+│   ├── meta/        2 files — feature/bug report formatting helpers
 │   ├── plugin/      7 files — plugin system (manifest, lifecycle, runtime)
 │   ├── proj/        2 files — project registry + context switching
 │   ├── shell/       5 files — completions, functions, shell init

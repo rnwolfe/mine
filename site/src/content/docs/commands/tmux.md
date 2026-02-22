@@ -134,6 +134,56 @@ mine tmux layout delete             # interactive picker (TTY)
 
 Permanently removes a saved layout. With no arguments, opens an interactive picker to select which layout to delete. Returns an error if the named layout does not exist.
 
+## Windows
+
+Manage windows within a tmux session. All window subcommands default to the current session when inside tmux. Use `--session <name>` to target a specific session.
+
+### List Windows
+
+```bash
+mine tmux window ls             # windows in current session
+mine tmux window ls --session s # windows in session "s"
+mine tmux window list           # alias
+```
+
+Lists all windows in the session with their index, name, and active indicator (`*`).
+
+### Create a Window
+
+```bash
+mine tmux window new <name>
+mine tmux window new editor --session myproject
+```
+
+Creates a new named window in the current (or specified) session.
+
+### Kill a Window
+
+```bash
+mine tmux window kill <name>     # kill by exact name
+mine tmux window kill            # interactive picker (TTY)
+mine tmux window kill --session s editor
+```
+
+Kills a window. With no name, opens an interactive fuzzy picker to select the window. Falls back to listing windows when stdout is not a TTY.
+
+### Rename a Window
+
+```bash
+mine tmux window rename old new  # rename directly, no prompts
+mine tmux window rename oldname  # select by name, then prompt for new name
+mine tmux window rename          # interactive picker, then prompt for new name
+mine tmux window rename --session s editor code
+```
+
+Renames a window. In 2-arg mode the rename is immediate. In 1-arg mode the window is matched by exact name and you are prompted for the new name. With no args, an interactive picker lets you select the window and then prompts for the new name.
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--session <name>` | Target session (defaults to current session inside tmux) |
+
 ## Examples
 
 ```bash
@@ -166,6 +216,12 @@ mine tmux layout load dev-3pane
 
 # Remove a layout you no longer need
 mine tmux layout delete dev-3pane
+
+# Manage windows within a session
+mine tmux window ls
+mine tmux window new editor
+mine tmux window kill old-window
+mine tmux window rename old-name new-name
 
 # Switch between sessions
 mine tmux

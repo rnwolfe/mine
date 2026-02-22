@@ -79,7 +79,7 @@ var (
 // Icon constants — consistent emoji language.
 const (
 	IconMine     = "▸ "
-	IconGem      = "✦ "
+	IconGem      = "✦"
 	IconGold     = "🏆"
 	IconTodo     = "📋"
 	IconDone     = "✅"

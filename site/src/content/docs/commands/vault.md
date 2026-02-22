@@ -8,12 +8,38 @@ Secrets live in a single encrypted file at `~/.local/share/mine/vault.age`.
 
 ## Passphrase
 
-All vault operations require a passphrase. Provide it via:
+All vault operations require a passphrase. mine resolves it in this order:
 
-- **Environment variable** (recommended for scripts): `MINE_VAULT_PASSPHRASE=<passphrase>`
-- **Interactive prompt**: mine will prompt securely (no echo) when running in a terminal
+1. **`MINE_VAULT_PASSPHRASE` env var** — always wins, ideal for scripts
+2. **OS keychain** — stored via `mine vault unlock`, retrieved transparently
+3. **Interactive prompt** — secure input (no echo) when running in a terminal
 
-The passphrase is never stored anywhere — it is only held in memory during the vault operation.
+The passphrase is never stored on disk in plaintext. By default it is only held in memory for the duration of each vault operation, but if you run `mine vault unlock` it may also be persisted securely in the OS keychain (encrypted/protected by the OS).
+
+## Passphrase Management
+
+### Store in OS Keychain
+
+```bash
+mine vault unlock
+```
+
+Prompts for the passphrase and stores it securely in the OS native keychain (macOS Keychain, GNOME Keyring on Linux via `secret-tool`). After unlocking, all vault commands work without prompting or setting env vars.
+
+Platform behaviour:
+- **macOS**: Uses the built-in `security` CLI — no extra dependencies.
+- **Linux**: Requires `secret-tool` (part of `libsecret-tools`). If `secret-tool` is not installed, `unlock` returns an error indicating keychain is not available; use `MINE_VAULT_PASSPHRASE` instead.
+- **Other platforms**: Returns an informational error; use `MINE_VAULT_PASSPHRASE` instead.
+
+### Remove from OS Keychain
+
+```bash
+mine vault lock
+```
+
+Removes the stored passphrase from the OS keychain. Future vault commands will prompt again.
+
+If no passphrase is stored, `lock` exits successfully with an informational message.
 
 ## Store a Secret
 
@@ -90,6 +116,19 @@ Replaces the current vault with the contents of the backup file. The import must
 Import **replaces** the existing vault entirely. There is no merge. Back up your current vault before importing.
 :::
 
+## Subcommand Reference
+
+| Subcommand | Description |
+|------------|-------------|
+| `set <key> <value>` | Store or update a secret |
+| `get <key>` | Retrieve a secret (use `--copy` to copy to clipboard) |
+| `list` | List all stored secret keys |
+| `rm <key>` | Permanently delete a secret |
+| `export` | Export encrypted vault for backup |
+| `import <file>` | Restore vault from a backup |
+| `unlock` | Store passphrase in OS keychain |
+| `lock` | Remove passphrase from OS keychain |
+
 ## AI Key Integration
 
 You can store AI provider API keys in the vault in two ways:
@@ -132,6 +171,10 @@ When AI commands run (e.g. `mine ai ask`), they check for keys in this order:
 | Missing key | Non-zero exit, key name in error |
 | Empty vault on export | Non-zero exit, instructive error |
 | Import with wrong passphrase | Non-zero exit, explicit error |
+| `vault unlock` on non-TTY | Non-zero exit, "requires an interactive terminal" |
+| `vault unlock` — keychain unavailable | Non-zero exit, error with `MINE_VAULT_PASSPHRASE` hint |
+| `vault lock` — nothing stored | Zero exit, informational message (not an error) |
+| `vault lock` — keychain unavailable | Non-zero exit, error with `MINE_VAULT_PASSPHRASE` hint |
 
 ## Vault File Location
 

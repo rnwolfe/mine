@@ -517,7 +517,7 @@ func runTmuxLayoutHelp(_ *cobra.Command, _ []string) error {
 			}
 
 			chosen, err := tui.Run(items,
-				tui.WithTitle(ui.IconPick+"Load layout"),
+				tui.WithTitle(ui.IconMine+"Load layout"),
 				tui.WithHeight(12),
 			)
 			if err != nil {

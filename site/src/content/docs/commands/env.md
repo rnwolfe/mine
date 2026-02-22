@@ -8,12 +8,16 @@ Values are masked by default in CLI output; reveal is always explicit.
 
 ## Passphrase
 
-All `mine env` operations require a passphrase. Provide it via:
+All `mine env` operations require a passphrase. mine resolves it in this order:
 
-- **Environment variable** (recommended for scripts): `MINE_ENV_PASSPHRASE=<passphrase>` or `MINE_VAULT_PASSPHRASE=<passphrase>`
-- **Interactive prompt**: mine will prompt securely (no echo) when running in a terminal
+1. **`MINE_ENV_PASSPHRASE` env var** — highest priority, always wins
+2. **`MINE_VAULT_PASSPHRASE` env var** — fallback vault passphrase
+3. **OS keychain** — stored via `mine vault unlock`, retrieved transparently
+4. **Interactive prompt** — secure input (no echo) when running in a terminal
 
-The passphrase is never stored anywhere — it is only held in memory during the operation. In non-interactive mode without a passphrase env var, commands fail with a clear error.
+The passphrase is never stored on disk in plaintext. By default it is only held in memory during each operation, but if you run `mine vault unlock` it may also be persisted securely in the OS keychain (encrypted/protected by the OS). In non-interactive mode without a passphrase source, commands fail with a clear error.
+
+Set env vars permanently in your shell profile for CI/automation, or run `mine vault unlock` once for interactive use.
 
 ## Show Active Profile
 

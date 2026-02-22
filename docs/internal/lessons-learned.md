@@ -104,3 +104,13 @@ users allowlist (`AUTODEV_TRUSTED_USERS` in config.sh).
 Shell helpers like `p` use command substitution to capture `--print-path`, which pipes
 stdout. Bubbletea picker rendering must target a real TTY output stream (stderr) in
 that mode, or the picker can become invisible/hang despite stdin being interactive.
+
+
+### L-019: Platform keychain integration via CLI tools avoids CGo
+For OS keychain integration (macOS Keychain, GNOME Keyring), shell out to CLI tools
+(`security` on macOS, `secret-tool` on Linux) rather than importing native bindings.
+This keeps the binary CGo-free and dependency-free. Use build tags for platform files
+(`//go:build darwin`, `//go:build linux`, `//go:build !darwin && !linux`) and put
+shared types (interfaces, no-op fallback) in an untagged file. For injectable testing,
+expose the store as a package-level `var` in the cmd package so tests can swap it out
+without modifying production code.

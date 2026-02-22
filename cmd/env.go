@@ -14,6 +14,7 @@ import (
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/ui"
+	"github.com/rnwolfe/mine/internal/vault"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -471,6 +472,11 @@ func envManager() (*envSession, string, error) {
 	return &envSession{manager: m, db: db}, projectPath, nil
 }
 
+// readEnvPassphrase reads the env passphrase using the following resolution order:
+//  1. MINE_ENV_PASSPHRASE env var (always wins)
+//  2. MINE_VAULT_PASSPHRASE env var
+//  3. OS keychain (via vaultKeychainStore, shared with vault commands)
+//  4. Interactive TTY prompt
 func readEnvPassphrase() (string, error) {
 	if p := os.Getenv("MINE_ENV_PASSPHRASE"); p != "" {
 		return p, nil
@@ -478,8 +484,19 @@ func readEnvPassphrase() (string, error) {
 	if p := os.Getenv("MINE_VAULT_PASSPHRASE"); p != "" {
 		return p, nil
 	}
+
+	// Check OS keychain before prompting.
+	if p, err := vaultKeychainStore.Get(vault.ServiceName); err != nil {
+		if !vault.IsKeychainMiss(err) {
+			return "", fmt.Errorf("retrieving env passphrase from keychain: %w", err)
+		}
+	} else if p != "" {
+		return p, nil
+	}
+
 	if !term.IsTerminal(int(syscall.Stdin)) {
-		return "", fmt.Errorf("env passphrase required — set MINE_ENV_PASSPHRASE or MINE_VAULT_PASSPHRASE, or run interactively")
+		return "", fmt.Errorf("env passphrase required — set MINE_ENV_PASSPHRASE, MINE_VAULT_PASSPHRASE, run %s, or run interactively",
+			ui.Accent.Render("mine vault unlock"))
 	}
 	fmt.Fprint(os.Stderr, ui.Muted.Render("  Env passphrase: "))
 	passBytes, err := term.ReadPassword(int(syscall.Stdin))

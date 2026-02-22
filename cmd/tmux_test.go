@@ -126,6 +126,85 @@ func TestLayoutItemDescriptionErrorReading(t *testing.T) {
 	}
 }
 
+// TestRunTmuxLayoutHelp_NotInsideTmux_ShowsHelp verifies that the help text is shown
+// when not inside a tmux session (TMUX env var unset).
+func TestRunTmuxLayoutHelp_NotInsideTmux_ShowsHelp(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("TMUX", "") // ensure not inside tmux
+
+	output := captureStdout(t, func() {
+		if err := runTmuxLayoutHelp(nil, []string{}); err != nil {
+			t.Errorf("expected nil error, got: %v", err)
+		}
+	})
+
+	for _, want := range []string{
+		"mine tmux layout save",
+		"mine tmux layout load",
+		"mine tmux layout ls",
+		"mine tmux layout delete",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("help output missing %q\nGot:\n%s", want, output)
+		}
+	}
+}
+
+// TestRunTmuxLayoutHelp_InsideTmuxNoLayouts verifies that when inside tmux but no
+// layouts are saved, an informative message is printed and nil is returned.
+func TestRunTmuxLayoutHelp_InsideTmuxNoLayouts(t *testing.T) {
+	setupTmuxEnv(t)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // empty config dir → no layouts
+
+	output := captureStdout(t, func() {
+		if err := runTmuxLayoutHelp(nil, []string{}); err != nil {
+			t.Errorf("expected nil error, got: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "No saved layouts") {
+		t.Errorf("expected 'No saved layouts' message, got:\n%s", output)
+	}
+	if !strings.Contains(output, "mine tmux layout save") {
+		t.Errorf("expected save hint in output, got:\n%s", output)
+	}
+}
+
+// TestRunTmuxLayoutHelp_InsideTmuxNonTTY_ShowsHelp verifies that when inside tmux
+// but not a TTY, the help text is shown (the picker requires a TTY).
+func TestRunTmuxLayoutHelp_InsideTmuxNonTTY_ShowsHelp(t *testing.T) {
+	setupTmuxEnv(t)
+	configDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configDir)
+
+	// Write a layout so the no-layouts branch is not triggered.
+	layout := &tmux.Layout{
+		Name:    "dev-setup",
+		Windows: []tmux.WindowLayout{{Name: "editor", PaneCount: 1}},
+	}
+	if err := tmux.WriteLayout(layout); err != nil {
+		t.Fatal(err)
+	}
+
+	// IsTTY() returns false in tests (no terminal attached), so the help text
+	// branch should run even though we are "inside" tmux.
+	output := captureStdout(t, func() {
+		if err := runTmuxLayoutHelp(nil, []string{}); err != nil {
+			t.Errorf("expected nil error, got: %v", err)
+		}
+	})
+
+	for _, want := range []string{
+		"mine tmux layout save",
+		"mine tmux layout load",
+		"mine tmux layout ls",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("help output missing %q\nGot:\n%s", want, output)
+		}
+	}
+}
+
 // TestTmuxLayoutPreviewCmdArgs verifies arg count enforcement on the preview command.
 func TestTmuxLayoutPreviewCmdArgs(t *testing.T) {
 	if err := tmuxLayoutPreviewCmd.Args(tmuxLayoutPreviewCmd, []string{"dev-setup"}); err != nil {

@@ -268,12 +268,50 @@ jobs:
 
       - name: Create PR
         if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'true'
+        id: create-pr
         env:
           GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
         run: |
-          bash scripts/autodev/open-pr.sh \
+          PR_URL=$(bash scripts/autodev/open-pr.sh \
             "${{ inputs.issue_number }}" \
-            "${{ steps.prep.outputs.branch }}"
+            "${{ steps.prep.outputs.branch }}")
+
+          # Extract PR number from URL (e.g., https://github.com/rnwolfe/mine/pull/182)
+          PR_NUMBER=$(echo "$PR_URL" | grep -oP '/pull/\K\d+')
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+
+      # ── Chain to review pipeline ──────────────────────────────────
+      # Bypasses the pull_request_review trigger which gets gated by
+      # GitHub's first-time contributor approval for bot actors (Copilot)
+      # on public repos. Polls for Copilot review, then dispatches
+      # review-fix directly.
+      - name: Wait for review and trigger review pipeline
+        if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'true' && steps.create-pr.outputs.pr_number
+        env:
+          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.create-pr.outputs.pr_number }}"
+          echo "Waiting for Copilot review on PR #$PR_NUMBER..."
+
+          # Poll for up to 10 minutes (60 x 10s)
+          for i in $(seq 1 60); do
+            REVIEW_COUNT=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
+              --jq '[.[] | select(.user.login != "github-actions[bot]")] | length' 2>/dev/null || echo "0")
+
+            if [ "$REVIEW_COUNT" -gt 0 ]; then
+              echo "Review found after ~$((i * 10))s. Dispatching review-fix pipeline."
+              gh workflow run autodev-review-fix.yml \
+                --repo "${{ github.repository }}" \
+                -f pr_number="$PR_NUMBER"
+              echo "Review-fix pipeline dispatched for PR #$PR_NUMBER."
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo "::warning::No review appeared within 10 minutes. Review pipeline will rely on scheduled fallback."
 
       - name: Handle no changes
         if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'false'

@@ -37,6 +37,9 @@ The rubric criteria are:
 4. **Error guidance**: Error messages explain what went wrong AND what to do about it
 5. **Celebrations**: Small wins are acknowledged (completions, milestones)
 6. **No raw fmt**: All user-facing output goes through `ui.*` helpers, not raw `fmt.Print*`
+7. **Brand identity**: No mining metaphor language (pickaxes, gems, mining, ore, etc.).
+   The brand is personal ownership — "mine" means "yours." Command names are developer
+   vocabulary, not metaphor extensions. See ADR-006 in `docs/internal/DECISIONS.md`.
 
 ### 2. Scan Target Scope
 

@@ -53,6 +53,7 @@ mine/
 │   ├── tui/         # Reusable TUI components (fuzzy-search picker)
 │   ├── tmux/        # Tmux session management and layout persistence
 │   ├── env/         # Encrypted per-project environment profiles
+│   ├── analytics/   # Anonymous usage analytics (ping, dedup, install ID)
 │   ├── version/     # Build-time version info
 │   └── ...          # New domains go here
 ├── docs/            # Agentic/internal docs only (vision, decisions, status, specs, plans)
@@ -127,6 +128,14 @@ Rules:
     (`projects` table) and project-local settings in `~/.config/mine/projects.toml`.
     Current/previous project pointers are tracked via `kv` keys (`proj.current`,
     `proj.previous`) to support shell helpers (`p`, `pp`) and dashboard context.
+14. **Analytics pattern**: `internal/analytics` sends a synchronous ping with a 2-second
+    HTTP timeout after each command (via `PersistentPostRun`). Daily dedup via the `kv`
+    SQLite table prevents multiple pings per command per day. The config field uses a
+    `*bool` tri-state: `nil` = default-on (first run shows a one-time privacy notice),
+    `true` = explicitly enabled, `false` = opted out. Always fails silently — never
+    blocks or errors. Payload is PII-free: install ID (random UUIDv4), version, OS,
+    arch, command name (no arguments), and date. Install ID persisted at
+    `$XDG_DATA_HOME/mine/analytics_id`.
 
 ## Testing Standards
 

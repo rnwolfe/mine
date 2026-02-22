@@ -481,6 +481,64 @@ var tmuxLayoutCmd = &cobra.Command{
 }
 
 func runTmuxLayoutHelp(_ *cobra.Command, _ []string) error {
+	// When inside tmux, check saved layouts and act accordingly.
+	if tmux.InsideTmux() {
+		if !tmux.Available() {
+			return fmt.Errorf("tmux not found in PATH")
+		}
+		names, err := tmux.ListLayouts()
+		if err != nil {
+			return err
+		}
+
+		if len(names) == 0 {
+			fmt.Println()
+			fmt.Println(ui.Muted.Render("  No saved layouts."))
+			fmt.Printf("  Save one: %s\n", ui.Accent.Render("mine tmux layout save <name>"))
+			fmt.Println()
+			return nil
+		}
+
+		// Open interactive picker when a TTY is available.
+		if tui.IsTTY() {
+			items := make([]tui.Item, len(names))
+			for i, n := range names {
+				desc := ""
+				if layout, err := tmux.ReadLayout(n); err == nil {
+					w := "windows"
+					if len(layout.Windows) == 1 {
+						w = "window"
+					}
+					desc = fmt.Sprintf("%d %s", len(layout.Windows), w)
+				} else {
+					desc = "(error reading)"
+				}
+				items[i] = layoutItem{name: n, description: desc}
+			}
+
+			chosen, err := tui.Run(items,
+				tui.WithTitle(ui.IconMine+"Load layout"),
+				tui.WithHeight(12),
+			)
+			if err != nil {
+				return err
+			}
+			if chosen == nil {
+				return nil // user canceled
+			}
+
+			name := chosen.Title()
+			if err := tmux.LoadLayout(name); err != nil {
+				return err
+			}
+
+			ui.Ok(fmt.Sprintf("Layout %s restored", ui.Accent.Render(name)))
+			fmt.Println()
+			return nil
+		}
+	}
+
+	// Fallback: show help text when outside tmux or non-TTY.
 	fmt.Println()
 	fmt.Println(ui.Title.Render("  Tmux Layouts"))
 	fmt.Println()

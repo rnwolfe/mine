@@ -91,6 +91,16 @@ Renames a tmux session. In 2-arg mode the rename happens immediately. In 1-arg m
 
 Save and restore window/pane layouts.
 
+### Interactive Layout Picker
+
+```bash
+mine tmux layout              # inside tmux + TTY: fuzzy picker; else: help text
+```
+
+When run inside a tmux session with a TTY, `mine tmux layout` (bare, no subcommand) opens an interactive fuzzy-search picker over all saved layouts. Selecting a layout immediately loads it into the current session. Press Esc to cancel without applying any layout.
+
+Outside of tmux or when stdout is not a TTY, the command falls back to showing the subcommand help text. All subcommands (`save`, `load`, `ls`, `preview`, `delete`) are always accessible directly.
+
 ### Save a Layout
 
 ```bash
@@ -211,7 +221,8 @@ mine tmux new myapi --layout dev-3pane
 # Preview a layout before loading it
 mine tmux layout preview dev-3pane
 
-# Later, restore a layout into the current session
+# Restore a layout — interactive picker inside tmux, or specify by name
+mine tmux layout
 mine tmux layout load dev-3pane
 
 # Remove a layout you no longer need

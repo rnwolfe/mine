@@ -48,14 +48,14 @@ else
 fi
 
 # All commits since last tag (or since initial commit for first release)
-git log ${LAST_TAG}..HEAD --oneline --no-merges
+git log "${LAST_TAG}"..HEAD --oneline --no-merges
 
 # Merged PRs since last tag — the authoritative source
 gh pr list --repo rnwolfe/mine \
   --state merged \
   --json number,title,body,mergedAt,labels \
   --limit 50 | \
-  jq --arg since "$(git log ${LAST_TAG} -1 --format=%aI)" \
+  jq --arg since "$(git log --format=%aI -1 -- "${LAST_TAG}")" \
   '[.[] | select(.mergedAt > $since)]'
 
 # Any open PRs that might affect release readiness

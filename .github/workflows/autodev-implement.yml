@@ -301,10 +301,13 @@ jobs:
 
             if [ "$REVIEW_COUNT" -gt 0 ]; then
               echo "Review found after ~$((i * 10))s. Dispatching review-fix pipeline."
-              gh workflow run autodev-review-fix.yml \
+              if gh workflow run autodev-review-fix.yml \
                 --repo "${{ github.repository }}" \
-                -f pr_number="$PR_NUMBER"
-              echo "Review-fix pipeline dispatched for PR #$PR_NUMBER."
+                -f pr_number="$PR_NUMBER"; then
+                echo "Review-fix pipeline dispatched for PR #$PR_NUMBER."
+              else
+                echo "::warning::Failed to dispatch review-fix (AUTODEV_TOKEN needs 'actions: write' permission). The 4-hour scheduled fallback will process this PR."
+              fi
               exit 0
             fi
 

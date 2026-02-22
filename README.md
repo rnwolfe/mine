@@ -1,4 +1,4 @@
-# mine ⛏️
+# mine
 
 > Your personal developer supercharger.
 
@@ -18,7 +18,7 @@ go install github.com/rnwolfe/mine@latest
 
 ```
 $ mine
-⛏ Hey Ryan!
+▸ Hey Ryan!
 
   📋 Todos      3 open (1 overdue!)
   📅 Today      Friday, February 14

@@ -86,7 +86,7 @@ func runTmux(_ *cobra.Command, _ []string) error {
 	}
 
 	chosen, err := tui.Run(items,
-		tui.WithTitle(ui.IconPick+"Select tmux session"),
+		tui.WithTitle(ui.IconMine+"Select tmux session"),
 		tui.WithHeight(12),
 	)
 	if err != nil {
@@ -289,7 +289,7 @@ func runTmuxAttach(_ *cobra.Command, args []string) error {
 	}
 
 	chosen, err := tui.Run(items,
-		tui.WithTitle(ui.IconPick+"Attach to session"),
+		tui.WithTitle(ui.IconMine+"Attach to session"),
 		tui.WithHeight(12),
 	)
 	if err != nil {
@@ -348,7 +348,7 @@ func runTmuxKill(_ *cobra.Command, args []string) error {
 		}
 
 		chosen, err := tui.Run(items,
-			tui.WithTitle(ui.IconPick+"Kill session"),
+			tui.WithTitle(ui.IconMine+"Kill session"),
 			tui.WithHeight(12),
 		)
 		if err != nil {
@@ -441,7 +441,7 @@ func runTmuxRename(_ *cobra.Command, args []string) error {
 		}
 
 		chosen, err := tui.Run(items,
-			tui.WithTitle(ui.IconPick+"Rename session"),
+			tui.WithTitle(ui.IconMine+"Rename session"),
 			tui.WithHeight(12),
 		)
 		if err != nil {
@@ -584,7 +584,7 @@ func runTmuxLayoutLoad(_ *cobra.Command, args []string) error {
 		}
 
 		chosen, err := tui.Run(items,
-			tui.WithTitle(ui.IconPick+"Load layout"),
+			tui.WithTitle(ui.IconMine+"Load layout"),
 			tui.WithHeight(12),
 		)
 		if err != nil {
@@ -767,7 +767,7 @@ func runTmuxLayoutDelete(_ *cobra.Command, args []string) error {
 	}
 
 	chosen, err := tui.Run(items,
-		tui.WithTitle(ui.IconPick+"Delete layout"),
+		tui.WithTitle(ui.IconMine+"Delete layout"),
 		tui.WithHeight(12),
 	)
 	if err != nil {

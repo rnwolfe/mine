@@ -81,7 +81,7 @@ func runProj(_ *cobra.Command, _ []string) error {
 	for i := range projects {
 		items[i] = projects[i]
 	}
-	pickerTitle := tui.WithTitle(ui.IconPick + "Select project")
+	pickerTitle := tui.WithTitle(ui.IconMine + "Select project")
 	pickerHeight := tui.WithHeight(12)
 	var chosen tui.Item
 	if projPrintPath {

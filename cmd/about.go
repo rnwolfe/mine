@@ -18,7 +18,7 @@ var aboutCmd = &cobra.Command{
 
 func runAbout(_ *cobra.Command, _ []string) error {
 	fmt.Println()
-	fmt.Println(ui.Title.Render("  " + ui.IconGem + " mine"))
+	fmt.Println(ui.Title.Render("  " + ui.IconMine + " mine"))
 	fmt.Println(ui.Muted.Render("  ────────────────────────────────────────────"))
 	fmt.Println()
 	fmt.Println("  " + ui.Subtitle.Render("The developer CLI that has your back."))

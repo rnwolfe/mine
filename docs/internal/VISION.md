@@ -18,14 +18,13 @@ It's yours. It's personal. It's **mine**.
 6. **Progressive disclosure.** Simple surface, deep capabilities. `mine` shows you exactly what you need.
 7. **Composable.** Every command works standalone and plays well with pipes, scripts, and automation.
 
-## The Mining Metaphor
+## Brand Identity
 
-The name `mine` works on multiple levels:
-- **Possessive**: This tool is *yours*. Your config, your workflow, your way.
-- **Mining**: Digging for gold — extracting maximum value from your dev environment.
-- **Crafting**: Building things — scaffolding projects, shaping environments.
+The name `mine` is possessive — this tool is *yours*. Your config, your workflow,
+your way. It's personal, opinionated, and unapologetically for you.
 
-Commands lean into this naturally without being forced.
+Command names (`dig`, `craft`, `vault`, `stash`) use common developer vocabulary
+that happens to be evocative. They don't require a metaphor to understand.
 
 ## Command Map
 
@@ -114,7 +113,7 @@ mine speaks to you like a competent friend who happens to be a wizard:
 
 ```
 $ mine
-⛏  Hey! Here's your world:
+▸ Hey! Here's your world:
 
   📋 3 todos (1 overdue — yikes)
   🔧 Node 22 + Go 1.25 + Python 3.14 ready

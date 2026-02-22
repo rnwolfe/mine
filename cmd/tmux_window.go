@@ -176,7 +176,7 @@ func runTmuxWindowKill(_ *cobra.Command, args []string) error {
 		}
 
 		chosen, err := tui.Run(items,
-			tui.WithTitle(ui.IconPick+"Kill window"),
+			tui.WithTitle(ui.IconMine+"Kill window"),
 			tui.WithHeight(12),
 		)
 		if err != nil {
@@ -275,7 +275,7 @@ func runTmuxWindowRename(_ *cobra.Command, args []string) error {
 		}
 
 		chosen, err := tui.Run(items,
-			tui.WithTitle(ui.IconPick+"Rename window"),
+			tui.WithTitle(ui.IconMine+"Rename window"),
 			tui.WithHeight(12),
 		)
 		if err != nil {

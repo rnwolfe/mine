@@ -80,7 +80,7 @@ func runDigTUI(duration time.Duration, label string) error {
 			recordDigSession(result.Elapsed)
 			ui.Ok(fmt.Sprintf("Session ended early after %s. Still counts! Logged.", result.Elapsed))
 		} else {
-			fmt.Printf("  %s Session ended early after %s\n", ui.IconPick, result.Elapsed)
+			fmt.Printf("  %s Session ended early after %s\n", ui.IconMine, result.Elapsed)
 			fmt.Println(ui.Muted.Render("  Too short to count. Try again!"))
 		}
 	}
@@ -107,7 +107,7 @@ func runDigSimple(duration time.Duration, label string) error {
 		case <-sigCh:
 			elapsed := time.Since(start).Round(time.Second)
 			fmt.Println()
-			fmt.Printf("\n  %s Session ended early after %s\n", ui.IconPick, elapsed)
+			fmt.Printf("\n  %s Session ended early after %s\n", ui.IconMine, elapsed)
 			if elapsed >= 5*time.Minute {
 				recordDigSession(elapsed)
 				ui.Ok(fmt.Sprintf("Still counts! %s logged.", elapsed))

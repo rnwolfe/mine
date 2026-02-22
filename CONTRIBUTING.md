@@ -64,7 +64,7 @@
 
 - Follow Go conventions (`gofmt`, `go vet`)
 - Error messages should say what went wrong AND what to do
-- Use the mining metaphor naturally, don't force it
+- Write with warmth and personality — mine is yours, make it feel that way
 - Be whimsical in user-facing text, precise in code
 
 ## Adding a New Command

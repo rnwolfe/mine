@@ -171,6 +171,10 @@ When AI commands run (e.g. `mine ai ask`), they check for keys in this order:
 | Missing key | Non-zero exit, key name in error |
 | Empty vault on export | Non-zero exit, instructive error |
 | Import with wrong passphrase | Non-zero exit, explicit error |
+| `vault unlock` on non-TTY | Non-zero exit, "requires an interactive terminal" |
+| `vault unlock` — keychain unavailable | Non-zero exit, error with `MINE_VAULT_PASSPHRASE` hint |
+| `vault lock` — nothing stored | Zero exit, informational message (not an error) |
+| `vault lock` — keychain unavailable | Non-zero exit, error with `MINE_VAULT_PASSPHRASE` hint |
 
 ## Vault File Location
 

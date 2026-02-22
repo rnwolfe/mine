@@ -142,11 +142,11 @@ commit → open PR with verified acceptance criteria.
 **What it is**: An event-driven GitHub Actions pipeline with four workflows:
 `autodev-dispatch` → `autodev-implement` → `autodev-review-fix` → `claude-code-review`.
 
-**When to use**: Always-on background automation. Runs on a 4-hour cron without human
+**When to use**: Always-on background automation. Runs on a 1-hour cron without human
 input. The production autonomous pipeline.
 
 ```
-autodev-dispatch     — 4-hour cron (or manual trigger). Picks oldest backlog/ready
+autodev-dispatch     — 1-hour cron (or manual trigger). Picks oldest backlog/ready
                        issue, labels agent/implementing, triggers implement.
 autodev-implement    — Creates branch, runs agent, pushes, opens PR.
                        PR triggers CI + Copilot review.

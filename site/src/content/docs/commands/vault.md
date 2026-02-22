@@ -14,7 +14,7 @@ All vault operations require a passphrase. mine resolves it in this order:
 2. **OS keychain** — stored via `mine vault unlock`, retrieved transparently
 3. **Interactive prompt** — secure input (no echo) when running in a terminal
 
-The passphrase is never stored on disk in plaintext — only held in memory during the vault operation.
+The passphrase is never stored on disk in plaintext. By default it is only held in memory for the duration of each vault operation, but if you run `mine vault unlock` it may also be persisted securely in the OS keychain (encrypted/protected by the OS).
 
 ## Passphrase Management
 
@@ -28,7 +28,7 @@ Prompts for the passphrase and stores it securely in the OS native keychain (mac
 
 Platform behaviour:
 - **macOS**: Uses the built-in `security` CLI — no extra dependencies.
-- **Linux**: Requires `secret-tool` (part of `libsecret-tools`). If `secret-tool` is not installed, `unlock` returns an error with instructions.
+- **Linux**: Requires `secret-tool` (part of `libsecret-tools`). If `secret-tool` is not installed, `unlock` returns an error indicating keychain is not available; use `MINE_VAULT_PASSPHRASE` instead.
 - **Other platforms**: Returns an informational error; use `MINE_VAULT_PASSPHRASE` instead.
 
 ### Remove from OS Keychain

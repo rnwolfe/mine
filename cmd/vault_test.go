@@ -89,7 +89,10 @@ func TestReadPassphrase_NoopFallsThrough(t *testing.T) {
 	}
 	_ = w.Close()
 	os.Stdin = r
-	defer func() { os.Stdin = origStdin }()
+	defer func() {
+		os.Stdin = origStdin
+		_ = r.Close()
+	}()
 
 	_, err = readPassphrase(false)
 	if err == nil {

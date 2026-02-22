@@ -21,9 +21,14 @@ func NewPlatformStore() PassphraseStore {
 }
 
 func (l *linuxKeychain) Get(service string) (string, error) {
-	out, err := exec.Command("secret-tool", "lookup", "service", service).Output()
+	out, err := exec.Command("secret-tool", "lookup", "service", service).CombinedOutput()
 	if err != nil {
-		return "", os.ErrNotExist
+		outStr := strings.TrimSpace(string(out))
+		// secret-tool exits non-zero with no output when the entry doesn't exist.
+		if outStr == "" {
+			return "", os.ErrNotExist
+		}
+		return "", fmt.Errorf("retrieving from keychain: %w: %s", err, outStr)
 	}
 	s := strings.TrimSpace(string(out))
 	if s == "" {

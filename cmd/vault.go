@@ -315,7 +315,11 @@ func readPassphrase(confirm bool) (string, error) {
 	}
 
 	// Check OS keychain before prompting.
-	if p, err := vaultKeychainStore.Get(vault.ServiceName); err == nil && p != "" {
+	if p, err := vaultKeychainStore.Get(vault.ServiceName); err != nil {
+		if !vault.IsKeychainMiss(err) {
+			return "", fmt.Errorf("reading passphrase from keychain: %w", err)
+		}
+	} else if p != "" {
 		return p, nil
 	}
 
@@ -383,7 +387,8 @@ func runVaultUnlock(_ *cobra.Command, _ []string) error {
 	if err := vaultKeychainStore.Set(vault.ServiceName, passphrase); err != nil {
 		if errors.Is(err, vault.ErrNotSupported) {
 			return fmt.Errorf(
-				"keychain not available on this platform\n\nSet %s in your shell profile instead.",
+				"%w: keychain not available on this platform\n\nSet %s in your shell profile instead.",
+				vault.ErrNotSupported,
 				ui.Accent.Render("MINE_VAULT_PASSPHRASE=<passphrase>"),
 			)
 		}
@@ -407,7 +412,8 @@ func runVaultLock(_ *cobra.Command, _ []string) error {
 	if err := vaultKeychainStore.Delete(vault.ServiceName); err != nil {
 		if errors.Is(err, vault.ErrNotSupported) {
 			return fmt.Errorf(
-				"keychain not available on this platform\n\nUnset %s in your shell profile instead.",
+				"%w: keychain not available on this platform\n\nUnset %s in your shell profile instead.",
+				vault.ErrNotSupported,
 				ui.Accent.Render("MINE_VAULT_PASSPHRASE"),
 			)
 		}

@@ -486,7 +486,11 @@ func readEnvPassphrase() (string, error) {
 	}
 
 	// Check OS keychain before prompting.
-	if p, err := vaultKeychainStore.Get(vault.ServiceName); err == nil && p != "" {
+	if p, err := vaultKeychainStore.Get(vault.ServiceName); err != nil {
+		if !vault.IsKeychainMiss(err) {
+			return "", fmt.Errorf("retrieving env passphrase from keychain: %w", err)
+		}
+	} else if p != "" {
 		return p, nil
 	}
 

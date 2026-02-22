@@ -57,6 +57,5 @@ func TestNewPlatformStore_NonNil(t *testing.T) {
 	}
 }
 
-// TestNewPlatformStore_ImplementsInterface verifies the returned value
-// satisfies the PassphraseStore interface at compile time.
-var _ PassphraseStore = NewPlatformStore()
+// Compile-time check: noopKeychain satisfies PassphraseStore on all platforms.
+var _ PassphraseStore = (*noopKeychain)(nil)

@@ -18,9 +18,14 @@ func NewPlatformStore() PassphraseStore {
 }
 
 func (d *darwinKeychain) Get(service string) (string, error) {
-	out, err := exec.Command("security", "find-generic-password", "-s", service, "-w").Output()
+	cmd := exec.Command("security", "find-generic-password", "-s", service, "-w")
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", os.ErrNotExist
+		outStr := string(out)
+		if strings.Contains(outStr, "could not be found") || strings.Contains(outStr, "not found") {
+			return "", os.ErrNotExist
+		}
+		return "", fmt.Errorf("reading from keychain: %w: %s", err, strings.TrimSpace(outStr))
 	}
 	s := strings.TrimSpace(string(out))
 	if s == "" {
@@ -34,11 +39,14 @@ func (d *darwinKeychain) Set(service, passphrase string) error {
 	// if a duplicate entry already exists for the same service name.
 	_ = exec.Command("security", "delete-generic-password", "-s", service).Run()
 
+	// Pass passphrase via stdin using `-w` with no argument to avoid exposing
+	// it in the process list (visible via `ps aux`).
 	cmd := exec.Command("security", "add-generic-password",
 		"-s", service,
 		"-a", "mine",
-		"-w", passphrase,
+		"-w",
 	)
+	cmd.Stdin = strings.NewReader(passphrase)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("storing in keychain: %w: %s", err, strings.TrimSpace(string(out)))
 	}

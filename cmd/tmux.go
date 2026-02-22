@@ -483,6 +483,9 @@ var tmuxLayoutCmd = &cobra.Command{
 func runTmuxLayoutHelp(_ *cobra.Command, _ []string) error {
 	// When inside tmux, check saved layouts and act accordingly.
 	if tmux.InsideTmux() {
+		if !tmux.Available() {
+			return fmt.Errorf("tmux not found in PATH")
+		}
 		names, err := tmux.ListLayouts()
 		if err != nil {
 			return err

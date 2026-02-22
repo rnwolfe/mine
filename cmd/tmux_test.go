@@ -150,6 +150,23 @@ func TestRunTmuxLayoutHelp_NotInsideTmux_ShowsHelp(t *testing.T) {
 	}
 }
 
+// TestRunTmuxLayoutHelp_InsideTmuxTmuxNotAvailable verifies that an error is returned
+// when TMUX is set but the tmux binary is not in PATH.
+func TestRunTmuxLayoutHelp_InsideTmuxTmuxNotAvailable(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("TMUX", "/tmp/tmux-test,12345,0") // inside tmux
+	// Do NOT add tmux to PATH — Available() must return false.
+	t.Setenv("PATH", t.TempDir())
+
+	err := runTmuxLayoutHelp(nil, []string{})
+	if err == nil {
+		t.Fatal("expected error when tmux not in PATH, got nil")
+	}
+	if !strings.Contains(err.Error(), "tmux not found in PATH") {
+		t.Errorf("expected 'tmux not found in PATH' error, got: %v", err)
+	}
+}
+
 // TestRunTmuxLayoutHelp_InsideTmuxNoLayouts verifies that when inside tmux but no
 // layouts are saved, an informative message is printed and nil is returned.
 func TestRunTmuxLayoutHelp_InsideTmuxNoLayouts(t *testing.T) {

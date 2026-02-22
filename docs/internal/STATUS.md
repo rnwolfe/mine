@@ -61,7 +61,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - **Deps**: 0 runtime (single static binary)
 - **Build time**: ~3 seconds
 - **Languages**: 100% Go
-- **Tests**: 485 passing across 20 packages
+- **Tests**: 485 passing across 22 packages
 
 ### Architecture
 

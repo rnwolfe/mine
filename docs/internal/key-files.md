@@ -34,8 +34,11 @@
 | `internal/tmux/tmux.go` | Tmux session management (list, new, attach, kill) |
 | `internal/tmux/layout.go` | Layout persistence (save/load/list, TOML in XDG config) |
 | `cmd/tmux.go` | Tmux CLI commands with TUI picker integration |
+| `cmd/config.go` | Config CLI commands (show, path, list, get, set, unset, edit) |
 | `cmd/env.go` | Env CLI commands (show, set, unset, diff, switch, export, template, inject) |
 | `internal/env/env.go` | Env manager: profile CRUD, age encryption/decryption, active profile tracking, diff, export |
+| `internal/analytics/analytics.go` | Analytics ping, daily dedup via SQLite, privacy-safe payload construction |
+| `internal/analytics/id.go` | Installation ID (UUIDv4) generation and persistence |
 | `scripts/autodev/config.sh` | Autodev shared constants, logging, utilities |
 | `scripts/autodev/pick-issue.sh` | Issue selection with trust verification |
 | `scripts/autodev/parse-reviews.sh` | Extract review feedback for agent consumption |

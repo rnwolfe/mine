@@ -220,9 +220,12 @@ Four workflows form the core loop, plus a weekly audit:
    Labels it `agent/implementing` and triggers the implement workflow.
 2. **`autodev-implement`** — Checks out `main`, creates a branch, runs the agent (Claude
    via `claude-code-action@v1`) to implement the issue, pushes, and opens a PR.
-   The PR triggers CI and Copilot review. If the agent produces no changes or fails,
-   both `backlog/ready` and `agent/implementing` are removed and `human/blocked` is
-   added — the issue is permanently dequeued until a human re-labels it. The agent
+   After creating the PR, the workflow **polls for Copilot review** (up to 10 minutes)
+   and then **dispatches `autodev-review-fix`** directly via `workflow_dispatch`. This
+   bypasses the `pull_request_review` trigger which gets gated by GitHub's first-time
+   contributor approval for bot actors on public repos. If the agent produces no changes
+   or fails, both `backlog/ready` and `agent/implementing` are removed and `human/blocked`
+   is added — the issue is permanently dequeued until a human re-labels it. The agent
    prompt includes a **blocker protocol**: if the agent cannot implement the issue, it
    writes a structured report to `/tmp/agent-blocker.md` explaining why. The workflow
    posts this report as a comment on the issue.
@@ -239,9 +242,9 @@ Four workflows form the core loop, plus a weekly audit:
 ### Review pipeline flow
 
 ```
-implement → push → CI + Copilot review
-                        ↓
-              autodev-review-fix (copilot phase)
+implement → push → create PR → wait for Copilot review (poll ≤10 min)
+                                        ↓
+              dispatch autodev-review-fix (copilot phase)
               ├─ Has comments & iter < 3 → agent fixes → push → loop
               ├─ Has comments & iter >= 3 → transition to claude
               └─ No comments → transition to claude
@@ -255,6 +258,11 @@ implement → push → CI + Copilot review
                         ↓
               Human merges
 ```
+
+The implement → review-fix chain is the primary trigger path. The `pull_request_review`
+trigger is gated by GitHub's first-time contributor approval for bot actors (Copilot)
+on public repos, so the direct `workflow_dispatch` bypasses that bottleneck. A 4-hour
+scheduled poll remains as a safety-net fallback.
 
 ### Phase state tracking
 
@@ -318,7 +326,7 @@ Phases: `copilot` → `claude` → `done`
 - **Max turns**: 100 for implementation, 50 for review fixes (high to allow complex work, prevents infinite loops)
 - **Protected files**: Agent cannot modify CLAUDE.md, workflows, or autodev scripts
 - **Trusted users**: Only users in `AUTODEV_TRUSTED_USERS` (config.sh) can trigger autodev via `backlog/ready` label
-- **Scheduled review poll**: Every 4 hours fallback catches reviews from bot actors gated by GitHub's contributor approval
+- **Implement → review-fix chain**: After PR creation, implement polls for Copilot review (≤10 min) and dispatches review-fix directly. Scheduled 4-hour poll is a safety-net fallback.
 - **Weekly audit**: Monday 9 AM UTC pipeline health report filed as GitHub issue
 
 ### Model-agnostic design

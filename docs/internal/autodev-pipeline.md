@@ -47,7 +47,8 @@ flowchart TB
     manual --> pick
     pick -->|"issue_number"| agent1
     agent1 --> openpr
-    openpr -->|"PR triggers Copilot review"| route
+    openpr -->|"Poll for Copilot review ≤10 min"| dispatch["workflow_dispatch"]
+    dispatch -->|"pr_number"| route
     route -->|"copilot phase + feedback"| copilotFix
     route -->|"no feedback / 3 iterations"| review
     copilotFix -->|"push triggers new review"| route
@@ -85,7 +86,8 @@ sequenceDiagram
 
     G->>C: Copilot auto-reviews PR
     C->>G: Posts review comments
-    G->>RF: pull_request_review event
+    I->>RF: workflow_dispatch (pr_number)
+    Note over I: Polls for review ≤10 min,<br/>then dispatches review-fix
 
     loop Copilot Phase (up to 3x)
         RF->>RF: parse-reviews.sh
@@ -147,7 +149,10 @@ number. Exits cleanly if no issues are ready.
    PR description and title requirements)
 4. Reverts any changes to protected files (CLAUDE.md, workflows, autodev scripts)
 5. Commits, pushes, and calls `open-pr.sh` to create the PR
-6. If no changes produced: comments on issue, adds `human/blocked` label
+6. Polls for Copilot review (up to 10 minutes), then dispatches `autodev-review-fix`
+   via `workflow_dispatch` with the PR number — bypasses `pull_request_review` trigger
+   gating for bot actors on public repos
+7. If no changes produced: comments on issue, adds `human/blocked` label
 
 **Agent output files:**
 - `/tmp/pr-title.txt` — conventional commit PR title (`type: description`)
@@ -159,7 +164,7 @@ number. Exits cleanly if no issues are ready.
 
 | Property | Value |
 |----------|-------|
-| Triggers | `pull_request_review`, `workflow_run` (Claude review), cron `30 */4 * * *` |
+| Triggers | `workflow_dispatch` (from implement), `pull_request_review`, `workflow_run` (Claude review), cron `30 */4 * * *` (fallback) |
 | Timeout | 45 minutes |
 | Concurrency | Per-PR group (parallel review of different PRs) |
 | Agent model | Claude Sonnet 4.6, 50 max turns |
@@ -337,7 +342,8 @@ NOT protected — agents are encouraged to update them.
 | Review-fix max turns | 50 | Tighter limit for focused fixes |
 | Audit max turns | 30 | Read-only analysis |
 | Weekly audit | Monday 9 AM UTC | Pipeline health feedback loop |
-| Scheduled review poll | Every 4h (offset 30m) | Catches bot reviews gated by approval ([L-016](lessons-learned.md#l-016-bot-actors-trigger-github-actions-approval-gates)) |
+| Implement → review-fix chain | Poll ≤10 min + dispatch | Primary trigger path; bypasses bot approval gate |
+| Scheduled review poll | Every 4h (offset 30m) | Safety-net fallback for missed dispatches ([L-016](lessons-learned.md#l-016-bot-actors-trigger-github-actions-approval-gates)) |
 
 ## Debugging Guide
 
@@ -373,11 +379,15 @@ changes, or push failed).
 
 **Symptoms:** Copilot posts a review but `autodev-review-fix` never runs.
 
-**Diagnosis:** Bot actors trigger GitHub's first-time contributor approval gate
-([L-016](lessons-learned.md#l-016-bot-actors-trigger-github-actions-approval-gates)). The scheduled fallback should catch it within 4 hours.
+**Diagnosis:** The primary path is implement → dispatch chain (polls for review, then
+dispatches `workflow_dispatch`). If that fails (e.g., review didn't appear within 10 min,
+or implement timed out), the `pull_request_review` trigger is gated by GitHub's first-time
+contributor approval for bot actors
+([L-016](lessons-learned.md#l-016-bot-actors-trigger-github-actions-approval-gates)).
+The 4-hour scheduled poll is the safety-net fallback.
 
-**Recovery:** Manually approve the workflow run in the Actions tab, or wait for the
-scheduled poll at `:30` past the next 4-hour mark.
+**Recovery:** Manually dispatch `autodev-review-fix` with the PR number, approve the gated
+workflow run in the Actions tab, or wait for the scheduled poll.
 
 ### Wrong model or high costs
 

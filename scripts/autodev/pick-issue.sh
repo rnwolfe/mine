@@ -67,7 +67,7 @@ CANDIDATES=$(gh issue list \
     --label "$AUTODEV_LABEL_READY" \
     --state open \
     --json number,labels \
-    --jq "[.[] | select(.labels | map(.name) | index(\"$AUTODEV_LABEL_IMPLEMENTING\") | not)]
+    --jq "[.[] | select(.labels | map(.name) | (index(\"$AUTODEV_LABEL_IMPLEMENTING\") | not) and (index(\"$AUTODEV_LABEL_BLOCKED\") | not))]
           | map(. + {pri: (if (.labels | map(.name) | index(\"$AUTODEV_LABEL_PRIORITY_CRITICAL\")) then 0
                          elif (.labels | map(.name) | index(\"$AUTODEV_LABEL_PRIORITY_HIGH\")) then 1
                          else 2 end)})

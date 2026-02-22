@@ -378,8 +378,15 @@ jobs:
             --body "$UPDATED_BODY"
 
       # ── Trigger Claude path ───────────────────────────────────────
+      # Transitions to Claude when:
+      # 1. Router decided to trigger-claude (no Copilot comments or max iterations)
+      # 2. Feedback extraction found nothing actionable (override)
+      # 3. Copilot fix agent ran but produced no changes (agent couldn't address feedback → escalate)
       - name: Transition to Claude phase
-        if: steps.route.outputs.action == 'trigger-claude' || steps.copilot-feedback.outputs.override_action == 'trigger-claude'
+        if: |
+          steps.route.outputs.action == 'trigger-claude'
+          || steps.copilot-feedback.outputs.override_action == 'trigger-claude'
+          || (steps.route.outputs.action == 'copilot-fix' && steps.copilot-feedback.outputs.override_action != 'trigger-claude' && steps.copilot-agent.outcome == 'success' && steps.copilot-changes.outputs.has_changes == 'false')
         env:
           GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
         run: |

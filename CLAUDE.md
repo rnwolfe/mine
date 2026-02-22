@@ -214,8 +214,9 @@ For a comprehensive architecture deep-dive with diagrams, see
 
 Four workflows form the core loop, plus a weekly audit:
 
-1. **`autodev-dispatch`** — Runs on a 1-hour cron (or manual trigger). Picks the oldest
-   `backlog/ready` issue, labels it `agent/implementing`, and triggers the implement workflow.
+1. **`autodev-dispatch`** — Runs on a 1-hour cron (or manual trigger). Picks the
+   highest-priority `backlog/ready` issue (sorted by priority tier, then age within
+   tier), labels it `agent/implementing`, and triggers the implement workflow.
 2. **`autodev-implement`** — Checks out `main`, creates a branch, runs the agent (Claude
    via `claude-code-action@v1`) to implement the issue, pushes, and opens a PR.
    The PR triggers CI and Copilot review.
@@ -280,6 +281,14 @@ Phases: `copilot` → `claude` → `done`
 | `via/autodev` | PR created by `/autodev` CLI skill |
 | `via/actions` | PR created by GitHub Actions pipeline |
 | `via/maestro` | PR created by Maestro (experimental) |
+
+**Priority labels** (dispatch ordering):
+
+| Label | Meaning |
+|-------|---------|
+| `priority/critical` | Autodev picks first; highest urgency |
+| `priority/high` | Autodev prefers over normal; important |
+| (no label) | Normal priority; FIFO within tier |
 
 **Report labels**:
 

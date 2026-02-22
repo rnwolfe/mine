@@ -7,7 +7,7 @@ set -euo pipefail
 #   scripts/autodev/pick-issue.sh [ISSUE_NUMBER]
 #
 # If ISSUE_NUMBER is provided, uses that issue (manual override).
-# Otherwise, picks the oldest backlog/ready issue not already being implemented.
+# Otherwise, picks the highest-priority backlog/ready issue not already being implemented.
 # Exits 0 with empty output if nothing to do.
 
 source "$(dirname "$0")/config.sh"
@@ -61,13 +61,17 @@ if [ -n "$ISSUE_NUMBER" ]; then
     exit 0
 fi
 
-# Auto-pick: oldest backlog/ready issue not already being implemented
+# Auto-pick: highest-priority backlog/ready issue not already being implemented
 CANDIDATES=$(gh issue list \
     --repo "$AUTODEV_REPO" \
     --label "$AUTODEV_LABEL_READY" \
     --state open \
     --json number,labels \
-    --jq "[.[] | select(.labels | map(.name) | index(\"$AUTODEV_LABEL_IMPLEMENTING\") | not)] | sort_by(.number)")
+    --jq "[.[] | select(.labels | map(.name) | index(\"$AUTODEV_LABEL_IMPLEMENTING\") | not)]
+          | map(. + {pri: (if (.labels | map(.name) | index(\"$AUTODEV_LABEL_PRIORITY_CRITICAL\")) then 0
+                         elif (.labels | map(.name) | index(\"$AUTODEV_LABEL_PRIORITY_HIGH\")) then 1
+                         else 2 end)})
+          | sort_by([.pri, .number])")
 
 # Find the first candidate with a trusted labeler
 ISSUE_NUMBER=""

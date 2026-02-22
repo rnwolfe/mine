@@ -178,7 +178,12 @@ editor invocation, error message style, stdin/stdout/stderr wiring, temp file cl
 **Documentation completeness**:
 - CLAUDE.md key files table updated if new files were added
 - CLAUDE.md architecture pattern updated if CLI surface changed
-- Site docs updated with new commands, flags, and error table entries
+- Feature overview updated: `site/src/content/docs/features/<feature>.md` (when capabilities change)
+- Command reference updated: `site/src/content/docs/commands/<command>.md` (when flags/subcommands change)
+- Landing page checked for stale claims if a featured command changed:
+  - `site/src/components/FeatureTabs.tsx` (feature descriptions and examples)
+  - `site/src/components/TerminalDemo.tsx` (animated demo scripts)
+  - `site/src/content/docs/getting-started/quick-start.md` (onboarding examples)
 
 ---
 

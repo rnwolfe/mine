@@ -94,10 +94,14 @@ jobs:
             - Do NOT modify CLAUDE.md, any files in .github/workflows/, or scripts/autodev/
             - You CAN and SHOULD update docs/internal/lessons-learned.md (append new L-NNN entries)
               and docs/internal/key-files.md when your changes warrant it
-            - When adding new commands or features, create/update documentation:
-              - Feature overview: site/src/content/docs/features/<feature>.md
-              - Command reference: site/src/content/docs/commands/<command>.md
+            - When adding or modifying features/commands, update ALL affected documentation:
+              - Feature overview: site/src/content/docs/features/<feature>.md (update when capabilities change)
+              - Command reference: site/src/content/docs/commands/<command>.md (update when flags/subcommands change)
               - Follow existing pages for format (YAML frontmatter, then markdown)
+            - Check landing page components for stale claims when your changes affect a featured command:
+              - site/src/components/FeatureTabs.tsx (feature descriptions and command examples)
+              - site/src/components/TerminalDemo.tsx (animated terminal demo scripts)
+              - site/src/content/docs/getting-started/quick-start.md (onboarding examples)
             - Write tests for new functionality
             - QUALITY GATE — Before committing, verify:
               - If the issue references a file pattern to follow, you have read it and matched it

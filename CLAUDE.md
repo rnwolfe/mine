@@ -83,11 +83,17 @@ Rules:
   - `features/` — high-level feature overview pages (what it does, quick example, how it works)
   - `commands/` — full command reference pages (all flags, subcommands, error table)
 - Agentic/internal docs live in `docs/internal/`, `docs/plans/`
-- When adding a new feature or command, create/update the corresponding doc pages:
-  - Feature overview: `site/src/content/docs/features/<feature>.md`
-  - Command reference: `site/src/content/docs/commands/<command>.md`
+- When adding or modifying a feature/command, update ALL affected documentation:
+  - Feature overview: `site/src/content/docs/features/<feature>.md` — update when capabilities change
+  - Command reference: `site/src/content/docs/commands/<command>.md` — update when flags/subcommands change
   - Follow the pattern of existing pages (YAML frontmatter with title/description)
   - The sidebar auto-generates from files — no config changes needed
+- Landing page components contain hardcoded feature claims and examples that must stay
+  accurate. Check and update these when your changes affect a featured command:
+  - `site/src/components/FeatureTabs.tsx` — feature descriptions and command examples
+  - `site/src/components/TerminalDemo.tsx` — animated terminal demo scripts
+  - `site/src/content/docs/index.mdx` — docs landing page
+  - `site/src/content/docs/getting-started/quick-start.md` — onboarding examples
 
 ## Architecture Patterns
 

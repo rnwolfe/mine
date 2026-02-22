@@ -11,7 +11,12 @@ set -euo pipefail
 
 source "$(dirname "$0")/config.sh"
 
-PR_NUMBER="${1:?Usage: parse-reviews.sh PR_NUMBER}"
+PR_NUMBER="${1:?Usage: parse-reviews.sh PR_NUMBER [EXCLUDE_LOGIN]}"
+# EXCLUDE_LOGIN: reviews/comments from this user are ignored.
+# copilot-fix path uses the default (exclude Claude's bot reviews).
+# claude-fix path passes "copilot-pull-request-reviewer[bot]" so Claude's
+# github-actions[bot] reviews are included and Copilot's are excluded.
+EXCLUDE_LOGIN="${2:-github-actions[bot]}"
 
 FEEDBACK=""
 
@@ -19,10 +24,10 @@ FEEDBACK=""
 
 REVIEWS=$(gh api --paginate \
     "repos/$AUTODEV_REPO/pulls/$PR_NUMBER/reviews" \
-    --jq '[.[] | select(
+    --jq --arg exclude "$EXCLUDE_LOGIN" '[.[] | select(
         (.state == "CHANGES_REQUESTED" or .state == "COMMENTED") and
         (.body != null and .body != "") and
-        (.user.login != "github-actions[bot]")
+        (.user.login != $exclude)
     )] | sort_by(.submitted_at) | reverse | .[0:5]')
 
 REVIEW_COUNT=$(echo "$REVIEWS" | jq 'length')
@@ -43,8 +48,8 @@ fi
 
 COMMENTS=$(gh api --paginate \
     "repos/$AUTODEV_REPO/pulls/$PR_NUMBER/comments" \
-    --jq '[.[] | select(
-        .user.login != "github-actions[bot]"
+    --jq --arg exclude "$EXCLUDE_LOGIN" '[.[] | select(
+        .user.login != $exclude
     )] | sort_by(.created_at) | reverse | .[0:20]')
 
 COMMENT_COUNT=$(echo "$COMMENTS" | jq 'length')

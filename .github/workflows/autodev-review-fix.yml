@@ -436,8 +436,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Exclude Copilot's reviews so only Claude's github-actions[bot] review is seen.
           bash scripts/autodev/parse-reviews.sh \
-            "${{ steps.route.outputs.pr_number }}" > /tmp/review-feedback.txt || true
+            "${{ steps.route.outputs.pr_number }}" \
+            "copilot-pull-request-reviewer[bot]" > /tmp/review-feedback.txt || true
 
           if [ ! -s /tmp/review-feedback.txt ]; then
             echo "No review feedback found after Claude review. Marking done."

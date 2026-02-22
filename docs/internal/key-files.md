@@ -37,6 +37,12 @@
 | `cmd/config.go` | Config CLI commands (show, path, list, get, set, unset, edit) |
 | `cmd/env.go` | Env CLI commands (show, set, unset, diff, switch, export, template, inject) |
 | `internal/env/env.go` | Env manager: profile CRUD, age encryption/decryption, active profile tracking, diff, export |
+| `internal/vault/vault.go` | Age-encrypted secret store (set, get, delete, list, export, import) |
+| `internal/vault/keychain.go` | `PassphraseStore` interface, `noopKeychain`, `ErrNotSupported`, `IsKeychainMiss` helper |
+| `internal/vault/keychain_darwin.go` | macOS keychain implementation via `security` CLI |
+| `internal/vault/keychain_linux.go` | Linux keychain implementation via `secret-tool`; falls back to noop if not installed |
+| `internal/vault/keychain_other.go` | No-op `NewPlatformStore()` for unsupported platforms |
+| `cmd/vault.go` | Vault CLI commands; `vaultKeychainStore` var (injectable in tests); passphrase resolution |
 | `internal/analytics/analytics.go` | Analytics ping, daily dedup via SQLite, privacy-safe payload construction |
 | `internal/analytics/id.go` | Installation ID (UUIDv4) generation and persistence |
 | `scripts/autodev/config.sh` | Autodev shared constants, logging, utilities |

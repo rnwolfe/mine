@@ -18,6 +18,10 @@ import (
 	"golang.org/x/term"
 )
 
+// vaultKeychainStore is the OS keychain backend for passphrase storage.
+// Replaceable in tests via direct assignment in the cmd package.
+var vaultKeychainStore vault.PassphraseStore = vault.NewPlatformStore()
+
 var vaultCmd = &cobra.Command{
 	Use:   "vault",
 	Short: "Lock away secrets — encrypted at rest with age",
@@ -26,7 +30,7 @@ var vaultCmd = &cobra.Command{
 }
 
 var (
-	vaultGetCopy   bool
+	vaultGetCopy    bool
 	vaultImportFile string
 	vaultExportFile string
 )
@@ -38,6 +42,8 @@ func init() {
 	vaultCmd.AddCommand(vaultRmCmd)
 	vaultCmd.AddCommand(vaultExportCmd)
 	vaultCmd.AddCommand(vaultImportCmd)
+	vaultCmd.AddCommand(vaultUnlockCmd)
+	vaultCmd.AddCommand(vaultLockCmd)
 
 	vaultGetCmd.Flags().BoolVar(&vaultGetCopy, "copy", false, "Copy secret to clipboard instead of printing")
 	vaultExportCmd.Flags().StringVarP(&vaultExportFile, "output", "o", "", "Output file path (default: stdout)")
@@ -59,6 +65,8 @@ func runVaultHelp(_ *cobra.Command, _ []string) error {
 	fmt.Printf("    %s  Delete a secret permanently\n", ui.KeyStyle.Render("rm <key>"))
 	fmt.Printf("    %s  Export encrypted vault for backup\n", ui.KeyStyle.Render("export"))
 	fmt.Printf("    %s  Restore vault from a backup\n", ui.KeyStyle.Render("import <file>"))
+	fmt.Printf("    %s  Save passphrase to OS keychain\n", ui.KeyStyle.Render("unlock"))
+	fmt.Printf("    %s  Remove passphrase from OS keychain\n", ui.KeyStyle.Render("lock"))
 	fmt.Println()
 	fmt.Println(ui.Accent.Render("  Examples:"))
 	fmt.Println()
@@ -67,8 +75,9 @@ func runVaultHelp(_ *cobra.Command, _ []string) error {
 	fmt.Printf("    %s\n", ui.Muted.Render("mine vault get ai.claude.api_key --copy"))
 	fmt.Printf("    %s\n", ui.Muted.Render("mine vault list"))
 	fmt.Printf("    %s\n", ui.Muted.Render("mine vault export -o vault-backup.age"))
+	fmt.Printf("    %s\n", ui.Muted.Render("mine vault unlock  # store passphrase in OS keychain"))
 	fmt.Println()
-	ui.Tip("set MINE_VAULT_PASSPHRASE to avoid re-entering your passphrase every time")
+	ui.Tip("run 'mine vault unlock' to store your passphrase in the OS keychain — no more prompts")
 	fmt.Println()
 	return nil
 }
@@ -296,16 +305,24 @@ func runVaultImport(_ *cobra.Command, args []string) error {
 	return nil
 }
 
-// readPassphrase reads the vault passphrase from MINE_VAULT_PASSPHRASE env var
-// or prompts the user securely (no echo).
+// readPassphrase reads the vault passphrase using the following resolution order:
+//  1. MINE_VAULT_PASSPHRASE env var (always wins)
+//  2. OS keychain (via vaultKeychainStore)
+//  3. Interactive TTY prompt
 func readPassphrase(confirm bool) (string, error) {
 	if p := os.Getenv("MINE_VAULT_PASSPHRASE"); p != "" {
 		return p, nil
 	}
 
+	// Check OS keychain before prompting.
+	if p, err := vaultKeychainStore.Get(vault.ServiceName); err == nil && p != "" {
+		return p, nil
+	}
+
 	// Prompt interactively.
 	if !term.IsTerminal(int(syscall.Stdin)) {
-		return "", fmt.Errorf("vault passphrase required — set MINE_VAULT_PASSPHRASE or run interactively")
+		return "", fmt.Errorf("vault passphrase required — set %s, run %s, or run interactively",
+			"MINE_VAULT_PASSPHRASE", ui.Accent.Render("mine vault unlock"))
 	}
 
 	fmt.Fprint(os.Stderr, ui.Muted.Render("  Vault passphrase: "))
@@ -333,6 +350,76 @@ func readPassphrase(confirm bool) (string, error) {
 	}
 
 	return passphrase, nil
+}
+
+// vaultUnlockCmd stores the vault passphrase in the OS keychain.
+var vaultUnlockCmd = &cobra.Command{
+	Use:   "unlock",
+	Short: "Store vault passphrase in the OS keychain",
+	Long: `Prompt for the vault passphrase and store it securely in the OS keychain.
+Once stored, all vault commands work without prompting or setting env vars.
+Use 'mine vault lock' to remove it.`,
+	Args: cobra.NoArgs,
+	RunE: hook.Wrap("vault.unlock", runVaultUnlock),
+}
+
+func runVaultUnlock(_ *cobra.Command, _ []string) error {
+	if !term.IsTerminal(int(syscall.Stdin)) {
+		return fmt.Errorf("vault unlock requires an interactive terminal")
+	}
+
+	fmt.Fprint(os.Stderr, ui.Muted.Render("  Vault passphrase: "))
+	passBytes, err := term.ReadPassword(int(syscall.Stdin))
+	fmt.Fprintln(os.Stderr)
+	if err != nil {
+		return fmt.Errorf("reading passphrase: %w", err)
+	}
+
+	passphrase := strings.TrimSpace(string(passBytes))
+	if passphrase == "" {
+		return fmt.Errorf("passphrase can't be empty")
+	}
+
+	if err := vaultKeychainStore.Set(vault.ServiceName, passphrase); err != nil {
+		if errors.Is(err, vault.ErrNotSupported) {
+			return fmt.Errorf(
+				"keychain not available on this platform\n\nSet %s in your shell profile instead.",
+				ui.Accent.Render("MINE_VAULT_PASSPHRASE=<passphrase>"),
+			)
+		}
+		return fmt.Errorf("storing passphrase in keychain: %w", err)
+	}
+
+	ui.Ok("Passphrase stored in OS keychain — vault commands will no longer prompt")
+	return nil
+}
+
+// vaultLockCmd removes the vault passphrase from the OS keychain.
+var vaultLockCmd = &cobra.Command{
+	Use:   "lock",
+	Short: "Remove vault passphrase from the OS keychain",
+	Long:  `Remove the stored passphrase from the OS keychain. Future vault commands will prompt again.`,
+	Args:  cobra.NoArgs,
+	RunE:  hook.Wrap("vault.lock", runVaultLock),
+}
+
+func runVaultLock(_ *cobra.Command, _ []string) error {
+	if err := vaultKeychainStore.Delete(vault.ServiceName); err != nil {
+		if errors.Is(err, vault.ErrNotSupported) {
+			return fmt.Errorf(
+				"keychain not available on this platform\n\nUnset %s in your shell profile instead.",
+				ui.Accent.Render("MINE_VAULT_PASSPHRASE"),
+			)
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Println(ui.Muted.Render("  No passphrase stored in keychain."))
+			return nil
+		}
+		return fmt.Errorf("removing passphrase from keychain: %w", err)
+	}
+
+	ui.Ok("Passphrase removed from OS keychain — next vault command will prompt")
+	return nil
 }
 
 // formatVaultError wraps vault errors with actionable messages.

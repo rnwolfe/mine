@@ -9,9 +9,9 @@ func TestGreet(t *testing.T) {
 		name     string
 		expected string
 	}{
-		{"", "⛏ Hey there!"},
-		{"Ryan", "⛏ Hey Ryan!"},
-		{"World", "⛏ Hey World!"},
+		{"", "▸ Hey there!"},
+		{"Ryan", "▸ Hey Ryan!"},
+		{"World", "▸ Hey World!"},
 	}
 
 	for _, tt := range tests {
@@ -25,7 +25,7 @@ func TestGreet(t *testing.T) {
 func TestIconConstants(t *testing.T) {
 	// Verify icons are non-empty strings
 	icons := []string{
-		IconPick, IconGem, IconGold, IconTodo, IconDone, IconOverdue,
+		IconMine, IconGem, IconGold, IconTodo, IconDone, IconOverdue,
 		IconTools, IconPackage, IconVault, IconGrow, IconStar, IconFire,
 		IconWarn, IconError, IconOk, IconArrow, IconDot, IconDig,
 	}

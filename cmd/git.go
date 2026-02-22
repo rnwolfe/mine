@@ -71,7 +71,7 @@ func runGitBare(_ *cobra.Command, _ []string) error {
 	}
 
 	chosen, err := tui.Run(items,
-		tui.WithTitle(ui.IconPick+"Switch branch"),
+		tui.WithTitle(ui.IconMine+"Switch branch"),
 		tui.WithHeight(14),
 	)
 	if err != nil {

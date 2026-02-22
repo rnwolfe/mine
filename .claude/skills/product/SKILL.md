@@ -70,7 +70,7 @@ Produce a structured roadmap report with four sections:
 
 ### 1. Vision Integrity Check
 
-Review the seven design principles in VISION.md and the mining metaphor. Then look
+Review the seven design principles in VISION.md and the brand identity. Then look
 at the last 10-15 merged PRs and the current open issue list.
 
 Ask for each: **Does this work advance the product identity, or does it just add
@@ -196,7 +196,7 @@ Why does `mine` need this? Not "it's useful" — why does it belong in THIS prod
 specifically? What does it enable that the user can't do without it? What does it
 connect to in the existing feature set?
 
-Include: what this unblocks, what synergies it creates, how it fits the mining metaphor.
+Include: what this unblocks, what synergies it creates, how it fits the brand identity.
 
 ## What It Does
 

@@ -227,7 +227,7 @@ func resolveIssue(repo string, issueNumber int, reader *bufio.Reader) (*contrib.
 	}
 
 	chosen, err := tui.Run(items,
-		tui.WithTitle(ui.IconPick+"Select an issue to work on"),
+		tui.WithTitle(ui.IconMine+"Select an issue to work on"),
 		tui.WithHeight(14),
 	)
 	if err != nil {

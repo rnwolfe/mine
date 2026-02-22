@@ -22,7 +22,7 @@ mine init
 
 ```bash
 $ mine init
-⛏ Setting up mine...
+▸ Setting up mine...
 
 What's your name? (detected from git: Ryan Wolfe)
 > Ryan Wolfe

@@ -23,7 +23,7 @@ var initCmd = &cobra.Command{
 }
 
 func runInit(_ *cobra.Command, _ []string) error {
-	fmt.Println(ui.Title.Render("⛏  Welcome to mine!"))
+	fmt.Println(ui.Title.Render(ui.IconMine + " Welcome to mine!"))
 	fmt.Println()
 	fmt.Println("  Let's get you set up. This takes about 30 seconds.")
 	fmt.Println()

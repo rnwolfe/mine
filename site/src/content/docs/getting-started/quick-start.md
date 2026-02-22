@@ -25,7 +25,7 @@ mine
 
 Output:
 ```
-⛏ Hey Ryan!
+▸ Hey Ryan!
 
   📋 Todos      3 open (1 overdue!)
   📅 Today      Monday, January 15

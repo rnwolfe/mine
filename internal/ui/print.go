@@ -61,9 +61,9 @@ func Kv(key string, value string) {
 // Greet prints a whimsical greeting based on context.
 func Greet(name string) string {
 	if name == "" {
-		return IconPick + "Hey there!"
+		return IconMine + "Hey there!"
 	}
-	return fmt.Sprintf("%sHey %s!", IconPick, name)
+	return fmt.Sprintf("%sHey %s!", IconMine, name)
 }
 
 // Die prints an error message and exits.

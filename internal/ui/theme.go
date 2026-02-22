@@ -14,7 +14,7 @@ func init() {
 	}
 }
 
-// mine's color palette — warm golds, cool stone, bright gems.
+// mine's color palette — warm and personal.
 var (
 	// Primary colors
 	Gold     = lipgloss.Color("#FFD700")
@@ -78,9 +78,9 @@ var (
 
 // Icon constants — consistent emoji language.
 const (
-	IconPick     = "⛏ "
-	IconGem      = "💎"
-	IconGold     = "🪙"
+	IconMine     = "▸ "
+	IconGem      = "✦"
+	IconGold     = "🏆"
 	IconTodo     = "📋"
 	IconDone     = "✅"
 	IconOverdue  = "🔴"
@@ -95,7 +95,7 @@ const (
 	IconOk       = "✓ "
 	IconArrow    = "→"
 	IconDot      = "·"
-	IconDig      = "⛏ "
+	IconDig      = "🎯"
 	IconProject  = "📁"
 	IconCalendar = "📅"
 	IconSettings = "⚙️ "

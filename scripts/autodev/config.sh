@@ -20,6 +20,10 @@ AUTODEV_LABEL_BLOCKED="human/blocked"
 AUTODEV_LABEL_VIA_ACTIONS="via/actions"
 AUTODEV_LABEL_VIA_AUTODEV="via/autodev"
 
+# Priority labels (dispatch ordering)
+AUTODEV_LABEL_PRIORITY_CRITICAL="priority/critical"
+AUTODEV_LABEL_PRIORITY_HIGH="priority/high"
+
 # Report labels
 AUTODEV_LABEL_PIPELINE_AUDIT="report/pipeline-audit"
 

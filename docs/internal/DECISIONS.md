@@ -78,7 +78,7 @@
 ## ADR-005: Mining Metaphor — Light Touch
 
 **Date**: 2026-02-14
-**Status**: Accepted
+**Status**: Superseded by ADR-006
 
 **Context**: The name "mine" invites a mining/crafting metaphor.
 
@@ -89,3 +89,25 @@
 - Don't rename "config" to "pickaxe" or "help" to "lantern"
 - Whimsy should enhance UX, not obscure it
 - New users should understand commands without knowing the metaphor
+
+---
+
+## ADR-006: Brand Identity — Personal Ownership
+
+**Date**: 2026-02-22
+**Status**: Accepted
+**Supersedes**: ADR-005
+
+**Context**: The name "mine" was interpreted as inviting a mining/crafting metaphor.
+The original intent was possessive — "this is mine, for me." The metaphor added
+confusion about brand identity and misdirected contributor decisions.
+
+**Decision**: The brand identity is personal ownership, not mining. The name means
+"yours." Command names (dig, craft, vault, stash) are developer vocabulary that
+stands alone without a unifying metaphor.
+
+**Rationale**:
+- "Personal developer supercharger" is the product identity
+- Command names are self-explanatory without metaphor context
+- The possessive framing ("yours, your way") is stronger messaging
+- Removes a layer of indirection between the name and what the tool does

@@ -108,6 +108,37 @@ jobs:
               - All CLAUDE.md references in acceptance criteria are actually updated
             - Keep files under 500 lines
 
+            ## BLOCKER PROTOCOL
+
+            If you CANNOT implement this issue — for any reason — you MUST write a blocker
+            report to `/tmp/agent-blocker.md` explaining why. This report will be posted
+            as a comment on the issue so a human can unblock it.
+
+            Common reasons to file a blocker report:
+            - The issue requires manual setup (API keys, external services, infrastructure)
+            - The acceptance criteria are ambiguous and you need clarification
+            - The issue depends on another issue that hasn't been implemented yet
+            - You don't have access to a required tool or resource
+            - The scope is too large or too vague to implement confidently
+
+            Format the report as markdown:
+            ```
+            **Reason**: <one-line summary>
+
+            **Details**: <explanation of what blocked you>
+
+            **Questions for human** (if any):
+            - Question 1?
+            - Question 2?
+
+            **Suggested next steps**:
+            - Step 1
+            - Step 2
+            ```
+
+            Do NOT silently exit with no changes. Always either implement the feature
+            OR write the blocker report. One of these two outcomes is required.
+
             ## Issue #${{ inputs.issue_number }}: ${{ steps.prep.outputs.title }}
 
             ${{ env.ISSUE_BODY }}
@@ -171,13 +202,33 @@ jobs:
         run: |
           echo "::error::Implementation agent failed. No changes were committed."
           echo "::error::See logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Read agent blocker report if it exists
+          BLOCKER_MSG=""
+          if [ -f /tmp/agent-blocker.md ]; then
+            BLOCKER_MSG=$(cat /tmp/agent-blocker.md)
+          fi
+
+          COMMENT_BODY="⚠️ **Autodev agent failed during implementation.**
+
+          No changes were committed. This issue has been removed from the autodev queue and needs human attention.
+
+          [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+          if [ -n "$BLOCKER_MSG" ]; then
+            COMMENT_BODY="${COMMENT_BODY}
+
+          ### Agent Blocker Report
+          ${BLOCKER_MSG}"
+          fi
+
           gh issue comment "${{ inputs.issue_number }}" \
             --repo "${{ github.repository }}" \
-            --body "⚠️ Autodev agent failed during implementation. No changes were committed. This issue needs human attention. [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            --body "$COMMENT_BODY"
           gh issue edit "${{ inputs.issue_number }}" \
             --repo "${{ github.repository }}" \
             --add-label "human/blocked" \
-            --remove-label "agent/implementing"
+            --remove-label "agent/implementing,backlog/ready"
 
       - name: Revert protected file changes
         if: steps.agent.outcome == 'success'
@@ -222,13 +273,32 @@ jobs:
       - name: Handle no changes
         if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'false'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
         run: |
+          # Read agent blocker report if it exists
+          BLOCKER_MSG=""
+          if [ -f /tmp/agent-blocker.md ]; then
+            BLOCKER_MSG=$(cat /tmp/agent-blocker.md)
+          fi
+
+          COMMENT_BODY="⚠️ **Autodev agent produced no changes.**
+
+          The agent ran but did not modify any files. This issue has been removed from the autodev queue and needs human attention.
+
+          [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+          if [ -n "$BLOCKER_MSG" ]; then
+            COMMENT_BODY="${COMMENT_BODY}
+
+          ### Agent Blocker Report
+          ${BLOCKER_MSG}"
+          fi
+
           gh issue comment "${{ inputs.issue_number }}" \
             --repo "${{ github.repository }}" \
-            --body "Autodev attempted implementation but produced no changes. This issue may need human attention."
+            --body "$COMMENT_BODY"
 
           gh issue edit "${{ inputs.issue_number }}" \
             --repo "${{ github.repository }}" \
             --add-label "human/blocked" \
-            --remove-label "agent/implementing"
+            --remove-label "agent/implementing,backlog/ready"

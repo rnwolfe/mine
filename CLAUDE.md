@@ -214,11 +214,18 @@ For a comprehensive architecture deep-dive with diagrams, see
 
 Four workflows form the core loop, plus a weekly audit:
 
-1. **`autodev-dispatch`** — Runs on a 1-hour cron (or manual trigger). Picks the oldest
-   `backlog/ready` issue, labels it `agent/implementing`, and triggers the implement workflow.
+1. **`autodev-dispatch`** — Runs on a 1-hour cron (or manual trigger). Picks the
+   highest-priority `backlog/ready` issue (sorted by priority tier, then age within
+   tier), excluding any issue already labeled `human/blocked` or `agent/implementing`.
+   Labels it `agent/implementing` and triggers the implement workflow.
 2. **`autodev-implement`** — Checks out `main`, creates a branch, runs the agent (Claude
    via `claude-code-action@v1`) to implement the issue, pushes, and opens a PR.
-   The PR triggers CI and Copilot review.
+   The PR triggers CI and Copilot review. If the agent produces no changes or fails,
+   both `backlog/ready` and `agent/implementing` are removed and `human/blocked` is
+   added — the issue is permanently dequeued until a human re-labels it. The agent
+   prompt includes a **blocker protocol**: if the agent cannot implement the issue, it
+   writes a structured report to `/tmp/agent-blocker.md` explaining why. The workflow
+   posts this report as a comment on the issue.
 3. **`autodev-review-fix`** — Phased review pipeline that routes fixes based on review phase:
    - **Copilot phase**: Iterates on Copilot feedback up to 3 times
    - **Claude phase**: Triggered after Copilot is satisfied (adds `agent/review-claude` label)
@@ -280,6 +287,14 @@ Phases: `copilot` → `claude` → `done`
 | `via/autodev` | PR created by `/autodev` CLI skill |
 | `via/actions` | PR created by GitHub Actions pipeline |
 | `via/maestro` | PR created by Maestro (experimental) |
+
+**Priority labels** (dispatch ordering):
+
+| Label | Meaning |
+|-------|---------|
+| `priority/critical` | Autodev picks first; highest urgency |
+| `priority/high` | Autodev prefers over normal; important |
+| (no label) | Normal priority; FIFO within tier |
 
 **Report labels**:
 

@@ -205,7 +205,7 @@ For a comprehensive architecture deep-dive with diagrams, see
 
 Four workflows form the core loop, plus a weekly audit:
 
-1. **`autodev-dispatch`** — Runs on a 4-hour cron (or manual trigger). Picks the oldest
+1. **`autodev-dispatch`** — Runs on a 1-hour cron (or manual trigger). Picks the oldest
    `backlog/ready` issue, labels it `agent/implementing`, and triggers the implement workflow.
 2. **`autodev-implement`** — Checks out `main`, creates a branch, runs the agent (Claude
    via `claude-code-action@v1`) to implement the issue, pushes, and opens a PR.

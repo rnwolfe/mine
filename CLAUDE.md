@@ -403,6 +403,7 @@ Overall: 2/3 criteria met. Criterion 3 should be tracked separately.
 - Format: `vMAJOR.MINOR.PATCH` (semver)
 - CHANGELOG.md updated before tagging
 - Binaries: linux/darwin x amd64/arm64
+- Use `/release` skill to run the full release flow interactively (see below)
 
 ## Backlog Management
 
@@ -425,7 +426,7 @@ The full pipeline — from roadmap to shipped feature — is documented in:
 
 `docs/internal/LIFECYCLE.md`
 
-**7 phases**: Roadmap → Feature Definition → Backlog Quality → Implementation → Review → Merge → Feedback → (repeat)
+**8 phases**: Roadmap → Feature Definition → Backlog Quality → Implementation → Review → Merge → Release → Feedback → (repeat)
 
 **3 implementation paths** (Phase 4): Maestro Auto Run (`maestro/Backlog-Loop/`) · `/autodev` skill · GitHub Actions pipeline
 
@@ -453,6 +454,28 @@ Key behaviors:
 - Follows the full GitHub Issue Workflow: closes the issue, verifies acceptance criteria
 
 Key file: `.claude/skills/autodev/SKILL.md`
+
+## Release Skill
+
+`/release` is the release manager. It bridges the gap between "features merged to main"
+and "users get a binary" — a step that was previously undocumented and manual.
+
+| Skill | Purpose | Example |
+|-------|---------|---------|
+| `/release` | Full release flow: analyze → version → CHANGELOG → tag → push | `/release`, `/release v0.3.0` |
+| `/release check` | Dry-run: show what's unreleased, proposed version, CHANGELOG preview | `/release check` |
+| `/release notes` | Draft CHANGELOG entry only, no commits or tags | `/release notes` |
+
+Key behaviors:
+- Fetches merged PRs since last tag and categorizes by conventional commit type
+- Proposes semver bump (patch/minor/major) with explicit reasoning
+- Drafts a user-facing CHANGELOG entry (not just a list of PR titles)
+- Runs a pre-release checklist: no blocked PRs, CHANGELOG accuracy, STATUS.md freshness
+- Always shows full summary and waits for explicit confirmation before tagging
+- Pushes the tag, which triggers GoReleaser → GitHub Release automatically
+- Suggests `/product sync` after release to update STATUS.md
+
+Key file: `.claude/skills/release/SKILL.md`
 
 ## Strategic Product Skill
 

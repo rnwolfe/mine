@@ -2,7 +2,7 @@
 
 > The authoritative map of how work flows from roadmap to shipped feature.
 
-Seven sequential phases. Three parallel implementation paths. One cross-cutting audit
+Eight sequential phases. Three parallel implementation paths. One cross-cutting audit
 layer. Every skill and workflow maps to exactly one place in this diagram.
 
 ---
@@ -25,13 +25,14 @@ flowchart LR
 
     P5["5 · REVIEW\nCopilot ≤3 iterations\n→ Claude → done"]
     P6["6 · MERGE\nHuman merge\ntarget: automated"]
+    P65["6.5 · RELEASE\n/release\nCHANGELOG → tag → GoReleaser"]
     P7["7 · FEEDBACK\n/product sync"]
 
     P1 --> P2 --> P3 --> GATE
     GATE -- No --> P3
     GATE -- Yes --> PA & PB & PC
     PA & PB & PC -- PR opened --> P5
-    P5 --> P6 --> P7 -- Next cycle --> P1
+    P5 --> P6 --> P65 --> P7 -- Next cycle --> P1
 
     subgraph AUDIT["AUDIT LAYER — cadence-driven, not flow-triggered"]
         direction LR
@@ -272,6 +273,39 @@ check acceptance criteria verification in the PR body, merge.
 
 ---
 
+## Phase 6.5 — Release
+
+**What**: Ship accumulated work to users. Turns merged PRs into a versioned binary that
+users can install. This phase is intentionally human-triggered — the decision to cut a
+release is a product judgment call, not something the pipeline does automatically.
+
+**When to run**: After a meaningful batch of features or fixes has merged to `main` and
+you want to ship them to users. There's no fixed cadence — it's when the accumulated
+changes feel coherent and stable enough to ship.
+
+| Implementation | How to invoke | What it does |
+|----------------|--------------|--------------|
+| `/release` | Claude CLI skill | Full release flow: analyze PRs → propose semver → draft CHANGELOG → confirm → tag → push |
+| `/release check` | Claude CLI skill | Dry-run: shows what would be released, proposed version, CHANGELOG preview — no side effects |
+| `/release notes` | Claude CLI skill | Draft CHANGELOG entry only, no commits or tags |
+
+**Steps** (full `/release` flow):
+1. Fetch all merged PRs since last tag
+2. Categorize by conventional commit type (feat/fix/refactor/…)
+3. Propose semver bump with reasoning (patch/minor/major)
+4. Draft user-facing CHANGELOG entry
+5. Run pre-release checklist (no blocked PRs, CHANGELOG accuracy, STATUS.md freshness)
+6. Present full summary — **wait for explicit human confirmation**
+7. Update CHANGELOG.md, commit
+8. Create git tag and push → triggers GoReleaser → GitHub Release published
+
+**GoReleaser does**: compiles 4 binaries (linux/darwin × amd64/arm64), creates archives,
+generates checksums, publishes GitHub Release with auto-generated release notes.
+
+**Gate to Phase 7**: Tag pushed, GoReleaser run complete, GitHub Release published.
+
+---
+
 ## Phase 7 — Feedback
 
 **What**: Close the loop. Update the living docs so Phase 1 starts from accurate ground.
@@ -334,6 +368,8 @@ The audit layer runs on cadence, not triggered by the main pipeline. It evaluate
 | Drain backlog autonomously, hands-off | 4C | Start Maestro Auto Run (experimental) |
 | Review cycle seems stuck | 5 | Check `autodev-review-fix` workflow logs |
 | PR is done, ready to ship | 6 | Human merge |
+| Features merged, want to ship to users | 6.5 | `/release` |
+| Want to preview what a release would look like | 6.5 | `/release check` |
 | Post-release, update what shipped | 7 | `/product sync` |
 | Backlog quality feels inconsistent | Audit | `/sweep-issues` |
 | Pipeline feels slow or error-prone | Audit | `/autodev-audit` |
@@ -360,6 +396,9 @@ The audit layer runs on cadence, not triggered by the main pipeline. It evaluate
 | `autodev-review-fix` workflow | Main | 5 — Review |
 | `claude-code-review` workflow | Main | 5 — Review |
 | Human merge | Main | 6 — Merge |
+| `/release` | Main | 6.5 — Release |
+| `/release check` | Main | 6.5 — Release (dry-run) |
+| `/release notes` | Main | 6.5 — Release (notes only) |
 | `/autodev-audit` | Audit | 4–5 — Pipeline health |
 | `autodev-audit` GH Action | Audit | 4–5 — Pipeline health |
 | `/personality-audit` | Audit | 7 — Docs & style |

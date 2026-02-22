@@ -183,6 +183,7 @@ editor invocation, error message style, stdin/stdout/stderr wiring, temp file cl
 - Landing page checked for stale claims if a featured command changed:
   - `site/src/components/FeatureTabs.tsx` (feature descriptions and examples)
   - `site/src/components/TerminalDemo.tsx` (animated demo scripts)
+  - `site/src/content/docs/index.mdx` (docs landing page with hardcoded feature claims)
   - `site/src/content/docs/getting-started/quick-start.md` (onboarding examples)
 
 ---

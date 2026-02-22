@@ -101,6 +101,7 @@ jobs:
             - Check landing page components for stale claims when your changes affect a featured command:
               - site/src/components/FeatureTabs.tsx (feature descriptions and command examples)
               - site/src/components/TerminalDemo.tsx (animated terminal demo scripts)
+              - site/src/content/docs/index.mdx (docs landing page with hardcoded feature claims)
               - site/src/content/docs/getting-started/quick-start.md (onboarding examples)
             - Write tests for new functionality
             - QUALITY GATE — Before committing, verify:

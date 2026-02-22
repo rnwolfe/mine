@@ -88,8 +88,8 @@ Rules:
   - Command reference: `site/src/content/docs/commands/<command>.md` — update when flags/subcommands change
   - Follow the pattern of existing pages (YAML frontmatter with title/description)
   - The sidebar auto-generates from files — no config changes needed
-- Landing page components contain hardcoded feature claims and examples that must stay
-  accurate. Check and update these when your changes affect a featured command:
+- Landing page and docs surfaces contain hardcoded feature claims and examples that must
+  stay accurate. Check and update these when your changes affect a featured command:
   - `site/src/components/FeatureTabs.tsx` — feature descriptions and command examples
   - `site/src/components/TerminalDemo.tsx` — animated terminal demo scripts
   - `site/src/content/docs/index.mdx` — docs landing page

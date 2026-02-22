@@ -34,7 +34,8 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - [x] **TUI picker** — Reusable Bubbletea-based fuzzy-search picker (`internal/tui`)
 - [x] **Tips** (`mine tips`) — Contextual tips system
 - [x] **Doctor** (`mine doctor`) — Health check and diagnostics
-- [x] **Meta** (`mine meta`) — About/build information
+- [x] **Meta** (`mine meta`) — Interact with mine-as-a-product (feature requests, bug reports, contribution workflows)
+- [x] **About** (`mine about`) — About/build information
 - [x] **Contrib** (`mine contrib`) — Community contribution helpers
 - [ ] **Agents** (`mine agents`) — Unified coding agent configuration manager (10 issues filed: #146–#156)
 - [ ] **Task system evolution** — Project-aware, focus-integrated todo system (#159)

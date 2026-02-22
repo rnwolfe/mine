@@ -203,7 +203,7 @@ specifically? What does it enable that the user can't do without it? What does i
 connect to in the existing feature set?
 
 Include: what this unblocks, what synergies it creates, and how it fits the "personal
-ownership" brand identity (see ADR-006 — the name means "yours," not mining).
+ownership" brand identity (see ADR-006 in `docs/internal/DECISIONS.md` — the name means "yours," not mining).
 
 ## What It Does
 

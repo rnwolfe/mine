@@ -73,6 +73,12 @@ Produce a structured roadmap report with four sections:
 Review the seven design principles in VISION.md and the brand identity. Then look
 at the last 10-15 merged PRs and the current open issue list.
 
+**Brand identity reminder**: The name `mine` is possessive — "this is mine, for me."
+The brand is personal ownership, not a mining/crafting metaphor. Command names (`dig`,
+`craft`, `vault`, `stash`) are developer vocabulary that stands alone. See ADR-006 in
+`docs/internal/DECISIONS.md`. Flag any residual mining metaphor language in issues, PRs, or docs as
+needing cleanup.
+
 Ask for each: **Does this work advance the product identity, or does it just add
 capability?**
 
@@ -196,7 +202,8 @@ Why does `mine` need this? Not "it's useful" — why does it belong in THIS prod
 specifically? What does it enable that the user can't do without it? What does it
 connect to in the existing feature set?
 
-Include: what this unblocks, what synergies it creates, how it fits the brand identity.
+Include: what this unblocks, what synergies it creates, and how it fits the "personal
+ownership" brand identity (see ADR-006 in `docs/internal/DECISIONS.md` — the name means "yours," not mining).
 
 ## What It Does
 

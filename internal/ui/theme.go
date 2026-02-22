@@ -100,4 +100,5 @@ const (
 	IconCalendar = "📅"
 	IconSettings = "⚙️ "
 	IconParty    = "🎉"
+	IconPick     = "◆ "
 )

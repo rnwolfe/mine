@@ -39,10 +39,15 @@ Then collect live data:
 
 ```bash
 # Last tag (current released version)
-git describe --tags --abbrev=0
+# If this is the first release and no tags exist yet, fall back to the initial commit.
+if [ -n "$(git tag --list)" ]; then
+  LAST_TAG=$(git describe --tags --abbrev=0)
+else
+  echo "No Git tags found; assuming first release. Using initial commit as LAST_TAG."
+  LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+fi
 
-# All commits since last tag
-LAST_TAG=$(git describe --tags --abbrev=0)
+# All commits since last tag (or since initial commit for first release)
 git log ${LAST_TAG}..HEAD --oneline --no-merges
 
 # Merged PRs since last tag — the authoritative source

@@ -167,7 +167,7 @@ Rules for the draft:
 - Omit `chore:`, `ci:`, `test:` PRs unless they change observable behavior
 - If `[Unreleased]` already has content in CHANGELOG.md, merge it with what you found
   from the PR list (de-duplicate)
-- Bold the feature name for scanability
+- Bold the feature name for scannability
 - Include the command surface in backticks when applicable
 
 ---

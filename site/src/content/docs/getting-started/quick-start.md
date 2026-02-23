@@ -13,7 +13,21 @@ First, run the setup wizard:
 mine init
 ```
 
-This creates your config and database, auto-detecting your name from git.
+This creates your config and database, auto-detecting your name from git. After setup, `mine init` shows a **capability table** — a dynamic readout of which features are ready based on your environment:
+
+```
+  What you've got:
+
+    ✓  todos          — mine todo add "ship it"
+    ✓  stash          — mine stash add <url>
+    ✓  env            — mine env init
+    ✓  git            — mine git log
+    ·  tmux           — install tmux, then mine tmux new
+    ✓  AI (claude)    — mine ai ask "explain this diff"
+    ✓  proj           — mine proj list
+```
+
+If you run `mine init` from inside a git repository, it also offers to register the current directory as a mine project — so your dashboard has project context immediately.
 
 ## Your Dashboard
 

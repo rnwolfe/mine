@@ -154,7 +154,7 @@ func TestRunInit_CapabilityTable_WithBinaries(t *testing.T) {
 	reader := makeInitStdin("", "n")
 
 	out := captureStdout(t, func() {
-		if err := runInitWithReader(reader); err != nil {
+		if err := runInitWithReader(reader, false); err != nil {
 			t.Errorf("runInitWithReader: %v", err)
 		}
 	})
@@ -198,7 +198,7 @@ func TestRunInit_CapabilityTable_NoBinaries(t *testing.T) {
 	reader := makeInitStdin("", "n")
 
 	out := captureStdout(t, func() {
-		if err := runInitWithReader(reader); err != nil {
+		if err := runInitWithReader(reader, false); err != nil {
 			t.Errorf("runInitWithReader: %v", err)
 		}
 	})
@@ -227,7 +227,7 @@ func TestRunInit_ProjectRegistration_InGitRepo(t *testing.T) {
 	reader := makeInitStdin("", "n", "y")
 
 	out := captureStdout(t, func() {
-		if err := runInitWithReader(reader); err != nil {
+		if err := runInitWithReader(reader, false); err != nil {
 			t.Errorf("runInitWithReader: %v", err)
 		}
 	})
@@ -273,7 +273,7 @@ func TestRunInit_NoRegistrationPrompt_OutsideGitRepo(t *testing.T) {
 	reader := makeInitStdin("", "n")
 
 	out := captureStdout(t, func() {
-		if err := runInitWithReader(reader); err != nil {
+		if err := runInitWithReader(reader, false); err != nil {
 			t.Errorf("runInitWithReader: %v", err)
 		}
 	})
@@ -296,7 +296,7 @@ func TestRunInit_ProjRow_RegisteredShowsReady(t *testing.T) {
 	reader := makeInitStdin("", "n", "y")
 
 	out := captureStdout(t, func() {
-		if err := runInitWithReader(reader); err != nil {
+		if err := runInitWithReader(reader, false); err != nil {
 			t.Errorf("runInitWithReader: %v", err)
 		}
 	})
@@ -331,7 +331,7 @@ func TestRunInit_AlreadyRegisteredProject(t *testing.T) {
 	reader := makeInitStdin("", "n", "y")
 
 	out := captureStdout(t, func() {
-		if err := runInitWithReader(reader); err != nil {
+		if err := runInitWithReader(reader, false); err != nil {
 			t.Errorf("runInitWithReader: %v", err)
 		}
 	})
@@ -355,7 +355,7 @@ func TestRunInit_ProjRow_NotRegisteredShowsHint(t *testing.T) {
 	reader := makeInitStdin("", "n")
 
 	out := captureStdout(t, func() {
-		if err := runInitWithReader(reader); err != nil {
+		if err := runInitWithReader(reader, false); err != nil {
 			t.Errorf("runInitWithReader: %v", err)
 		}
 	})
@@ -678,5 +678,259 @@ func TestRunInit_ShellIntegration_FishConfigDirCreationFails_FallbackToManual(t 
 	// Fallback manual instructions should still mention how to run shell init.
 	if !strings.Contains(out, "mine shell init") {
 		t.Error("expected manual instructions containing 'mine shell init' when fish config dir creation fails")
+	}
+}
+
+// ---- re-init and --reset tests ----
+
+// preConfigureInit runs a silent fresh init to create an existing config.
+func preConfigureInit(t *testing.T, name, provider, model string) {
+	t.Helper()
+	cfg := &config.Config{}
+	cfg.User.Name = name
+	cfg.AI.Provider = provider
+	cfg.AI.Model = model
+	cfg.Shell.DefaultShell = "/bin/bash"
+	cfg.Analytics.Enabled = config.BoolPtr(true)
+	if err := config.Save(cfg); err != nil {
+		t.Fatalf("preConfigureInit save: %v", err)
+	}
+}
+
+func TestRunInit_ExistingConfig_ShowsCurrentSettings(t *testing.T) {
+	runInitEnv(t)
+	plainDir := t.TempDir()
+	t.Chdir(plainDir)
+
+	// Set up existing config.
+	preConfigureInit(t, "Alice", "claude", "claude-sonnet-4-5-20250929")
+
+	// Answer "n" to "Update your configuration?" — no changes wanted.
+	reader := makeInitStdin("n")
+	out := captureStdout(t, func() {
+		if err := runInitWithReader(reader, false); err != nil {
+			t.Errorf("runInitWithReader: %v", err)
+		}
+	})
+
+	// Should show existing settings summary.
+	if !strings.Contains(out, "mine is already set up") {
+		t.Errorf("expected 'mine is already set up' in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Alice") {
+		t.Errorf("expected name 'Alice' in current config summary, got:\n%s", out)
+	}
+	if !strings.Contains(out, "claude") {
+		t.Errorf("expected 'claude' in current config summary, got:\n%s", out)
+	}
+}
+
+func TestRunInit_ExistingConfig_DenyUpdate_NoChanges(t *testing.T) {
+	runInitEnv(t)
+	plainDir := t.TempDir()
+	t.Chdir(plainDir)
+
+	preConfigureInit(t, "Alice", "claude", "claude-sonnet-4-5-20250929")
+
+	// Deny the update prompt.
+	reader := makeInitStdin("n")
+	captureStdout(t, func() {
+		if err := runInitWithReader(reader, false); err != nil {
+			t.Errorf("runInitWithReader: %v", err)
+		}
+	})
+
+	// Config should be unchanged.
+	loaded, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if loaded.User.Name != "Alice" {
+		t.Errorf("expected name 'Alice' after denied update, got %q", loaded.User.Name)
+	}
+}
+
+func TestRunInit_ExistingConfig_AcceptDefaults_PreservesName(t *testing.T) {
+	runInitEnv(t)
+	plainDir := t.TempDir()
+	t.Chdir(plainDir)
+
+	preConfigureInit(t, "Alice", "claude", "claude-sonnet-4-5-20250929")
+
+	// Accept update, then press Enter on all prompts (keep current values).
+	// Inputs: "y" (update?), "" (name=Alice), "" (model=current)
+	// No keys detected so re-init simple AI path: "" (provider), "" (model)
+	reader := makeInitStdin("y", "", "", "")
+	captureStdout(t, func() {
+		if err := runInitWithReader(reader, false); err != nil {
+			t.Errorf("runInitWithReader: %v", err)
+		}
+	})
+
+	loaded, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if loaded.User.Name != "Alice" {
+		t.Errorf("expected name 'Alice' after pressing Enter, got %q", loaded.User.Name)
+	}
+}
+
+func TestRunInit_ExistingConfig_AcceptUpdate_SaysConfigurationUpdated(t *testing.T) {
+	runInitEnv(t)
+	plainDir := t.TempDir()
+	t.Chdir(plainDir)
+
+	preConfigureInit(t, "Alice", "claude", "claude-sonnet-4-5-20250929")
+
+	// Accept update, keep all defaults.
+	reader := makeInitStdin("y", "", "", "")
+	out := captureStdout(t, func() {
+		if err := runInitWithReader(reader, false); err != nil {
+			t.Errorf("runInitWithReader: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "Configuration updated") {
+		t.Errorf("expected 'Configuration updated' in output after re-init, got:\n%s", out)
+	}
+	// Should NOT say "All set!" on re-init.
+	if strings.Contains(out, "All set") {
+		t.Errorf("expected 'All set!' to be absent on re-init, got:\n%s", out)
+	}
+}
+
+func TestRunInit_ExistingConfig_PreservesAnalytics(t *testing.T) {
+	runInitEnv(t)
+	plainDir := t.TempDir()
+	t.Chdir(plainDir)
+
+	// Set analytics to explicitly disabled.
+	cfg := &config.Config{}
+	cfg.User.Name = "Alice"
+	cfg.AI.Provider = "claude"
+	cfg.AI.Model = "claude-sonnet-4-5-20250929"
+	cfg.Shell.DefaultShell = "/bin/bash"
+	cfg.Analytics.Enabled = config.BoolPtr(false)
+	if err := config.Save(cfg); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	// Re-init accepting all defaults.
+	reader := makeInitStdin("y", "", "", "")
+	captureStdout(t, func() {
+		if err := runInitWithReader(reader, false); err != nil {
+			t.Errorf("runInitWithReader: %v", err)
+		}
+	})
+
+	loaded, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if loaded.Analytics.Enabled == nil || *loaded.Analytics.Enabled != false {
+		t.Errorf("expected analytics.enabled=false to be preserved after re-init")
+	}
+}
+
+func TestRunInit_Reset_Confirmed_ReplacesConfig(t *testing.T) {
+	runInitEnv(t)
+	plainDir := t.TempDir()
+	t.Chdir(plainDir)
+
+	preConfigureInit(t, "Alice", "claude", "claude-sonnet-4-5-20250929")
+
+	// Confirm reset, then provide new name "Bob", skip AI/shell.
+	reader := makeInitStdin("y", "Bob", "n")
+	out := captureStdout(t, func() {
+		if err := runInitWithReader(reader, true); err != nil {
+			t.Errorf("runInitWithReader --reset: %v", err)
+		}
+	})
+
+	// Should show fresh init output.
+	if !strings.Contains(out, "Welcome to mine") {
+		t.Errorf("expected 'Welcome to mine' in reset output, got:\n%s", out)
+	}
+
+	loaded, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if loaded.User.Name != "Bob" {
+		t.Errorf("expected name 'Bob' after reset, got %q", loaded.User.Name)
+	}
+}
+
+func TestRunInit_Reset_Denied_ConfigUnchanged(t *testing.T) {
+	runInitEnv(t)
+	plainDir := t.TempDir()
+	t.Chdir(plainDir)
+
+	preConfigureInit(t, "Alice", "claude", "claude-sonnet-4-5-20250929")
+
+	// Deny reset confirmation.
+	reader := makeInitStdin("n")
+	captureStdout(t, func() {
+		if err := runInitWithReader(reader, true); err != nil {
+			t.Errorf("runInitWithReader --reset: %v", err)
+		}
+	})
+
+	loaded, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+	if loaded.User.Name != "Alice" {
+		t.Errorf("expected name 'Alice' unchanged after denied reset, got %q", loaded.User.Name)
+	}
+}
+
+func TestRunInit_Reset_DatabaseUntouched(t *testing.T) {
+	runInitEnv(t)
+	plainDir := t.TempDir()
+	t.Chdir(plainDir)
+
+	// First fresh init to create DB.
+	reader := makeInitStdin("", "n")
+	captureStdout(t, func() {
+		if err := runInitWithReader(reader, false); err != nil {
+			t.Fatalf("first init: %v", err)
+		}
+	})
+
+	// Add a todo to the DB to verify it survives reset.
+	db, err := store.Open()
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	_, err = db.Conn().Exec("INSERT INTO todos (title) VALUES ('survive-reset')")
+	if err != nil {
+		t.Fatalf("insert todo: %v", err)
+	}
+	db.Close()
+
+	// Reset confirmed.
+	reader2 := makeInitStdin("y", "", "n")
+	captureStdout(t, func() {
+		if err := runInitWithReader(reader2, true); err != nil {
+			t.Errorf("runInitWithReader --reset: %v", err)
+		}
+	})
+
+	// DB should still have our todo.
+	db2, err := store.Open()
+	if err != nil {
+		t.Fatalf("store.Open after reset: %v", err)
+	}
+	defer db2.Close()
+
+	var count int
+	row := db2.Conn().QueryRow("SELECT COUNT(*) FROM todos WHERE title='survive-reset'")
+	if err := row.Scan(&count); err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected todo to survive --reset, got count=%d", count)
 	}
 }

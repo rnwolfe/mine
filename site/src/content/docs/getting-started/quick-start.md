@@ -29,6 +29,8 @@ This creates your config and database, auto-detecting your name from git. After 
 
 If you run `mine init` from inside a git repository, it also offers to register the current directory as a mine project — so your dashboard has project context immediately.
 
+`mine init` is safe to re-run at any time. If a config already exists, it shows your current name, AI provider, and shell, then asks if you want to update them. Pressing Enter at each prompt keeps the existing value, so only the fields you actually change are updated. To start completely fresh, use `mine init --reset`.
+
 ## Your Dashboard
 
 Just run `mine` with no arguments to see your personal dashboard:

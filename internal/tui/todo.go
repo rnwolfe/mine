@@ -154,16 +154,45 @@ func (m *TodoModel) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "d":
 		if len(m.filtered) > 0 {
 			t := m.filtered[m.cursor]
-			// Skip delete for locally-added todos that haven't been persisted yet.
 			if t.ID < 0 {
-				break
-			}
-			m.Actions = append(m.Actions, TodoAction{Type: "delete", ID: t.ID})
-			// Remove locally
-			for i, item := range m.todos {
-				if item.ID == t.ID {
-					m.todos = append(m.todos[:i], m.todos[i+1:]...)
+				// Locally-added todo that was never persisted — remove from
+				// the in-memory slice and cancel its pending "add" action.
+				actionIdx := -t.ID - 1
+				if actionIdx < 0 || actionIdx >= len(m.Actions) {
+					// Invariant violation — skip action splice but still remove
+					// the todo from the in-memory list so the UI stays consistent.
+					for i := 0; i < len(m.todos); i++ {
+						if m.todos[i].ID == t.ID {
+							m.todos = append(m.todos[:i], m.todos[i+1:]...)
+							break
+						}
+					}
+					m.applyFilter()
+					if m.cursor >= len(m.filtered) && m.cursor > 0 {
+						m.cursor = len(m.filtered) - 1
+					}
 					break
+				}
+				m.Actions = append(m.Actions[:actionIdx], m.Actions[actionIdx+1:]...)
+				for i := 0; i < len(m.todos); i++ {
+					item := &m.todos[i]
+					if item.ID == t.ID {
+						m.todos = append(m.todos[:i], m.todos[i+1:]...)
+						i--
+					} else if item.ID < 0 && (-item.ID-1) > actionIdx {
+						// This local todo's action shifted left; keep the
+						// ID→action mapping consistent.
+						item.ID++
+					}
+				}
+			} else {
+				m.Actions = append(m.Actions, TodoAction{Type: "delete", ID: t.ID})
+				// Remove locally
+				for i, item := range m.todos {
+					if item.ID == t.ID {
+						m.todos = append(m.todos[:i], m.todos[i+1:]...)
+						break
+					}
 				}
 			}
 			m.applyFilter()

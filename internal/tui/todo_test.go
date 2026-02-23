@@ -441,6 +441,118 @@ func TestTodoModel_DeleteClampscursor(t *testing.T) {
 	}
 }
 
+func TestTodoModel_DeleteLocalTodo(t *testing.T) {
+	todos := makeTodos("existing")
+	m := NewTodoModel(todos)
+
+	// Add a new todo in-session
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	for _, r := range "new task" {
+		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if len(m.todos) != 2 {
+		t.Fatalf("expected 2 todos after add, got %d", len(m.todos))
+	}
+	if len(m.Actions) != 1 || m.Actions[0].Type != "add" {
+		t.Fatalf("expected 1 add action, got %+v", m.Actions)
+	}
+
+	// Cursor should be on the newly added (local) todo.
+	if m.filtered[m.cursor].ID >= 0 {
+		t.Fatalf("cursor should be on the newly added local todo, got ID %d", m.filtered[m.cursor].ID)
+	}
+
+	// Delete the locally-added todo with 'd'.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+
+	if len(m.todos) != 1 {
+		t.Fatalf("expected 1 todo after deleting local todo, got %d", len(m.todos))
+	}
+	// The pending "add" action should have been cancelled too.
+	if len(m.Actions) != 0 {
+		t.Fatalf("expected 0 actions after cancelling local todo add, got %+v", m.Actions)
+	}
+	if m.todos[0].Title != "existing" {
+		t.Fatalf("remaining todo should be 'existing', got %q", m.todos[0].Title)
+	}
+}
+
+func TestTodoModel_DeleteOneOfMultipleLocalTodos(t *testing.T) {
+	m := NewTodoModel([]todo.Todo{})
+
+	addTodo := func(text string) {
+		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+		for _, r := range text {
+			m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		}
+		m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	}
+
+	addTodo("first")
+	addTodo("second")
+
+	if len(m.todos) != 2 || len(m.Actions) != 2 {
+		t.Fatalf("expected 2 todos and 2 actions, got %d todos %d actions", len(m.todos), len(m.Actions))
+	}
+
+	// Move cursor to first item and delete it.
+	m.cursor = 0
+	m.applyFilter()
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+
+	if len(m.todos) != 1 {
+		t.Fatalf("expected 1 todo after delete, got %d", len(m.todos))
+	}
+	if len(m.Actions) != 1 {
+		t.Fatalf("expected 1 action after delete, got %d", len(m.Actions))
+	}
+	if m.Actions[0].Type != "add" || m.Actions[0].Text != "second" {
+		t.Fatalf("remaining action should be add 'second', got %+v", m.Actions[0])
+	}
+
+	// Delete the remaining local todo — should reach a clean state.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+
+	if len(m.todos) != 0 {
+		t.Fatalf("expected 0 todos, got %d", len(m.todos))
+	}
+	if len(m.Actions) != 0 {
+		t.Fatalf("expected 0 actions, got %d", len(m.Actions))
+	}
+}
+
+func TestTodoModel_DeleteLocalTodoMixedWithPersisted(t *testing.T) {
+	// Start with a persisted todo, add a local one, delete the local one.
+	todos := makeTodos("persisted")
+	m := NewTodoModel(todos)
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	for _, r := range "local" {
+		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Move cursor to the local todo (last item).
+	m.cursor = len(m.filtered) - 1
+	if m.filtered[m.cursor].ID >= 0 {
+		t.Fatalf("expected cursor on local todo, got ID %d", m.filtered[m.cursor].ID)
+	}
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+
+	if len(m.todos) != 1 {
+		t.Fatalf("expected 1 todo remaining, got %d", len(m.todos))
+	}
+	if len(m.Actions) != 0 {
+		t.Fatalf("expected 0 actions (add cancelled), got %+v", m.Actions)
+	}
+	if m.todos[0].Title != "persisted" {
+		t.Fatalf("remaining todo should be 'persisted', got %q", m.todos[0].Title)
+	}
+}
+
 func TestTodoModel_AddEmptyTextSkipped(t *testing.T) {
 	todos := makeTodos("existing")
 	m := NewTodoModel(todos)

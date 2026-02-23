@@ -2,13 +2,17 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/rnwolfe/mine/internal/analytics"
 	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"
+	"github.com/rnwolfe/mine/internal/proj"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/rnwolfe/mine/internal/vault"
@@ -23,12 +27,14 @@ var initCmd = &cobra.Command{
 }
 
 func runInit(_ *cobra.Command, _ []string) error {
+	return runInitWithReader(bufio.NewReader(os.Stdin))
+}
+
+func runInitWithReader(reader *bufio.Reader) error {
 	fmt.Println(ui.Title.Render(ui.IconMine + " Welcome to mine!"))
 	fmt.Println()
 	ui.Inf("Let's get you set up. This takes about 30 seconds.")
 	fmt.Println()
-
-	reader := bufio.NewReader(os.Stdin)
 
 	// Name
 	name := prompt(reader, "  What should I call you?", guessName())
@@ -197,16 +203,130 @@ func runInit(_ *cobra.Command, _ []string) error {
 		)
 	}
 	fmt.Println()
-	fmt.Println(ui.Muted.Render("  Some things to try:"))
-	fmt.Printf("    %s  %s\n", ui.Accent.Render("mine todo add \"ship feature X\""), ui.Muted.Render("— capture a task"))
-	fmt.Printf("    %s                        %s\n", ui.Accent.Render("mine todo"), ui.Muted.Render("— see your tasks"))
-	fmt.Printf("    %s                      %s\n", ui.Accent.Render("mine config"), ui.Muted.Render("— tweak settings"))
-	if cfg.AI.Provider != "" {
-		fmt.Printf("    %s  %s\n", ui.Accent.Render("mine ai ask \"explain goroutines\""), ui.Muted.Render("— ask AI a question"))
+
+	// Probe environment for capability table
+	probe := probeEnvironment(cfg)
+
+	// Project registration prompt (only inside a git repo)
+	projRegistered := false
+	if probe.inGitRepo && probe.cwd != "" {
+		fmt.Printf("  Register %s as a mine project? %s ",
+			ui.Accent.Render(probe.cwd),
+			ui.Muted.Render("(Y/n)"),
+		)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(strings.ToLower(input))
+		fmt.Println()
+
+		if input == "" || input == "y" || input == "yes" {
+			db2, err := store.Open()
+			if err != nil {
+				fmt.Printf("  %s Could not open store for project registration: %v\n",
+					ui.Warning.Render(ui.IconWarn), err)
+			} else {
+				defer db2.Close()
+				ps := proj.NewStore(db2.Conn())
+				p, err := ps.Add(probe.cwd)
+				switch {
+				case err == nil:
+					fmt.Printf("  %s Registered project %s\n",
+						ui.Success.Render(ui.IconOk),
+						ui.Accent.Render(p.Name),
+					)
+					projRegistered = true
+				case errors.Is(err, proj.ErrProjectExists):
+					projRegistered = true
+				default:
+					fmt.Printf("  %s Could not register project: %v\n",
+						ui.Warning.Render(ui.IconWarn), err)
+				}
+			}
+			fmt.Println()
+		}
 	}
+
+	// Dynamic capability table
+	fmt.Println(ui.Muted.Render("  What you've got:"))
+	fmt.Println()
+	printCapabilityRow("todos", true,
+		`mine todo add "ship it"`, "")
+	printCapabilityRow("stash", true,
+		"mine stash add <url>", "")
+	printCapabilityRow("env", true,
+		"mine env init", "")
+	printCapabilityRow("git", probe.gitInstalled,
+		"mine git log",
+		"install git, then mine git log")
+	printCapabilityRow("tmux", probe.tmuxInstalled,
+		"mine tmux new",
+		"install tmux, then mine tmux new")
+	aiLabel := "AI"
+	if probe.aiProvider != "" {
+		aiLabel = "AI (" + probe.aiProvider + ")"
+	}
+	printCapabilityRow(aiLabel, probe.aiConfigured,
+		`mine ai ask "explain this diff"`,
+		"mine ai config --provider claude --key sk-...")
+	printCapabilityRow("proj", projRegistered,
+		"mine proj list",
+		"mine proj add <path>")
 	fmt.Println()
 
 	return nil
+}
+
+// envProbe holds detected environment capabilities.
+type envProbe struct {
+	gitInstalled  bool
+	tmuxInstalled bool
+	aiConfigured  bool
+	aiProvider    string
+	inGitRepo     bool
+	cwd           string
+}
+
+// probeEnvironment detects which mine capabilities are ready to use.
+func probeEnvironment(cfg *config.Config) envProbe {
+	probe := envProbe{}
+
+	_, err := exec.LookPath("git")
+	probe.gitInstalled = err == nil
+
+	_, err = exec.LookPath("tmux")
+	probe.tmuxInstalled = err == nil
+
+	if cfg != nil && cfg.AI.Provider != "" {
+		probe.aiConfigured = true
+		probe.aiProvider = cfg.AI.Provider
+	}
+
+	cwd, err := os.Getwd()
+	if err == nil {
+		probe.cwd = cwd
+		_, statErr := os.Stat(filepath.Join(cwd, ".git"))
+		probe.inGitRepo = statErr == nil
+	}
+
+	return probe
+}
+
+// printCapabilityRow prints a single row in the capability table.
+// Ready rows show a concrete command example; unready rows show a setup hint.
+func printCapabilityRow(feature string, ready bool, readyExample, notReadyHint string) {
+	label := fmt.Sprintf("%-14s", feature)
+	if ready {
+		fmt.Printf("    %s %s — %s\n",
+			ui.Success.Render(ui.IconOk),
+			ui.KeyStyle.Render(label),
+			ui.Accent.Render(readyExample),
+		)
+	} else {
+		fmt.Printf("    %s  %s — %s\n",
+			ui.Muted.Render(ui.IconDot),
+			ui.Muted.Render(label),
+			ui.Muted.Render(notReadyHint),
+		)
+	}
 }
 
 // detectAIKeys checks environment for standard AI provider API keys

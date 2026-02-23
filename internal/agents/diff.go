@@ -231,14 +231,24 @@ func fallbackDirDiff(a, b string) ([]string, error) {
 
 		if entry.IsDir() {
 			lines, recurseErr := fallbackDirDiff(aPath, bPath)
-			if recurseErr == nil {
+			if recurseErr != nil {
+				allLines = append(allLines,
+					fmt.Sprintf("--- %s", aPath),
+					fmt.Sprintf("+++ %s (error diffing directory: %v)", bPath, recurseErr),
+				)
+			} else {
 				allLines = append(allLines, lines...)
 			}
 			continue
 		}
 
 		lines, fileErr := fallbackFileDiff(aPath, bPath, aPath, bPath)
-		if fileErr == nil {
+		if fileErr != nil {
+			allLines = append(allLines,
+				fmt.Sprintf("--- %s", aPath),
+				fmt.Sprintf("+++ %s (error diffing file: %v)", bPath, fileErr),
+			)
+		} else {
 			allLines = append(allLines, lines...)
 		}
 	}
@@ -246,7 +256,7 @@ func fallbackDirDiff(a, b string) ([]string, error) {
 	// Report files that exist only in the target.
 	bEntries, err := os.ReadDir(b)
 	if err != nil {
-		return allLines, nil
+		return allLines, fmt.Errorf("reading dir %s: %w", b, err)
 	}
 	for _, entry := range bEntries {
 		if seen[entry.Name()] || entry.IsDir() {

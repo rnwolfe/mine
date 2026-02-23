@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -96,7 +97,8 @@ func CheckLinkHealth(entry LinkEntry, storeDir string) LinkHealth {
 		if os.IsNotExist(err) {
 			h.State = LinkHealthUnlinked
 		} else {
-			h.State = LinkHealthUnlinked
+			// Permission error or other OS error — target exists but is inaccessible.
+			h.State = LinkHealthBroken
 			h.Message = err.Error()
 		}
 		return h
@@ -185,11 +187,19 @@ func queryStoreInfo() (StoreInfo, error) {
 		info.RemoteURL = strings.TrimSpace(out)
 	}
 
-	// Unpushed commits — only meaningful when a remote is configured.
+	// Unpushed commits — prefer @{upstream} (tracked branch) over origin/HEAD
+	// because origin/HEAD may not be set on all remotes.
 	if info.RemoteURL != "" {
-		if out, err := gitutil.RunCmd(dir, "rev-list", "--count", "origin/HEAD..HEAD"); err == nil {
+		if out, err := gitutil.RunCmd(dir, "rev-list", "--count", "@{upstream}..HEAD"); err == nil {
 			if n, parseErr := strconv.Atoi(strings.TrimSpace(out)); parseErr == nil {
 				info.UnpushedCommits = n
+			}
+		} else {
+			// Fallback: origin/HEAD for repos without a tracked upstream branch.
+			if out, errOrigin := gitutil.RunCmd(dir, "rev-list", "--count", "origin/HEAD..HEAD"); errOrigin == nil {
+				if n, parseErr := strconv.Atoi(strings.TrimSpace(out)); parseErr == nil {
+					info.UnpushedCommits = n
+				}
 			}
 		}
 	}
@@ -240,15 +250,7 @@ func fileContentMatches(a, b string) bool {
 	if err != nil {
 		return false
 	}
-	if len(aData) != len(bData) {
-		return false
-	}
-	for i := range aData {
-		if aData[i] != bData[i] {
-			return false
-		}
-	}
-	return true
+	return bytes.Equal(aData, bData)
 }
 
 // dirContentMatches compares two directories by recursively checking each entry.

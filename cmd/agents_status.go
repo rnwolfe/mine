@@ -126,14 +126,14 @@ func printLinkHealthRow(lh agents.LinkHealth) {
 	case agents.LinkHealthReplaced:
 		detail := ""
 		if lh.Message != "" {
-			detail = ui.Muted.Render(" (" + lh.Message + ")")
+			detail = " (" + lh.Message + ")"
 		}
 		fmt.Printf("    %s %s %s %s%s\n",
 			ui.Warning.Render("! "),
 			sourceDisplay,
 			ui.Muted.Render(ui.IconArrow),
 			targetDisplay,
-			ui.Warning.Render(" (replaced with regular file)"+detail))
+			ui.Warning.Render(" (replaced)"+detail))
 	case agents.LinkHealthUnlinked:
 		fmt.Printf("    %s %s %s %s\n",
 			ui.Muted.Render("○ "),

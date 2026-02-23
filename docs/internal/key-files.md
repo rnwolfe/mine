@@ -67,5 +67,9 @@
 | `internal/agents/link.go` | Link/Unlink engine; checkFileSafety/checkDirSafety |
 | `internal/agents/link_helpers.go` | copyFile/copyDir, upsertManifestLink, fileExists/dirNonEmpty |
 | `internal/agents/adopt.go` | Adopt workflow: scan, import, conflict detection, auto-commit |
+| `internal/agents/status.go` | LinkHealthState/LinkHealth/StoreInfo, CheckLinkHealth, CheckStatus, queryStoreInfo |
+| `internal/agents/diff.go` | Diff, diffPaths, runGitDiffNoIndex, fallbackDiff, lcsLineDiff |
 | `internal/gitutil/git.go` | Shared git command helper for agents/stash git-backed stores |
-| `cmd/agents.go` | agents subcommands: init, detect, link, unlink, adopt |
+| `cmd/agents.go` | agents subcommands: init, detect, link, unlink, adopt — command defs and non-status/diff handlers |
+| `cmd/agents_status.go` | runAgentsStatus, printStatusAgentRow, printLinkHealthRow, printLinkHealthSummary |
+| `cmd/agents_diff.go` | runAgentsDiff, printDiffEntry, formatDiffLine |

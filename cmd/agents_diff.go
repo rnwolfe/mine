@@ -76,11 +76,13 @@ func printDiffEntry(e agents.DiffEntry) {
 		}
 	case agents.LinkHealthDiverged, agents.LinkHealthReplaced:
 		stateLabel := "diverged"
+		prefixSymbol := "~ "
 		if e.State == agents.LinkHealthReplaced {
 			stateLabel = "replaced"
+			prefixSymbol = "! "
 		}
 		fmt.Printf("  %s %s %s %s\n",
-			ui.Warning.Render("~ "),
+			ui.Warning.Render(prefixSymbol),
 			e.Link.Source,
 			ui.Muted.Render(ui.IconArrow),
 			ui.Warning.Render(e.Link.Target+" ("+stateLabel+")"))

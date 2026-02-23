@@ -104,15 +104,22 @@ func Adopt(opts AdoptOptions) ([]AdoptItem, error) {
 	if !opts.Copy && len(adoptedAgents) > 0 {
 		for _, agentName := range adoptedAgents {
 			linkOpts := LinkOptions{Agent: agentName, Copy: false, Force: true}
-			_, _ = Link(linkOpts) // best-effort; errors are non-fatal for adopt
+			if _, err := Link(linkOpts); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: failed to create symlinks for agent %q: %v\n", agentName, err)
+			}
 		}
 	}
 
 	// Auto-commit the imported content.
 	if len(adoptedAgents) > 0 {
 		commitMsg := "adopt: imported configs from " + strings.Join(adoptedAgents, ", ")
-		_, _ = gitutil.RunCmd(storeDir, "add", ".")
-		_, _ = gitutil.RunCmd(storeDir, "commit", "-m", commitMsg)
+		if _, err := gitutil.RunCmd(storeDir, "add", "."); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to stage adopted configs: %v\n", err)
+		} else {
+			if _, err := gitutil.RunCmd(storeDir, "commit", "-m", commitMsg); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: failed to commit adopted configs: %v\n", err)
+			}
+		}
 	}
 
 	return allItems, nil

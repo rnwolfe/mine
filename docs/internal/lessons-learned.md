@@ -105,19 +105,6 @@ Shell helpers like `p` use command substitution to capture `--print-path`, which
 stdout. Bubbletea picker rendering must target a real TTY output stream (stderr) in
 that mode, or the picker can become invisible/hang despite stdin being interactive.
 
-
-### L-020: Adopt workflow — reverse-import pattern for existing configs
-When importing existing agent configs into a canonical store (adopt), the safe pattern
-is: (1) scan for adoptable content and detect conflicts BEFORE making any changes,
-(2) copy files into the store, (3) replace originals with symlinks via the existing
-Link() function with --force. This separation means the Link() function can be reused
-without modification. Conflict detection uses byte-equal comparison for shared files
-(instruction files, MCP config) since these map multiple-agent-sources to a single
-canonical destination. Per-agent files (settings/claude.json) can never conflict.
-Always check `isAlreadyManagedByStore` first to skip files that are already symlinks
-into the store — prevents double-adoption. Auto-commit to git history after adoption
-to provide a recovery point.
-
 ### L-019: Platform keychain integration via CLI tools avoids CGo
 For OS keychain integration (macOS Keychain, GNOME Keyring), shell out to CLI tools
 (`security` on macOS, `secret-tool` on Linux) rather than importing native bindings.
@@ -146,3 +133,15 @@ bot identity of the Claude Code action. If `allowed_bots` only lists `github-act
 the action rejects execution with: "Workflow initiated by non-human actor: claude (type: Bot)."
 Fix: set `allowed_bots: "github-actions[bot],claude"` on any agent step that can be
 reached via a `workflow_run` whose triggering workflow itself ran a Claude agent.
+
+### L-022: Adopt workflow — reverse-import pattern for existing configs
+When importing existing agent configs into a canonical store (adopt), the safe pattern
+is: (1) scan for adoptable content and detect conflicts BEFORE making any changes,
+(2) copy files into the store, (3) replace originals with symlinks via the existing
+Link() function with --force. This separation means the Link() function can be reused
+without modification. Conflict detection uses byte-equal comparison for shared files
+(instruction files, MCP config) since these map multiple-agent-sources to a single
+canonical destination. Per-agent files (settings/claude.json) can never conflict.
+Always check `isAlreadyManagedByStore` first to skip files that are already symlinks
+into the store — prevents double-adoption. Auto-commit to git history after adoption
+to provide a recovery point.

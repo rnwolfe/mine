@@ -61,3 +61,15 @@
 | `site/src/content/docs/contributors/` | Architecture and plugin protocol docs |
 | `site/src/styles/custom.css` | Gold/amber brand theming |
 | `site/vercel.json` | Vercel deployment config (Astro preset, rewrites) |
+| `internal/agents/agents.go` | Agent/LinkEntry/Manifest types, store Init/ReadManifest/WriteManifest |
+| `internal/agents/detect.go` | Agent detection (binary + config dir); buildRegistry; DetectAgents |
+| `internal/agents/link_spec.go` | Per-agent link specs (config dirs, filenames, MCP path); buildLinkRegistry |
+| `internal/agents/link.go` | Link/Unlink engine; checkFileSafety/checkDirSafety |
+| `internal/agents/link_helpers.go` | copyFile/copyDir, upsertManifestLink, fileExists/dirNonEmpty |
+| `internal/agents/adopt.go` | Adopt workflow: scan, import, conflict detection, auto-commit |
+| `internal/agents/status.go` | LinkHealthState/LinkHealth/StoreInfo, CheckLinkHealth, CheckStatus, queryStoreInfo |
+| `internal/agents/diff.go` | Diff, diffPaths, runGitDiffNoIndex, fallbackDiff, lcsLineDiff |
+| `internal/gitutil/git.go` | Shared git command helper for agents/stash git-backed stores |
+| `cmd/agents.go` | agents subcommands: init, detect, link, unlink, adopt — command defs and non-status/diff handlers |
+| `cmd/agents_status.go` | runAgentsStatus, printStatusAgentRow, printLinkHealthRow, printLinkHealthSummary |
+| `cmd/agents_diff.go` | runAgentsDiff, printDiffEntry, formatDiffLine |

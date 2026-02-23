@@ -408,12 +408,17 @@ jobs:
       # Transitions to Claude when:
       # 1. Router decided to trigger-claude (no Copilot comments or max iterations)
       # 2. Feedback extraction found nothing actionable (override)
-      # 3. Copilot fix agent ran but produced no changes (agent couldn't address feedback → escalate)
+      # 3. Copilot fix agent ran successfully — regardless of whether changes were committed.
+      #    With changes: all Copilot comments were addressed; no re-review needed (L-027).
+      #    Without changes: agent found nothing to fix; escalate to Claude.
+      #    Previously only case 3b (no changes) was handled, leaving PRs stuck in copilot
+      #    phase indefinitely after a committed fix because pull_request_review from Copilot
+      #    is filtered (L-020) and the 4h fallback sees "commit newer than review" and skips.
       - name: Transition to Claude phase
         if: |
           steps.route.outputs.action == 'trigger-claude'
           || steps.copilot-feedback.outputs.override_action == 'trigger-claude'
-          || (steps.route.outputs.action == 'copilot-fix' && steps.copilot-feedback.outputs.override_action != 'trigger-claude' && steps.copilot-agent.outcome == 'success' && steps.copilot-changes.outputs.has_changes == 'false')
+          || (steps.route.outputs.action == 'copilot-fix' && steps.copilot-feedback.outputs.override_action != 'trigger-claude' && steps.copilot-agent.outcome == 'success')
         env:
           GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
         run: |

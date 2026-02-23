@@ -179,6 +179,98 @@ Healthy symlinks always match canonical (same inode) — no diff is shown.
 |------|-------------|
 | `--agent <name>` | Diff only a specific agent's links (e.g. `claude`, `gemini`) |
 
+## Project-Level Agent Config
+
+Scaffold and manage agent configurations at the project level — separate from the
+global canonical store.
+
+### Initialize Project
+
+```bash
+mine agents project init [path]
+```
+
+Scaffolds agent configuration directories inside a project for all detected agents.
+Creates agent config dirs (`.claude/`, `.agents/`, `.gemini/`, `.opencode/`), skills
+subdirectories, and starter instruction files at the project root.
+
+Only creates directories for detected agents. Settings files from the canonical store
+are seeded into the project when available. Defaults to the current working directory.
+Re-running is safe — existing files are preserved unless `--force` is given.
+
+**Project structure created:**
+
+```
+<project>/
+├── CLAUDE.md               # Claude project instructions (if claude detected)
+├── AGENTS.md               # Agent instructions (codex/opencode)
+├── GEMINI.md               # Gemini project instructions (if gemini detected)
+├── .claude/
+│   ├── skills/
+│   ├── commands/
+│   └── settings.json       # Seeded from canonical store (if template exists)
+├── .agents/
+│   └── skills/
+├── .gemini/
+│   └── skills/
+└── .opencode/
+    └── skills/
+```
+
+**Project config directories per agent:**
+
+| Agent | Project Config Dir | Project Skills | Project Instructions |
+|-------|--------------------|----------------|----------------------|
+| Claude Code | `.claude/` | `.claude/skills/` | `CLAUDE.md` |
+| Codex | `.agents/` | `.agents/skills/` | `AGENTS.md` |
+| Gemini CLI | `.gemini/` | `.gemini/skills/` | `GEMINI.md` |
+| OpenCode | `.opencode/` | `.opencode/skills/` | `AGENTS.md` |
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--force` | Overwrite existing files |
+
+### Link Canonical Skills to Project
+
+```bash
+mine agents project link [path]
+mine agents project link --copy [path]
+```
+
+Creates symlinks (or copies) from the canonical agents store skills directory to
+each detected agent's project-level skill directories. Useful for sharing global
+skills across projects without duplication.
+
+Use `--copy` when symlinks to external paths are not appropriate — for example,
+when you want to check project skills into the repository.
+
+If `mine agents project init` was run first (which creates empty skill directories),
+use `--force` to replace them with symlinks to the canonical store.
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--agent <name>` | Link only a specific agent (e.g. `claude`, `codex`) |
+| `--copy` | Copy files instead of creating symlinks |
+| `--force` | Overwrite existing files |
+
+**Typical workflow:**
+
+```bash
+# 1. Initialize global store (once, per machine)
+mine agents init
+mine agents detect
+
+# 2. Scaffold a project
+mine agents project init ~/projects/myapp
+
+# 3. Optionally link canonical skills (--force replaces empty dirs from step 2)
+mine agents project link --force ~/projects/myapp
+```
+
 ## Snapshot History
 
 ```bash

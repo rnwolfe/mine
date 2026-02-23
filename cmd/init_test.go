@@ -307,6 +307,45 @@ func TestRunInit_ProjRow_RegisteredShowsReady(t *testing.T) {
 	}
 }
 
+func TestRunInit_AlreadyRegisteredProject(t *testing.T) {
+	runInitEnv(t)
+
+	repoDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repoDir, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(repoDir)
+
+	// Pre-register the project so init encounters ErrProjectExists
+	db, err := store.Open()
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	ps := proj.NewStore(db.Conn())
+	if _, err := ps.Add(repoDir); err != nil {
+		t.Fatalf("pre-register: %v", err)
+	}
+	db.Close()
+
+	// Answer "y" to the registration prompt — it's already registered
+	reader := makeInitStdin("", "n", "y")
+
+	out := captureStdout(t, func() {
+		if err := runInitWithReader(reader); err != nil {
+			t.Errorf("runInitWithReader: %v", err)
+		}
+	})
+
+	// proj row should show as ready (already-registered counts as registered)
+	if !strings.Contains(out, "mine proj list") {
+		t.Errorf("expected 'mine proj list' for already-registered project, got:\n%s", out)
+	}
+	// Should not have shown an error
+	if strings.Contains(out, "Could not register") {
+		t.Errorf("unexpected error output for already-registered project:\n%s", out)
+	}
+}
+
 func TestRunInit_ProjRow_NotRegisteredShowsHint(t *testing.T) {
 	runInitEnv(t)
 

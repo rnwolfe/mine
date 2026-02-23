@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -209,17 +210,26 @@ func runInitWithReader(reader *bufio.Reader) error {
 
 		if input == "" || input == "y" || input == "yes" {
 			db2, err := store.Open()
-			if err == nil {
+			if err != nil {
+				fmt.Printf("  %s Could not open store for project registration: %v\n",
+					ui.Warning.Render(ui.IconWarn), err)
+			} else {
 				defer db2.Close()
 				ps := proj.NewStore(db2.Conn())
-				if p, err := ps.Add(probe.cwd); err == nil {
+				p, err := ps.Add(probe.cwd)
+				switch {
+				case err == nil:
 					fmt.Printf("  %s Registered project %s\n",
 						ui.Success.Render(ui.IconOk),
 						ui.Accent.Render(p.Name),
 					)
 					projRegistered = true
+				case errors.Is(err, proj.ErrProjectExists):
+					projRegistered = true
+				default:
+					fmt.Printf("  %s Could not register project: %v\n",
+						ui.Warning.Render(ui.IconWarn), err)
 				}
-				// Ignore ErrProjectExists — silently skip if already registered
 			}
 			fmt.Println()
 		}

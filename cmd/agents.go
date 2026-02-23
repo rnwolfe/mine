@@ -12,7 +12,7 @@ import (
 var agentsCmd = &cobra.Command{
 	Use:   "agents",
 	Short: "Manage coding agent configurations from a canonical store",
-	Long:  `Manage your coding agent configurations. Keep a single canonical store of instructions, rules, and skills — then link them to each agent you use.`,
+	Long:  `Manage your coding agent configurations with a single canonical store of instructions, rules, and skills. Linking configs to individual agents will be available in a future release.`,
 	RunE:  hook.Wrap("agents", runAgentsStatus),
 }
 

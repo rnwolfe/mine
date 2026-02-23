@@ -38,19 +38,17 @@ type Manifest struct {
 const agentsMD = `# Agent Instructions
 
 This file is managed by mine agents. Add shared instructions for your coding
-agents here. These instructions will be linked to each agent you register.
+agents here.
 
 ## About This File
 
-Instructions placed here are symlinked to the expected locations for each coding
-agent you use. Changes here are automatically reflected in each agent's configured
-instructions directory.
+Instructions placed here are the central source of truth for your coding agent
+configurations. Keep rules, preferences, and shared context here.
 
 ## How to Use
 
 1. Add global instructions, rules, or preferences below
-2. Run ` + "`mine agents link`" + ` to sync your changes to all registered agents
-3. Use ` + "`mine agents status`" + ` to see what's linked where
+2. Run ` + "`mine agents`" + ` to see which agents were detected and how they're configured
 
 ## Shared Instructions
 
@@ -67,10 +65,18 @@ func ManifestPath() string {
 	return filepath.Join(Dir(), ".mine-agents")
 }
 
-// IsInitialized returns true if the agents store directory exists.
+// IsInitialized returns true if the agents store directory exists and has a manifest.
 func IsInitialized() bool {
-	_, err := os.Stat(Dir())
-	return err == nil
+	info, err := os.Stat(Dir())
+	if err != nil || !info.IsDir() {
+		return false
+	}
+
+	if _, err := os.Stat(ManifestPath()); err != nil {
+		return false
+	}
+
+	return true
 }
 
 // Init creates the canonical agents store with a full directory scaffold.

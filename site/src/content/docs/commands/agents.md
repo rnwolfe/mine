@@ -3,7 +3,7 @@ title: mine agents
 description: Manage coding agent configurations from a canonical store
 ---
 
-Manage your coding agent configurations from a single canonical store. Keep instructions, rules, and skills in one place — then link them to each agent you use.
+Manage your coding agent configurations from a single canonical store. Keep instructions, rules, and skills in one place. Linking configs to individual agents will be available in a future release.
 
 ## Initialize the Store
 

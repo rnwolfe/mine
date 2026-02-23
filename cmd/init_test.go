@@ -127,6 +127,7 @@ func runInitEnv(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("GEMINI_API_KEY", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
 	// Use a stable USER so guessName() doesn't rely on real git config
 	t.Setenv("USER", "testuser")
 	// Suppress keychain so readPassphrase never prompts for a passphrase
@@ -480,6 +481,7 @@ func initTestEnv(t *testing.T) string {
 	t.Setenv("ANTHROPIC_API_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("GEMINI_API_KEY", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
 	// Use a fake git config so guessName returns "".
 	t.Setenv("USER", "testuser")
 	return tmp
@@ -830,6 +832,64 @@ func TestRunInit_ExistingConfig_PreservesAnalytics(t *testing.T) {
 	}
 	if loaded.Analytics.Enabled == nil || *loaded.Analytics.Enabled != false {
 		t.Errorf("expected analytics.enabled=false to be preserved after re-init")
+	}
+}
+
+func TestRunInit_ExistingConfig_PreservesNonPromptedFields(t *testing.T) {
+	runInitEnv(t)
+	t.Setenv("SHELL", "") // suppress shell integration prompt for determinism
+	plainDir := t.TempDir()
+	t.Chdir(plainDir)
+
+	// Seed a config with fields that are NOT surfaced in init prompts.
+	cfg := &config.Config{}
+	cfg.User.Name = "Alice"
+	cfg.User.Email = "alice@example.com"
+	cfg.AI.Provider = "claude"
+	cfg.AI.Model = "claude-sonnet-4-5-20250929"
+	cfg.AI.SystemInstructions = "You are a helpful assistant."
+	cfg.AI.AskSystemInstructions = "Answer precisely and concisely."
+	cfg.Shell.DefaultShell = "/bin/zsh"
+	cfg.Shell.Aliases = []string{"ll=ls -la", "g=git"}
+	cfg.Analytics.Enabled = config.BoolPtr(true)
+	if err := config.Save(cfg); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	// Re-init accepting all defaults: update=y, name=Enter, provider=Enter, model=Enter.
+	reader := makeInitStdin("y", "", "", "")
+	captureStdout(t, func() {
+		if err := runInitWithReader(reader, false); err != nil {
+			t.Errorf("runInitWithReader: %v", err)
+		}
+	})
+
+	loaded, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load: %v", err)
+	}
+
+	// Non-prompted fields must be preserved.
+	if loaded.User.Email != "alice@example.com" {
+		t.Errorf("user.email: want %q, got %q", "alice@example.com", loaded.User.Email)
+	}
+	if loaded.AI.SystemInstructions != "You are a helpful assistant." {
+		t.Errorf("ai.system_instructions: want %q, got %q",
+			"You are a helpful assistant.", loaded.AI.SystemInstructions)
+	}
+	if loaded.AI.AskSystemInstructions != "Answer precisely and concisely." {
+		t.Errorf("ai.ask_system_instructions: want %q, got %q",
+			"Answer precisely and concisely.", loaded.AI.AskSystemInstructions)
+	}
+	if len(loaded.Shell.Aliases) != 2 {
+		t.Errorf("shell.aliases: want len 2, got %v", loaded.Shell.Aliases)
+	}
+	if loaded.Shell.DefaultShell != "/bin/zsh" {
+		t.Errorf("shell.default_shell: want %q, got %q", "/bin/zsh", loaded.Shell.DefaultShell)
+	}
+	// Prompted fields should still reflect accepted defaults.
+	if loaded.User.Name != "Alice" {
+		t.Errorf("user.name: want %q, got %q", "Alice", loaded.User.Name)
 	}
 }
 

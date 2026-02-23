@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/rnwolfe/mine/internal/analytics"
@@ -112,8 +113,9 @@ func runReInit(reader *bufio.Reader) error {
 }
 
 // runFreshInit runs the full interactive init flow.
-// When existing is non-nil, prompts are pre-filled with its values and its
-// analytics preference is preserved in the saved config (re-init mode).
+// When existing is non-nil (re-init mode), the new config starts as a copy of
+// existing so all non-prompted fields (user.email, shell.aliases, AI system
+// instructions, analytics preference, etc.) are preserved automatically.
 func runFreshInit(reader *bufio.Reader, existing *config.Config) error {
 	isReInit := existing != nil
 
@@ -132,16 +134,27 @@ func runFreshInit(reader *bufio.Reader, existing *config.Config) error {
 	name := prompt(reader, "  What should I call you?", nameDefault)
 	fmt.Println()
 
-	// Build config from scratch; we'll carry forward preserved fields below.
-	cfg := &config.Config{}
+	// Build config: start from a copy of existing to preserve all non-prompted
+	// fields (user.email, shell.aliases, ai system instructions, etc.) on re-init.
+	// On a fresh install start from a zero-value struct.
+	var cfg *config.Config
+	if existing != nil {
+		cfgCopy := *existing
+		cfg = &cfgCopy
+	} else {
+		cfg = &config.Config{}
+	}
 	cfg.User.Name = name
 
-	// Detect shell from environment.
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/bash"
+	// Detect shell from environment on fresh install only.
+	// On re-init, shell.default_shell is already carried forward from the copy.
+	if !isReInit {
+		shell := os.Getenv("SHELL")
+		if shell == "" {
+			shell = "/bin/bash"
+		}
+		cfg.Shell.DefaultShell = shell
 	}
-	cfg.Shell.DefaultShell = shell
 
 	// AI setup.
 	fmt.Println(ui.Subtitle.Render("  AI Setup (optional)"))
@@ -160,13 +173,19 @@ func runFreshInit(reader *bufio.Reader, existing *config.Config) error {
 
 		if len(detectedKeys) == 1 {
 			for p := range detectedKeys {
-				cfg.AI.Provider = p
+				// In re-init, keep existing provider when set (idempotent re-run).
+				if isReInit && existing.AI.Provider != "" {
+					cfg.AI.Provider = existing.AI.Provider
+				} else {
+					cfg.AI.Provider = p
+				}
 			}
 		} else {
 			providerList := make([]string, 0, len(detectedKeys))
 			for p := range detectedKeys {
 				providerList = append(providerList, p)
 			}
+			sort.Strings(providerList)
 			// Pre-select existing provider if it's among detected keys.
 			providerDefault := strings.Join(providerList, ", ")
 			if existing != nil && detectedKeys[existing.AI.Provider] {
@@ -191,7 +210,7 @@ func runFreshInit(reader *bufio.Reader, existing *config.Config) error {
 			if existing != nil && existing.AI.Model != "" && existing.AI.Provider == cfg.AI.Provider {
 				modelDefault = existing.AI.Model
 			}
-			modelInput := prompt(reader, "  Default model? (press Enter to skip)", modelDefault)
+			modelInput := prompt(reader, "  Default model?", modelDefault)
 			if modelInput != "" {
 				cfg.AI.Model = modelInput
 			}
@@ -270,11 +289,9 @@ func runFreshInit(reader *bufio.Reader, existing *config.Config) error {
 	// Shell integration (idempotent — skips silently if already installed).
 	runShellIntegration(reader)
 
-	// Preserve analytics preference from existing config during re-init.
+	// Analytics preference is preserved from the config copy on re-init.
 	// Fresh installs default to enabled.
-	if existing != nil {
-		cfg.Analytics.Enabled = existing.Analytics.Enabled
-	} else {
+	if existing == nil {
 		cfg.Analytics.Enabled = config.BoolPtr(true)
 	}
 

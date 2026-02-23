@@ -68,9 +68,10 @@ func printCapabilityRow(feature string, ready bool, readyExample, notReadyHint s
 func detectAIKeys() map[string]bool {
 	detected := make(map[string]bool)
 	envVars := map[string]string{
-		"claude": "ANTHROPIC_API_KEY",
-		"openai": "OPENAI_API_KEY",
-		"gemini": "GEMINI_API_KEY",
+		"claude":     "ANTHROPIC_API_KEY",
+		"openai":     "OPENAI_API_KEY",
+		"gemini":     "GEMINI_API_KEY",
+		"openrouter": "OPENROUTER_API_KEY",
 	}
 
 	for provider, envVar := range envVars {
@@ -96,7 +97,7 @@ func getEnvVarForProvider(provider string) string {
 // getDefaultModelForProvider returns a sensible default model for a provider.
 func getDefaultModelForProvider(provider string) string {
 	defaults := map[string]string{
-		"claude":     "claude-sonnet-4-5-20250929",
+		"claude":     config.DefaultModel,
 		"openai":     "gpt-5.2",
 		"gemini":     "gemini-3-flash-preview",
 		"openrouter": "z-ai/glm-4.5-air:free",

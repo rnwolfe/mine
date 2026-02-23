@@ -32,7 +32,16 @@ menv
 
 ## How It Works
 
-Add `eval "$(mine shell init)"` to your shell config (`.zshrc`, `.bashrc`, or `config.fish`) and you get the full set of helper functions on every new shell. Tab completions are generated separately — run `mine shell completions` and follow the printed instructions to source them.
+**Quickest path**: run `mine init`. After the AI setup section it detects your shell, shows you the exact eval line, and asks if it should write it to your RC file. Press Enter to accept — it appends:
+
+```
+# added by mine
+eval "$(mine shell init)"
+```
+
+to `~/.zshrc`, `~/.bashrc`, or `~/.config/fish/config.fish` automatically. Re-running `mine init` is safe — it skips the step if the line is already present.
+
+**Manual path**: add `eval "$(mine shell init)"` to your shell config yourself. Tab completions are generated separately — run `mine shell completions` and follow the printed instructions to source them.
 
 The aliases are optional — `mine shell aliases` prints them so you can copy the ones you want. The full set gives you `m` for the dashboard, `mt` for todos, `mg` for git, `mx` for tmux, and more.
 

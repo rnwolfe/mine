@@ -127,24 +127,36 @@ mine stash diff
 
 ## Shell Integration
 
-Generate completions for your shell:
+`mine init` handles first-time shell setup for you. After the AI section it shows:
 
-```bash
-mine shell completions
+```
+  Shell Integration
+
+  Adding this line to ~/.zshrc enables p, pp, and menv:
+
+    eval "$(mine shell init)"
+
+  Add it now? (Y/n)
 ```
 
-View recommended aliases:
+Press Enter to let mine write the line to your RC file. This activates:
+
+- **`p [name]`** — jump to a project (opens fuzzy picker with no args)
+- **`pp`** — return to the previous project
+- **`menv`** — load your active `mine env` profile into the current shell
+
+To add it manually instead:
 
 ```bash
-mine shell aliases
+echo '\neval "$(mine shell init)"' >> ~/.zshrc
+source ~/.zshrc
 ```
 
-Add them to your shell config:
+For tab completions and optional aliases:
 
 ```bash
-alias m='mine'
-alias mt='mine todo'
-alias md='mine dig'
+mine shell completions   # tab completions
+mine shell aliases       # view recommended aliases
 ```
 
 ## Configure mine

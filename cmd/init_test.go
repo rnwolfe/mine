@@ -365,3 +365,258 @@ func TestRunInit_ProjRow_NotRegisteredShowsHint(t *testing.T) {
 		t.Errorf("expected 'mine proj add' hint in output, got:\n%s", out)
 	}
 }
+
+// ---- unit tests: rcFileForShell ----
+
+func TestRcFileForShell_Zsh(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	got := rcFileForShell("/bin/zsh")
+	want := filepath.Join(tmp, ".zshrc")
+	if got != want {
+		t.Errorf("zsh: got %q, want %q", got, want)
+	}
+}
+
+func TestRcFileForShell_Bash_WithBashrc(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	// Create .bashrc so it takes priority over .bash_profile.
+	bashrc := filepath.Join(tmp, ".bashrc")
+	if err := os.WriteFile(bashrc, []byte(""), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := rcFileForShell("/bin/bash")
+	if got != bashrc {
+		t.Errorf("bash with .bashrc: got %q, want %q", got, bashrc)
+	}
+}
+
+func TestRcFileForShell_Bash_FallbackProfile(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	// No .bashrc — should fall back to .bash_profile.
+
+	got := rcFileForShell("/bin/bash")
+	want := filepath.Join(tmp, ".bash_profile")
+	if got != want {
+		t.Errorf("bash without .bashrc: got %q, want %q", got, want)
+	}
+}
+
+func TestRcFileForShell_Fish(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	got := rcFileForShell("/usr/bin/fish")
+	want := filepath.Join(tmp, ".config", "fish", "config.fish")
+	if got != want {
+		t.Errorf("fish: got %q, want %q", got, want)
+	}
+}
+
+func TestRcFileForShell_Unknown(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	got := rcFileForShell("/bin/tcsh")
+	if got != "" {
+		t.Errorf("unknown shell: expected empty string, got %q", got)
+	}
+}
+
+// ---- unit tests: alreadyInstalled ----
+
+func TestAlreadyInstalled_Present(t *testing.T) {
+	tmp := t.TempDir()
+	rc := filepath.Join(tmp, ".zshrc")
+	content := `# existing config
+eval "$(mine shell init)"
+`
+	if err := os.WriteFile(rc, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if !alreadyInstalled(rc) {
+		t.Error("expected alreadyInstalled to return true when snippet present")
+	}
+}
+
+func TestAlreadyInstalled_Absent(t *testing.T) {
+	tmp := t.TempDir()
+	rc := filepath.Join(tmp, ".zshrc")
+	if err := os.WriteFile(rc, []byte("# empty config\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if alreadyInstalled(rc) {
+		t.Error("expected alreadyInstalled to return false when snippet absent")
+	}
+}
+
+func TestAlreadyInstalled_MissingFile(t *testing.T) {
+	tmp := t.TempDir()
+	rc := filepath.Join(tmp, ".zshrc") // does not exist
+	if alreadyInstalled(rc) {
+		t.Error("expected alreadyInstalled to return false for missing file")
+	}
+}
+
+// ---- integration tests: runInit with shell integration ----
+
+// initTestEnv sets up a complete temp environment for runInit tests.
+// It returns the temp home directory and a cleanup via t.Cleanup.
+func initTestEnv(t *testing.T) string {
+	t.Helper()
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmp, "config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(tmp, "data"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(tmp, "cache"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(tmp, "state"))
+	// Clear API keys so the AI section takes the "no keys" branch.
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("GEMINI_API_KEY", "")
+	// Use a fake git config so guessName returns "".
+	t.Setenv("USER", "testuser")
+	return tmp
+}
+
+// pipeStdin replaces os.Stdin with a pipe containing the given input string.
+// The previous os.Stdin is restored via t.Cleanup.
+func pipeStdin(t *testing.T, input string) {
+	t.Helper()
+	original := os.Stdin
+	t.Cleanup(func() { os.Stdin = original })
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	os.Stdin = r
+
+	if _, err := w.WriteString(input); err != nil {
+		t.Fatalf("write stdin: %v", err)
+	}
+	w.Close()
+}
+
+// runInitInputs returns stdin content for runInit that:
+//   - Accepts default name ("\n")
+//   - Skips OpenRouter ("\n", default N)
+//   - Provides the given shellAnswer for the shell integration prompt
+func runInitInputs(shellAnswer string) string {
+	return "\n\n" + shellAnswer + "\n"
+}
+
+func TestRunInit_ShellIntegration_WritesRCFile(t *testing.T) {
+	tmp := initTestEnv(t)
+	t.Setenv("SHELL", "/bin/zsh")
+
+	// Create the RC file so it's writable.
+	rc := filepath.Join(tmp, ".zshrc")
+	if err := os.WriteFile(rc, []byte("# existing\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Answer "y" to the shell integration prompt.
+	pipeStdin(t, runInitInputs("y"))
+	captureStdout(t, func() {
+		if err := runInit(nil, nil); err != nil {
+			t.Fatalf("runInit: %v", err)
+		}
+	})
+
+	data, err := os.ReadFile(rc)
+	if err != nil {
+		t.Fatalf("read RC: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "mine shell init") {
+		t.Errorf("RC file should contain 'mine shell init', got:\n%s", content)
+	}
+	// Verify the exact snippet was appended once.
+	count := strings.Count(content, "mine shell init")
+	if count != 1 {
+		t.Errorf("expected exactly 1 occurrence of 'mine shell init', got %d", count)
+	}
+}
+
+func TestRunInit_ShellIntegration_DefaultYes(t *testing.T) {
+	tmp := initTestEnv(t)
+	t.Setenv("SHELL", "/bin/zsh")
+
+	rc := filepath.Join(tmp, ".zshrc")
+	if err := os.WriteFile(rc, []byte("# existing\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Press Enter (empty) at shell integration prompt → default Y.
+	pipeStdin(t, runInitInputs(""))
+	captureStdout(t, func() {
+		if err := runInit(nil, nil); err != nil {
+			t.Fatalf("runInit: %v", err)
+		}
+	})
+
+	data, err := os.ReadFile(rc)
+	if err != nil {
+		t.Fatalf("read RC: %v", err)
+	}
+	if !strings.Contains(string(data), "mine shell init") {
+		t.Error("RC file should contain 'mine shell init' after default-yes")
+	}
+}
+
+func TestRunInit_ShellIntegration_AlreadyInstalled_NoDuplicate(t *testing.T) {
+	tmp := initTestEnv(t)
+	t.Setenv("SHELL", "/bin/zsh")
+
+	// RC file already has the eval line.
+	rc := filepath.Join(tmp, ".zshrc")
+	existing := "# existing\neval \"$(mine shell init)\"\n"
+	if err := os.WriteFile(rc, []byte(existing), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// runShellIntegration should skip entirely — no prompt needed.
+	// Still pipe 2 lines for name + openrouter.
+	pipeStdin(t, "\n\n")
+	captureStdout(t, func() {
+		if err := runInit(nil, nil); err != nil {
+			t.Fatalf("runInit: %v", err)
+		}
+	})
+
+	data, err := os.ReadFile(rc)
+	if err != nil {
+		t.Fatalf("read RC: %v", err)
+	}
+	count := strings.Count(string(data), "mine shell init")
+	if count != 1 {
+		t.Errorf("expected exactly 1 occurrence of 'mine shell init', got %d", count)
+	}
+}
+
+func TestRunInit_ShellIntegration_NonWritableRCFile_NoError(t *testing.T) {
+	tmp := initTestEnv(t)
+	t.Setenv("SHELL", "/bin/zsh")
+
+	// Create RC file and make it read-only.
+	rc := filepath.Join(tmp, ".zshrc")
+	if err := os.WriteFile(rc, []byte("# existing\n"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(rc, 0o644) }) // restore perms for cleanup
+
+	// Answer "y" — append will fail, but runInit must not return an error.
+	pipeStdin(t, runInitInputs("y"))
+	captureStdout(t, func() {
+		if err := runInit(nil, nil); err != nil {
+			t.Fatalf("runInit returned error on non-writable RC: %v", err)
+		}
+	})
+}

@@ -5,6 +5,16 @@ description: Shell integration and enhancements
 
 Shell integration and enhancements including completions and aliases.
 
+## First-Time Setup
+
+The easiest way to activate shell helpers (`p`, `pp`, `menv`) is to run `mine init` — it detects your shell, shows the eval line, and offers to write it to your RC file automatically.
+
+For manual setup or subsequent machines, add this to your shell config:
+
+```bash
+eval "$(mine shell init)"
+```
+
 ## Generate Completions
 
 ```bash

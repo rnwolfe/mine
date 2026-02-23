@@ -14,11 +14,40 @@ mine init
 ## What It Does
 
 1. Auto-detects your name from `~/.gitconfig`
-2. Creates config at `~/.config/mine/config.toml`
-3. Creates database at `~/.local/share/mine/mine.db`
-4. Guides you through optional AI provider setup
-5. Probes your environment to show a capability table
-6. If run inside a git repo, offers to register it as a mine project
+2. Configures AI provider (detects existing API keys or guides OpenRouter setup)
+3. Offers to write `eval "$(mine shell init)"` to your RC file — enabling `p`, `pp`, and `menv`
+4. Creates config at `~/.config/mine/config.toml`
+5. Creates database at `~/.local/share/mine/mine.db`
+6. Probes your environment to show a capability table
+7. If run inside a git repo, offers to register it as a mine project
+
+## Shell Integration Step
+
+After the AI setup section, `mine init` shows:
+
+```
+  Shell Integration
+
+  Adding this line to ~/.zshrc enables p, pp, and menv:
+
+    eval "$(mine shell init)"
+
+  Add it now? (Y/n)
+```
+
+- **Y (default)**: appends `eval "$(mine shell init)"` to your RC file and confirms the path
+- **n**: prints the line so you can add it manually
+- **Already present**: silently skipped — safe to re-run `mine init`
+- **Unrecognized shell**: prints the line for manual addition; `mine init` still completes
+
+Supported shells: `zsh` (`~/.zshrc`), `bash` (`~/.bashrc` / `~/.bash_profile`), `fish` (`~/.config/fish/config.fish`).
+
+The appended content is exactly:
+
+```
+# added by mine
+eval "$(mine shell init)"
+```
 
 ## Capability Table
 
@@ -76,13 +105,17 @@ $ mine init
   AI Setup (optional)
   ...
 
-  ✓ All set!
+  Shell Integration
 
-  Created:
-    Config  ~/.config/mine/config.toml
-    Data    ~/.local/share/mine/mine.db
+  Adding this line to ~/.zshrc enables p, pp, and menv:
 
-  Hey Ryan — you're ready to go. Type mine to see your dashboard.
+    eval "$(mine shell init)"
+
+  Add it now? (Y/n)
+
+✓ Added to ~/.zshrc. Restart your shell or run: source ~/.zshrc
+
+  ✓ All set, Ryan! 🎉
 
   Register /home/ryan/projects/myapp as a mine project? (Y/n) y
 

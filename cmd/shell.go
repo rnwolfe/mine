@@ -15,7 +15,7 @@ import (
 
 var shellCmd = &cobra.Command{
 	Use:   "shell",
-	Short: "Shell integration and enhancements",
+	Short: "Supercharge your shell with completions, aliases, and helpers",
 	Long:  `Set up shell completions, aliases, functions, and prompt integration.`,
 	RunE:  hook.Wrap("shell", runShellHelp),
 }

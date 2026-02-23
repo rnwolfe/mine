@@ -488,7 +488,7 @@ Here's the diff (it may be truncated to 50KB):
 	}
 
 	fmt.Println()
-	fmt.Println(ui.Success.Render("  Commit created successfully!"))
+	ui.Ok("Commit created successfully!")
 	fmt.Println()
 
 	return nil

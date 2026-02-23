@@ -302,6 +302,7 @@ func runProjScan(_ *cobra.Command, args []string) error {
 	for _, p := range added {
 		fmt.Printf("  %s %s\n", ui.Success.Render("●"), ui.Muted.Render(p.Path))
 	}
+	ui.Tip(fmt.Sprintf("jump in with %s or %s", ui.Accent.Render("p <name>"), ui.Accent.Render("mine proj open <name>")))
 	fmt.Println()
 	return nil
 }

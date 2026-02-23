@@ -52,7 +52,7 @@ func resolveWindowSession(flag string) (string, error) {
 
 var tmuxWindowCmd = &cobra.Command{
 	Use:   "window",
-	Short: "Manage windows within a tmux session",
+	Short: "Create, rename, and switch windows in your tmux session",
 	Long:  `List, create, kill, and rename windows in a tmux session.`,
 	RunE:  hook.Wrap("tmux.window", runTmuxWindowHelp),
 }

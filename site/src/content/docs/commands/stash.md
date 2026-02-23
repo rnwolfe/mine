@@ -39,13 +39,27 @@ mine stash diff
 
 Shows which tracked files have been modified since last commit.
 
+## Browse Snapshot History
+
+```bash
+mine stash log
+mine stash log ~/.zshrc
+```
+
+Shows the full snapshot history for the stash repo. Pass an optional file path to filter history to commits that touched that file.
+
 ## Commit Changes
 
 ```bash
-mine stash commit "save dotfiles after brew update"
+mine stash commit
+mine stash commit -m "save dotfiles after brew update"
 ```
 
-Records the current state of all tracked files as a git commit in the stash repo.
+Records the current state of all tracked files as a git commit in the stash repo. If no message is provided, a timestamp-based message is used automatically.
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--message` | `-m` | Commit message for the snapshot |
 
 ## Restore a File
 
@@ -87,6 +101,19 @@ mine stash track ~/.config/nvim/init.lua
 
 # Check what's changed
 mine stash diff
+
+# Snapshot your current state
+mine stash commit -m "after brew update"
+
+# Browse snapshot history
+mine stash log
+mine stash log ~/.zshrc   # history for a single file
+
+# Restore a file to its latest snapshot
+mine stash restore ~/.zshrc
+
+# Restore a file to a specific version
+mine stash restore ~/.zshrc --version HEAD~2
 
 # List all tracked files
 mine stash list

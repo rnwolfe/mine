@@ -200,3 +200,13 @@ fallback sees "latest commit is newer than review" and skips. Fix: also trigger 
 Claude transition when copilot-fix succeeds with committed changes — one Copilot pass +
 one Claude fix is sufficient; Copilot re-review is not required when all comments are addressed.
 
+
+### L-028: schedule concurrency group races with workflow_run — use idempotency guard
+The `schedule` trigger uses `'scheduled'` as its concurrency group (PR number is unknown
+at trigger time). This means it runs concurrently with `workflow_run` and `workflow_dispatch`
+runs for the same PR (those use `autodev-review-fix-<PR_NUMBER>`). When both reach the
+`Finalize — mark phase done` step simultaneously, they both post completion comments and
+try to enable auto-merge. Fix: add an idempotency guard at the start of the finalize step
+— check if `human/review-merge` label is already present; if so, skip. This handles the
+race without requiring a per-PR concurrency group for schedule (which would require knowing
+the PR number before the job starts).

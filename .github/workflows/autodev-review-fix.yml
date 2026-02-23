@@ -22,6 +22,10 @@ on:
     - cron: "30 */4 * * *"
 
 concurrency:
+  # schedule uses 'scheduled' as the group key (PR number is unknown at trigger time),
+  # so it can run concurrently with workflow_run/dispatch runs for the same PR.
+  # The Finalize step uses an idempotency guard (human/review-merge label check) to
+  # prevent duplicate completion comments when concurrent runs both reach the done phase.
   group: autodev-review-fix-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || inputs.pr_number || 'scheduled' }}
   cancel-in-progress: false
 
@@ -574,6 +578,17 @@ jobs:
           GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
         run: |
           PR_NUMBER="${{ steps.route.outputs.pr_number }}"
+
+          # Idempotency guard: re-read current state to prevent duplicate finalization.
+          # schedule and workflow_run use different concurrency groups so they can run
+          # concurrently. Both may see phase=="claude" before either updates it to "done".
+          CURRENT_LABELS=$(gh pr view "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --json labels --jq '[.labels[].name]')
+          if echo "$CURRENT_LABELS" | jq -e 'index("human/review-merge")' >/dev/null 2>&1; then
+            echo "PR #$PR_NUMBER already finalized (human/review-merge label present). Skipping duplicate."
+            exit 0
+          fi
 
           # Update phase to done in PR body
           PR_BODY=$(gh pr view "$PR_NUMBER" \

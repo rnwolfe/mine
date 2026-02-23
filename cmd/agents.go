@@ -121,7 +121,9 @@ func runAgentsInit(_ *cobra.Command, _ []string) error {
 	ui.Ok("Agents store ready")
 	fmt.Printf("  Location: %s\n", ui.Muted.Render(dir))
 	fmt.Println()
-	fmt.Printf("  Next: %s\n", ui.Accent.Render("mine agents sync remote <url>"))
+	fmt.Println("  Next steps:")
+	fmt.Printf("    1. Set a remote: %s\n", ui.Accent.Render("mine agents sync remote <url>"))
+	fmt.Printf("    2. Push to it:   %s\n", ui.Accent.Render("mine agents sync push"))
 	fmt.Println()
 	return nil
 }

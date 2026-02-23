@@ -117,3 +117,20 @@ func TestLog_NoHistory(t *testing.T) {
 		t.Error("Log() should error when no git repo")
 	}
 }
+
+func TestHasCommits(t *testing.T) {
+	setupEnv(t)
+
+	if HasCommits() {
+		t.Error("HasCommits() = true before any repo, want false")
+	}
+
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Init creates an initial commit.
+	if !HasCommits() {
+		t.Error("HasCommits() = false after Init(), want true")
+	}
+}

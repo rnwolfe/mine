@@ -117,12 +117,105 @@ func TestSyncPush_NoGitRepo(t *testing.T) {
 	}
 }
 
+func TestSyncPush_NoCommits(t *testing.T) {
+	agentsDir := setupEnv(t)
+
+	// Create the directory manually before initializing git (Init() creates it,
+	// but here we call InitGitRepo() directly to simulate a repo with no commits).
+	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Initialize git repo manually (without going through Init) so there are
+	// no commits, which is the edge case we want to guard against.
+	if err := InitGitRepo(); err != nil {
+		t.Fatal(err)
+	}
+
+	err := SyncPush()
+	if err == nil {
+		t.Error("SyncPush() should error when git repo has no commits")
+	}
+	if !strings.Contains(err.Error(), "no commits yet") {
+		t.Errorf("error = %q, want containing 'no commits yet'", err.Error())
+	}
+}
+
 func TestSyncPull_NoGitRepo(t *testing.T) {
 	setupEnv(t)
 
 	err := SyncPull()
 	if err == nil {
 		t.Error("SyncPull() should error without git repo")
+	}
+}
+
+// TestSyncPullWithResult_ReadOnlyTarget verifies that re-copying succeeds when
+// the target file is read-only (mode 0o444).
+func TestSyncPullWithResult_ReadOnlyTarget(t *testing.T) {
+	agentsDir := setupEnv(t)
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Set up bare repo as remote.
+	bareRepo := filepath.Join(tmpDir, "remote.git")
+	if _, err := gitCmd(tmpDir, "init", "--bare", bareRepo); err != nil {
+		t.Fatalf("creating bare repo: %v", err)
+	}
+	if err := SyncSetRemote(bareRepo); err != nil {
+		t.Fatal(err)
+	}
+	if err := SyncPush(); err != nil {
+		t.Fatalf("initial push: %v", err)
+	}
+
+	// Create a copy-mode link whose target is read-only.
+	targetDir := filepath.Join(tmpDir, "readonly-target")
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	targetFile := filepath.Join(targetDir, "CLAUDE.md")
+	if err := os.WriteFile(targetFile, []byte("old"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+
+	srcFile := filepath.Join(agentsDir, "instructions", "AGENTS.md")
+	if err := os.WriteFile(srcFile, []byte("updated content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := &Manifest{
+		Agents: []Agent{},
+		Links:  []LinkEntry{{Source: "instructions/AGENTS.md", Target: targetFile, Agent: "claude", Mode: "copy"}},
+	}
+	if err := WriteManifest(m); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Commit("add readonly target link"); err != nil {
+		t.Fatal(err)
+	}
+	if err := SyncPush(); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := SyncPullWithResult()
+	if err != nil {
+		t.Fatalf("SyncPullWithResult() with read-only target: %v", err)
+	}
+	if result.CopiedLinks != 1 {
+		t.Errorf("CopiedLinks = %d, want 1", result.CopiedLinks)
+	}
+
+	data, err := os.ReadFile(targetFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "updated content" {
+		t.Errorf("target content = %q, want %q", string(data), "updated content")
 	}
 }
 

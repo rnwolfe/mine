@@ -42,6 +42,9 @@ func SyncPush() error {
 	if !IsGitRepo() {
 		return fmt.Errorf("no version history yet — run `mine agents init` first")
 	}
+	if !HasCommits() {
+		return fmt.Errorf("no commits yet — run `mine agents init` to create the initial commit first")
+	}
 
 	remote := SyncRemoteURL()
 	if remote == "" {
@@ -114,7 +117,7 @@ func SyncPullWithResult() (*SyncPullResult, error) {
 	}
 
 	if _, err := gitCmd(dir, "pull", "--rebase", "origin"); err != nil {
-		return nil, fmt.Errorf("pull failed — you may need to resolve conflicts manually in %s: %w", dir, err)
+		return nil, fmt.Errorf("pull failed — resolve conflicts manually in %s, or run `git stash` first if you have uncommitted local changes: %w", dir, err)
 	}
 
 	// Re-read manifest: it may have changed on the remote.
@@ -145,10 +148,14 @@ func SyncPullWithResult() (*SyncPullResult, error) {
 			continue
 		}
 
-		// Preserve existing target permissions if available.
+		// Preserve existing target permissions if available, then remove
+		// the existing file so read-only targets don't cause WriteFile to fail.
 		mode := os.FileMode(0o644)
 		if info, err := os.Stat(link.Target); err == nil {
 			mode = info.Mode().Perm()
+			if err := os.Remove(link.Target); err != nil {
+				return nil, fmt.Errorf("removing existing %s: %w", link.Target, err)
+			}
 		}
 
 		// Ensure target's parent directory exists.

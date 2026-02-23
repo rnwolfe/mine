@@ -73,6 +73,15 @@ func Commit(message string) (string, error) {
 	return strings.TrimSpace(hash), nil
 }
 
+// HasCommits returns true if the agents store git repo has at least one commit.
+func HasCommits() bool {
+	if !IsGitRepo() {
+		return false
+	}
+	_, err := gitCmd(Dir(), "rev-parse", "--verify", "HEAD")
+	return err == nil
+}
+
 // Log returns the commit history for the agents store, optionally filtered
 // to a specific file.
 func Log(file string) ([]LogEntry, error) {

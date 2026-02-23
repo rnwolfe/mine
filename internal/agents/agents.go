@@ -116,6 +116,13 @@ your coding agents (Claude, Codex, Gemini, OpenCode, etc.).
 		return err
 	}
 
+	// Create an initial commit so the store is immediately ready for push/pull.
+	if !HasCommits() {
+		if _, err := Commit("initial setup"); err != nil {
+			return fmt.Errorf("creating initial commit: %w", err)
+		}
+	}
+
 	return nil
 }
 

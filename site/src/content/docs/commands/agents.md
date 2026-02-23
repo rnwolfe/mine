@@ -11,7 +11,7 @@ Manage a canonical store for your coding agent configurations. Distribute shared
 mine agents init
 ```
 
-Creates the canonical store at `~/.local/share/mine/agents/` with a scaffolded directory structure and initializes a git repository for version tracking. Safe to run multiple times — idempotent.
+Creates the canonical store at `~/.local/share/mine/agents/` with a scaffolded directory structure, initializes a git repository, and creates an initial commit. Safe to run multiple times — idempotent.
 
 ## Sync
 
@@ -54,5 +54,6 @@ Running `mine agents` with no subcommand shows an overview of the store: locatio
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `no version history yet` | Store not initialized (no git repo) | Run `mine agents init` first |
+| `no commits yet` | Git repo exists but has no commits | Run `mine agents init` to create the initial commit |
 | `no remote configured` | Push/pull without a remote | Run `mine agents sync remote <url>` |
-| `pull failed — resolve conflicts manually in <path>` | Rebase conflict | Resolve conflicts in the canonical store directory |
+| `pull failed — resolve conflicts` | Rebase conflict or uncommitted local changes | Resolve conflicts, or run `git stash` first if you have local changes |

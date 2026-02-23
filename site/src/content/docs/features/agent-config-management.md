@@ -31,7 +31,7 @@ mine agents sync pull
 
 ## How It Works
 
-`mine agents init` creates a canonical store with a scaffolded directory structure:
+`mine agents init` creates a canonical store with a scaffolded directory structure and an initial git commit, so the store is immediately ready to push:
 
 ```
 ~/.local/share/mine/agents/

@@ -620,3 +620,28 @@ func TestRunInit_ShellIntegration_NonWritableRCFile_NoError(t *testing.T) {
 		}
 	})
 }
+
+func TestRunInit_ShellIntegration_FishConfigDirCreationFails_FallbackToManual(t *testing.T) {
+	tmp := initTestEnv(t)
+	t.Setenv("SHELL", "/usr/bin/fish")
+
+	// Simulate a failure to create ~/.config/fish by making ~/.config a file.
+	configPath := filepath.Join(tmp, ".config")
+	if err := os.WriteFile(configPath, []byte("not a directory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Answer "y" to shell integration. Directory creation for fish should fail,
+	// but runInit must still succeed and fall back to manual instructions.
+	pipeStdin(t, runInitInputs("y"))
+	out := captureStdout(t, func() {
+		if err := runInit(nil, nil); err != nil {
+			t.Fatalf("runInit returned error when fish config dir creation failed: %v", err)
+		}
+	})
+
+	// Fallback manual instructions should still mention how to run shell init.
+	if !strings.Contains(out, "mine shell init") {
+		t.Error("expected manual instructions containing 'mine shell init' when fish config dir creation fails")
+	}
+}

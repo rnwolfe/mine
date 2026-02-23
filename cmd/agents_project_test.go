@@ -45,6 +45,7 @@ func setupAgentsProjectEnv(t *testing.T) (string, string) {
 func TestRunAgentsProjectInit_CreatesStructure(t *testing.T) {
 	_, projectDir := setupAgentsProjectEnv(t)
 	agentsProjectInitForce = false
+	t.Cleanup(func() { agentsProjectInitForce = false })
 
 	out := captureStdout(t, func() {
 		if err := runAgentsProjectInit(nil, []string{projectDir}); err != nil {
@@ -64,6 +65,7 @@ func TestRunAgentsProjectInit_CreatesStructure(t *testing.T) {
 func TestRunAgentsProjectInit_Idempotent(t *testing.T) {
 	_, projectDir := setupAgentsProjectEnv(t)
 	agentsProjectInitForce = false
+	t.Cleanup(func() { agentsProjectInitForce = false })
 
 	captureStdout(t, func() {
 		if err := runAgentsProjectInit(nil, []string{projectDir}); err != nil {
@@ -89,6 +91,7 @@ func TestRunAgentsProjectInit_NoDetectedAgents(t *testing.T) {
 	})
 
 	agentsProjectInitForce = false
+	t.Cleanup(func() { agentsProjectInitForce = false })
 
 	out := captureStdout(t, func() {
 		if err := runAgentsProjectInit(nil, []string{t.TempDir()}); err != nil {
@@ -111,6 +114,7 @@ func TestRunAgentsProjectInit_SeedsSettings(t *testing.T) {
 	}
 
 	agentsProjectInitForce = false
+	t.Cleanup(func() { agentsProjectInitForce = false })
 
 	captureStdout(t, func() {
 		if err := runAgentsProjectInit(nil, []string{projectDir}); err != nil {
@@ -136,6 +140,11 @@ func TestRunAgentsProjectLink_RequiresAgentsInit(t *testing.T) {
 	agentsProjectLinkCopy = false
 	agentsProjectLinkForce = false
 	agentsProjectLinkAgent = ""
+	t.Cleanup(func() {
+		agentsProjectLinkCopy = false
+		agentsProjectLinkForce = false
+		agentsProjectLinkAgent = ""
+	})
 
 	out := captureStdout(t, func() {
 		if err := runAgentsProjectLink(nil, []string{t.TempDir()}); err != nil {
@@ -160,6 +169,11 @@ func TestRunAgentsProjectLink_LinksSkills(t *testing.T) {
 	agentsProjectLinkCopy = false
 	agentsProjectLinkForce = false
 	agentsProjectLinkAgent = ""
+	t.Cleanup(func() {
+		agentsProjectLinkCopy = false
+		agentsProjectLinkForce = false
+		agentsProjectLinkAgent = ""
+	})
 
 	out := captureStdout(t, func() {
 		if err := runAgentsProjectLink(nil, []string{projectDir}); err != nil {
@@ -193,7 +207,11 @@ func TestRunAgentsProjectLink_CopyMode(t *testing.T) {
 	agentsProjectLinkCopy = true
 	agentsProjectLinkForce = false
 	agentsProjectLinkAgent = ""
-	t.Cleanup(func() { agentsProjectLinkCopy = false })
+	t.Cleanup(func() {
+		agentsProjectLinkCopy = false
+		agentsProjectLinkForce = false
+		agentsProjectLinkAgent = ""
+	})
 
 	captureStdout(t, func() {
 		if err := runAgentsProjectLink(nil, []string{projectDir}); err != nil {
@@ -219,6 +237,11 @@ func TestRunAgentsProjectLink_EmptyStore(t *testing.T) {
 	agentsProjectLinkCopy = false
 	agentsProjectLinkForce = false
 	agentsProjectLinkAgent = ""
+	t.Cleanup(func() {
+		agentsProjectLinkCopy = false
+		agentsProjectLinkForce = false
+		agentsProjectLinkAgent = ""
+	})
 
 	out := captureStdout(t, func() {
 		if err := runAgentsProjectLink(nil, []string{projectDir}); err != nil {
@@ -247,6 +270,7 @@ func TestRunAgentsProject_FullCycle(t *testing.T) {
 
 	// Step 1: Init project.
 	agentsProjectInitForce = false
+	t.Cleanup(func() { agentsProjectInitForce = false })
 	captureStdout(t, func() {
 		if err := runAgentsProjectInit(nil, []string{projectDir}); err != nil {
 			t.Fatalf("runAgentsProjectInit: %v", err)
@@ -269,7 +293,11 @@ func TestRunAgentsProject_FullCycle(t *testing.T) {
 	agentsProjectLinkCopy = false
 	agentsProjectLinkForce = true
 	agentsProjectLinkAgent = ""
-	t.Cleanup(func() { agentsProjectLinkForce = false })
+	t.Cleanup(func() {
+		agentsProjectLinkCopy = false
+		agentsProjectLinkForce = false
+		agentsProjectLinkAgent = ""
+	})
 	captureStdout(t, func() {
 		if err := runAgentsProjectLink(nil, []string{projectDir}); err != nil {
 			t.Fatalf("runAgentsProjectLink: %v", err)

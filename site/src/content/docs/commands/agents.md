@@ -35,6 +35,61 @@ config directory. Re-running is idempotent — the manifest is updated in place.
 | Gemini CLI | `gemini` | `~/.gemini/` |
 | OpenCode | `opencode` | `~/.config/opencode/` |
 
+## Link Configs
+
+```bash
+mine agents link
+```
+
+Creates symlinks from the canonical store to each detected agent's expected
+configuration locations. Only config types that exist in the store are linked —
+empty directories are skipped automatically.
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--agent <name>` | Link only a specific agent (e.g. `claude`, `codex`) |
+| `--copy` | Create file copies instead of symlinks |
+| `--force` | Overwrite existing non-symlink files without requiring adopt first |
+
+**Link map:**
+
+| Config Type | Source (store-relative) | Claude Target |
+|-------------|------------------------|---------------|
+| Instructions | `instructions/AGENTS.md` | `~/.claude/CLAUDE.md` |
+| Skills | `skills/` | `~/.claude/skills/` |
+| Commands | `commands/` | `~/.claude/commands/` |
+| Settings | `settings/claude.json` | `~/.claude/settings.json` |
+| MCP config | `mcp/.mcp.json` | `~/.claude/.mcp.json` |
+
+**Safety rules:**
+- Existing regular files → refused; suggests `adopt` or `--force`
+- Existing symlink to canonical store → updated silently
+- Existing symlink pointing elsewhere → refused without `--force`
+- Missing parent directory → created automatically
+
+## Unlink Configs
+
+```bash
+mine agents unlink
+```
+
+Replaces agent config symlinks with standalone file copies, restoring each
+agent's configuration to an independent state. After unlinking, changes to the
+canonical store no longer propagate automatically.
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--agent <name>` | Unlink only a specific agent (e.g. `claude`) |
+
+**Unlink behavior:**
+- File symlinks → content read, symlink removed, standalone file written
+- Directory symlinks → directory copied, symlink removed
+- Copy-mode entries → only manifest tracking removed (files already standalone)
+
 ## Status
 
 ```bash

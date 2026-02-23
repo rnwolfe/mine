@@ -45,8 +45,9 @@
 | `cmd/vault.go` | Vault CLI commands; `vaultKeychainStore` var (injectable in tests); passphrase resolution |
 | `internal/analytics/analytics.go` | Analytics ping, daily dedup via SQLite, privacy-safe payload construction |
 | `internal/analytics/id.go` | Installation ID (UUIDv4) generation and persistence |
-| `cmd/agents.go` | Agents CLI commands (init, detect, status) |
+| `cmd/agents.go` | Agents CLI commands (init, detect, link, unlink, status) |
 | `internal/agents/agents.go` | Agents domain: Agent/LinkEntry/Manifest types, Dir, Init, ReadManifest, WriteManifest |
+| `internal/agents/link.go` | Link engine: Link/Unlink ops, per-agent link specs, safety checks, symlink/copy creation |
 | `internal/agents/detect.go` | Agent detection: registry, detectBinary, detectConfigDir, DetectAgents, DirExists |
 | `scripts/autodev/config.sh` | Autodev shared constants, logging, utilities |
 | `scripts/autodev/pick-issue.sh` | Issue selection with trust verification |

@@ -127,3 +127,15 @@ When an issue explicitly depends on another unmerged PR (e.g. "Depends on: #147"
 include the core foundation code directly rather than assuming it will be merged first.
 The implementing agent must produce a self-contained, compilable PR. Always check
 whether the dependency branch exists and cherry-pick or inline as needed.
+
+### L-022: Link engine safety checks — Lstat vs Stat
+When checking whether a path is a symlink, always use `os.Lstat` (not `os.Stat`).
+`os.Stat` follows symlinks and returns info about the target, so `info.Mode()&os.ModeSymlink`
+will always be 0. `os.Lstat` returns info about the path itself, correctly exposing the
+ModeSymlink bit. Pattern used in `internal/agents/link.go:checkFileSafety`.
+
+### L-023: Directory symlink unlink — read destination via Readlink
+When unlinking a directory symlink, `os.Lstat` returns ModeSymlink for the symlink itself
+(not a directory). To determine whether the symlink points to a directory (for `copyDir`)
+vs a file (for `os.ReadFile`), call `os.Stat(dest)` on the resolved readlink destination.
+`destInfo.IsDir()` then correctly identifies directory targets. See `internal/agents/link.go:unlinkEntry`.

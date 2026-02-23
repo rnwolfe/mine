@@ -12,7 +12,9 @@ in git and ready to sync across Claude Code, Codex, Gemini CLI, and OpenCode.
 ```bash
 mine agents init      # Create the canonical store
 mine agents detect    # Scan for installed agents
+mine agents link      # Symlink store configs to each agent's config dir
 mine agents           # Show status
+mine agents unlink    # Restore independent configs (replace symlinks with copies)
 ```
 
 ## How It Works
@@ -25,20 +27,31 @@ mine agents           # Show status
    config directory existence. Either signal counts as "detected". Results are
    persisted to the `.mine-agents` manifest.
 
-3. **Extensible registry**: Adding a new agent in a future release requires only
+3. **Link engine**: `mine agents link` creates symlinks from the canonical store
+   to each detected agent's config directory. Change the store once, and every
+   linked agent sees the update immediately. Use `--copy` for environments that
+   don't support symlinks well.
+
+4. **Safety first**: The link engine refuses to overwrite existing regular files
+   without explicit `--force`. Symlinks already pointing to the canonical store
+   are updated silently. Symlinks pointing elsewhere require `--force`.
+
+5. **Extensible registry**: Adding a new agent in a future release requires only
    appending a new entry to the agent registry — no changes to detection logic.
 
 ## Supported Agents
 
-| Agent | Binary | Config Dir |
-|-------|--------|-----------|
-| Claude Code | `claude` | `~/.claude/` |
-| Codex | `codex` | `~/.codex/` |
-| Gemini CLI | `gemini` | `~/.gemini/` |
-| OpenCode | `opencode` | `~/.config/opencode/` |
+| Agent | Binary | Config Dir | Instruction File |
+|-------|--------|-----------|-----------------|
+| Claude Code | `claude` | `~/.claude/` | `CLAUDE.md` |
+| Codex | `codex` | `~/.codex/` | `AGENTS.md` |
+| Gemini CLI | `gemini` | `~/.gemini/` | `GEMINI.md` |
+| OpenCode | `opencode` | `~/.config/opencode/` | `AGENTS.md` |
 
 ## Commands
 
 - [`mine agents init`](/commands/agents/) — Create the canonical store
 - [`mine agents detect`](/commands/agents/) — Scan and register installed agents
+- [`mine agents link`](/commands/agents/) — Symlink store configs to agent directories
+- [`mine agents unlink`](/commands/agents/) — Restore independent configs
 - [`mine agents`](/commands/agents/) — Show store status

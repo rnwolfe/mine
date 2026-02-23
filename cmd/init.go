@@ -5,8 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/rnwolfe/mine/internal/analytics"
@@ -19,6 +18,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var initResetFlag bool
+
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Set up mine for the first time",
@@ -26,39 +27,141 @@ var initCmd = &cobra.Command{
 	RunE:  hook.Wrap("init", runInit),
 }
 
-func runInit(_ *cobra.Command, _ []string) error {
-	return runInitWithReader(bufio.NewReader(os.Stdin))
+func init() {
+	initCmd.Flags().BoolVar(&initResetFlag, "reset", false, "Overwrite config from scratch (replaces existing config)")
 }
 
-func runInitWithReader(reader *bufio.Reader) error {
-	fmt.Println(ui.Title.Render(ui.IconMine + " Welcome to mine!"))
-	fmt.Println()
-	ui.Inf("Let's get you set up. This takes about 30 seconds.")
-	fmt.Println()
+func runInit(_ *cobra.Command, _ []string) error {
+	return runInitWithReader(bufio.NewReader(os.Stdin), initResetFlag)
+}
 
-	// Name
-	name := prompt(reader, "  What should I call you?", guessName())
-	fmt.Println()
+// runInitWithReader is the testable entry point for mine init.
+// reset=true triggers the --reset path (full overwrite after confirmation).
+func runInitWithReader(reader *bufio.Reader, reset bool) error {
+	initialized := config.Initialized()
 
-	// Create config
-	cfg := &config.Config{}
-	cfg.User.Name = name
-	cfg.Shell.DefaultShell = config.GetPaths().ConfigDir // will fix below
-
-	// Detect shell
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/bash"
+	// --reset path: warn and confirm before overwriting.
+	if reset {
+		if initialized {
+			fmt.Println()
+			fmt.Printf("  %s This will overwrite your current configuration.\n",
+				ui.Warning.Render(ui.IconWarn))
+			fmt.Println()
+			fmt.Printf("  Proceed? %s ", ui.Muted.Render("(y/N)"))
+			input, _ := reader.ReadString('\n')
+			input = strings.TrimSpace(strings.ToLower(input))
+			fmt.Println()
+			if input != "y" && input != "yes" {
+				ui.Inf("No changes made.")
+				return nil
+			}
+		}
+		return runFreshInit(reader, nil)
 	}
-	cfg.Shell.DefaultShell = shell
 
-	// AI setup
+	// Re-init path: config already exists.
+	if initialized {
+		return runReInit(reader)
+	}
+
+	// Fresh install path.
+	return runFreshInit(reader, nil)
+}
+
+// runReInit handles re-running mine init when config already exists.
+// It shows the current settings and asks whether to update them.
+func runReInit(reader *bufio.Reader) error {
+	existing, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	fmt.Println(ui.Title.Render(ui.IconMine + " mine is already set up."))
+	fmt.Println()
+	fmt.Println("  Your current configuration:")
+
+	name := existing.User.Name
+	fmt.Printf("    %-8s %s\n", "Name", ui.Accent.Render(name))
+
+	aiDisplay := existing.AI.Provider
+	if aiDisplay != "" && existing.AI.Model != "" {
+		aiDisplay = fmt.Sprintf("%s (%s)", existing.AI.Provider, existing.AI.Model)
+	}
+	if aiDisplay == "" {
+		aiDisplay = ui.Muted.Render("not configured")
+	}
+	fmt.Printf("    %-8s %s\n", "AI", aiDisplay)
+
+	shell := existing.Shell.DefaultShell
+	if shell == "" {
+		shell = os.Getenv("SHELL")
+	}
+	fmt.Printf("    %-8s %s\n", "Shell", shell)
+	fmt.Println()
+
+	fmt.Printf("  Update your configuration? %s ", ui.Muted.Render("(y/N)"))
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(strings.ToLower(input))
+	fmt.Println()
+
+	if input != "y" && input != "yes" {
+		ui.Inf("No changes made.")
+		return nil
+	}
+
+	return runFreshInit(reader, existing)
+}
+
+// runFreshInit runs the full interactive init flow.
+// When existing is non-nil (re-init mode), the new config starts as a copy of
+// existing so all non-prompted fields (user.email, shell.aliases, AI system
+// instructions, analytics preference, etc.) are preserved automatically.
+func runFreshInit(reader *bufio.Reader, existing *config.Config) error {
+	isReInit := existing != nil
+
+	if !isReInit {
+		fmt.Println(ui.Title.Render(ui.IconMine + " Welcome to mine!"))
+		fmt.Println()
+		ui.Inf("Let's get you set up. This takes about 30 seconds.")
+		fmt.Println()
+	}
+
+	// Name prompt: prefer existing name over git/USER guess.
+	nameDefault := guessName()
+	if existing != nil && existing.User.Name != "" {
+		nameDefault = existing.User.Name
+	}
+	name := prompt(reader, "  What should I call you?", nameDefault)
+	fmt.Println()
+
+	// Build config: start from a copy of existing to preserve all non-prompted
+	// fields (user.email, shell.aliases, ai system instructions, etc.) on re-init.
+	// On a fresh install start from a zero-value struct.
+	var cfg *config.Config
+	if existing != nil {
+		cfgCopy := *existing
+		cfg = &cfgCopy
+	} else {
+		cfg = &config.Config{}
+	}
+	cfg.User.Name = name
+
+	// Detect shell from environment on fresh install only.
+	// On re-init, shell.default_shell is already carried forward from the copy.
+	if !isReInit {
+		shell := os.Getenv("SHELL")
+		if shell == "" {
+			shell = "/bin/bash"
+		}
+		cfg.Shell.DefaultShell = shell
+	}
+
+	// AI setup.
 	fmt.Println(ui.Subtitle.Render("  AI Setup (optional)"))
 	fmt.Println()
 	fmt.Println(ui.Muted.Render("  mine can use AI to help with code review, commit messages, and questions."))
 	fmt.Println()
 
-	// Detect available API keys from environment
 	detectedKeys := detectAIKeys()
 	if len(detectedKeys) > 0 {
 		ui.Ok(fmt.Sprintf("Detected %d API key(s) in environment:", len(detectedKeys)))
@@ -68,42 +171,68 @@ func runInitWithReader(reader *bufio.Reader) error {
 		}
 		fmt.Println()
 
-		// Ask which provider to use as default
-		defaultProvider := ""
 		if len(detectedKeys) == 1 {
-			// Only one provider, use it as default
 			for p := range detectedKeys {
-				defaultProvider = p
+				// In re-init, keep existing provider when set (idempotent re-run).
+				if isReInit && existing.AI.Provider != "" {
+					cfg.AI.Provider = existing.AI.Provider
+				} else {
+					cfg.AI.Provider = p
+				}
 			}
-			cfg.AI.Provider = defaultProvider
 		} else {
-			// Multiple providers, ask which to use
 			providerList := make([]string, 0, len(detectedKeys))
 			for p := range detectedKeys {
 				providerList = append(providerList, p)
 			}
-			fmt.Printf("  Which provider would you like to use by default? %s ", ui.Muted.Render(fmt.Sprintf("(%s)", strings.Join(providerList, ", "))))
+			sort.Strings(providerList)
+			// Pre-select existing provider if it's among detected keys.
+			providerDefault := strings.Join(providerList, ", ")
+			if existing != nil && detectedKeys[existing.AI.Provider] {
+				providerDefault = existing.AI.Provider
+			}
+			fmt.Printf("  Which provider would you like to use by default? %s ", ui.Muted.Render(fmt.Sprintf("(%s)", providerDefault)))
 			input, _ := reader.ReadString('\n')
 			input = strings.TrimSpace(strings.ToLower(input))
-			if input != "" && detectedKeys[input] {
+			switch {
+			case input != "" && detectedKeys[input]:
 				cfg.AI.Provider = input
-			} else if len(providerList) > 0 {
-				cfg.AI.Provider = providerList[0] // Default to first
+			case existing != nil && detectedKeys[existing.AI.Provider]:
+				cfg.AI.Provider = existing.AI.Provider
+			default:
+				cfg.AI.Provider = providerList[0]
 			}
 			fmt.Println()
 		}
 
-		// Ask for default model
 		if cfg.AI.Provider != "" {
-			defaultModel := getDefaultModelForProvider(cfg.AI.Provider)
-			modelInput := prompt(reader, "  Default model? (press Enter to skip)", defaultModel)
+			modelDefault := getDefaultModelForProvider(cfg.AI.Provider)
+			if existing != nil && existing.AI.Model != "" && existing.AI.Provider == cfg.AI.Provider {
+				modelDefault = existing.AI.Model
+			}
+			modelInput := prompt(reader, "  Default model?", modelDefault)
 			if modelInput != "" {
 				cfg.AI.Model = modelInput
 			}
 			fmt.Println()
 		}
+	} else if isReInit && existing.AI.Provider != "" {
+		// Re-init with existing AI config but no env keys: simple update prompts.
+		fmt.Println(ui.Muted.Render("  No API keys detected in environment."))
+		fmt.Println()
+		providerInput := prompt(reader, "  AI provider?", existing.AI.Provider)
+		cfg.AI.Provider = providerInput
+		if cfg.AI.Provider != "" {
+			modelDefault := existing.AI.Model
+			if modelDefault == "" {
+				modelDefault = getDefaultModelForProvider(cfg.AI.Provider)
+			}
+			modelInput := prompt(reader, "  Default model?", modelDefault)
+			cfg.AI.Model = modelInput
+		}
+		fmt.Println()
 	} else {
-		// No API keys detected, offer OpenRouter with free models
+		// No API keys detected — offer OpenRouter with free models.
 		fmt.Println(ui.Muted.Render("  No API keys detected in environment."))
 		fmt.Println()
 		fmt.Printf("  Would you like to use OpenRouter for free AI models? %s ", ui.Muted.Render("(y/N, or 's' to skip)"))
@@ -112,7 +241,6 @@ func runInitWithReader(reader *bufio.Reader) error {
 		fmt.Println()
 
 		if input == "y" || input == "yes" {
-			// Guide user through getting OpenRouter API key
 			fmt.Println(ui.Muted.Render("  OpenRouter provides access to free AI models, but requires an API key."))
 			fmt.Println()
 			fmt.Println(ui.Muted.Render("  Steps to get your free API key:"))
@@ -126,7 +254,6 @@ func runInitWithReader(reader *bufio.Reader) error {
 			fmt.Println()
 
 			if keyInput != "" {
-				// Store the API key in vault.
 				passphrase, err := readPassphrase(false)
 				if err != nil {
 					ui.Warn(fmt.Sprintf("Could not read vault passphrase: %v", err))
@@ -159,36 +286,46 @@ func runInitWithReader(reader *bufio.Reader) error {
 		}
 	}
 
-	// Shell integration
+	// Shell integration (idempotent — skips silently if already installed).
 	runShellIntegration(reader)
 
-	// Set analytics defaults (enabled by default, opt-out)
-	cfg.Analytics.Enabled = config.BoolPtr(true)
+	// Analytics preference is preserved from the config copy on re-init.
+	// Fresh installs default to enabled.
+	if existing == nil {
+		cfg.Analytics.Enabled = config.BoolPtr(true)
+	}
 
-	// Save config
+	// Save config.
 	if err := config.Save(cfg); err != nil {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
-	// Initialize database
+	// Initialize database (idempotent).
 	db, err := store.Open()
 	if err != nil {
 		return fmt.Errorf("initializing database: %w", err)
 	}
 	db.Close()
 
-	// Generate analytics installation ID
+	// Generate analytics installation ID (idempotent — returns existing ID if present).
 	if _, err := analytics.GetOrCreateID(); err != nil {
-		// Non-fatal — analytics can generate the ID later
 		fmt.Println(ui.Muted.Render("  (could not generate analytics ID — will retry later)"))
 	}
 
 	paths := config.GetPaths()
 
-	if name != "" {
-		ui.Ok("All set, " + name + "! " + ui.IconParty)
+	if isReInit {
+		if name != "" {
+			ui.Ok("Configuration updated, " + name + "!")
+		} else {
+			ui.Ok("Configuration updated.")
+		}
 	} else {
-		ui.Ok("All set! " + ui.IconParty)
+		if name != "" {
+			ui.Ok("All set, " + name + "! " + ui.IconParty)
+		} else {
+			ui.Ok("All set! " + ui.IconParty)
+		}
 	}
 	fmt.Println()
 	fmt.Println(ui.Muted.Render("  Created:"))
@@ -207,10 +344,10 @@ func runInitWithReader(reader *bufio.Reader) error {
 	}
 	fmt.Println()
 
-	// Probe environment for capability table
+	// Probe environment for capability table.
 	probe := probeEnvironment(cfg)
 
-	// Project registration prompt (only inside a git repo)
+	// Project registration prompt (only inside a git repo).
 	projRegistered := false
 	if probe.inGitRepo && probe.cwd != "" {
 		fmt.Printf("  Register %s as a mine project? %s ",
@@ -248,7 +385,7 @@ func runInitWithReader(reader *bufio.Reader) error {
 		}
 	}
 
-	// Dynamic capability table
+	// Dynamic capability table.
 	fmt.Println(ui.Muted.Render("  What you've got:"))
 	fmt.Println()
 	printCapabilityRow("todos", true,
@@ -278,100 +415,6 @@ func runInitWithReader(reader *bufio.Reader) error {
 	return nil
 }
 
-// envProbe holds detected environment capabilities.
-type envProbe struct {
-	gitInstalled  bool
-	tmuxInstalled bool
-	aiConfigured  bool
-	aiProvider    string
-	inGitRepo     bool
-	cwd           string
-}
-
-// probeEnvironment detects which mine capabilities are ready to use.
-func probeEnvironment(cfg *config.Config) envProbe {
-	probe := envProbe{}
-
-	_, err := exec.LookPath("git")
-	probe.gitInstalled = err == nil
-
-	_, err = exec.LookPath("tmux")
-	probe.tmuxInstalled = err == nil
-
-	if cfg != nil && cfg.AI.Provider != "" {
-		probe.aiConfigured = true
-		probe.aiProvider = cfg.AI.Provider
-	}
-
-	cwd, err := os.Getwd()
-	if err == nil {
-		probe.cwd = cwd
-		_, statErr := os.Stat(filepath.Join(cwd, ".git"))
-		probe.inGitRepo = statErr == nil
-	}
-
-	return probe
-}
-
-// printCapabilityRow prints a single row in the capability table.
-// Ready rows show a concrete command example; unready rows show a setup hint.
-func printCapabilityRow(feature string, ready bool, readyExample, notReadyHint string) {
-	label := fmt.Sprintf("%-14s", feature)
-	if ready {
-		fmt.Printf("    %s %s — %s\n",
-			ui.Success.Render(ui.IconOk),
-			ui.KeyStyle.Render(label),
-			ui.Accent.Render(readyExample),
-		)
-	} else {
-		fmt.Printf("    %s  %s — %s\n",
-			ui.Muted.Render(ui.IconDot),
-			ui.Muted.Render(label),
-			ui.Muted.Render(notReadyHint),
-		)
-	}
-}
-
-// detectAIKeys checks environment for standard AI provider API keys
-func detectAIKeys() map[string]bool {
-	detected := make(map[string]bool)
-	envVars := map[string]string{
-		"claude":  "ANTHROPIC_API_KEY",
-		"openai":  "OPENAI_API_KEY",
-		"gemini":  "GEMINI_API_KEY",
-	}
-
-	for provider, envVar := range envVars {
-		if os.Getenv(envVar) != "" {
-			detected[provider] = true
-		}
-	}
-
-	return detected
-}
-
-// getEnvVarForProvider returns the env var name for a provider
-func getEnvVarForProvider(provider string) string {
-	envVars := map[string]string{
-		"claude":     "ANTHROPIC_API_KEY",
-		"openai":     "OPENAI_API_KEY",
-		"gemini":     "GEMINI_API_KEY",
-		"openrouter": "OPENROUTER_API_KEY",
-	}
-	return envVars[provider]
-}
-
-// getDefaultModelForProvider returns a sensible default model for a provider
-func getDefaultModelForProvider(provider string) string {
-	defaults := map[string]string{
-		"claude":     "claude-sonnet-4-5-20250929",
-		"openai":     "gpt-5.2",
-		"gemini":     "gemini-3-flash-preview",
-		"openrouter": "z-ai/glm-4.5-air:free",
-	}
-	return defaults[provider]
-}
-
 func prompt(reader *bufio.Reader, question, defaultVal string) string {
 	if defaultVal != "" {
 		fmt.Printf("%s %s ", question, ui.Muted.Render(fmt.Sprintf("(%s)", defaultVal)))
@@ -388,142 +431,16 @@ func prompt(reader *bufio.Reader, question, defaultVal string) string {
 }
 
 func guessName() string {
-	// Try git config first
 	if name := gitUserName(); name != "" {
 		return name
 	}
-	// Fall back to OS user
 	if u := os.Getenv("USER"); u != "" {
 		return u
 	}
 	return ""
 }
 
-// shellIntegrationSnippet is the exact content appended to bash/zsh RC files.
-const shellIntegrationSnippet = "\n# added by mine\neval \"$(mine shell init)\"\n"
-
-// fishIntegrationSnippet is the fish-compatible equivalent (fish does not support $(...) syntax).
-const fishIntegrationSnippet = "\n# added by mine\nmine shell init | source\n"
-
-// rcFileForShell returns the RC file path for a given shell binary path or name.
-// Returns "" for unrecognized shells.
-func rcFileForShell(shell string) string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	switch {
-	case strings.Contains(shell, "zsh"):
-		return filepath.Join(home, ".zshrc")
-	case strings.Contains(shell, "bash"):
-		rc := filepath.Join(home, ".bashrc")
-		if _, err := os.Stat(rc); err == nil {
-			return rc
-		}
-		return filepath.Join(home, ".bash_profile")
-	case strings.Contains(shell, "fish"):
-		return filepath.Join(home, ".config", "fish", "config.fish")
-	default:
-		return ""
-	}
-}
-
-// alreadyInstalled reports whether rcPath already contains the mine shell init eval line.
-func alreadyInstalled(rcPath string) bool {
-	data, err := os.ReadFile(rcPath)
-	if err != nil {
-		return false
-	}
-	return strings.Contains(string(data), "mine shell init")
-}
-
-// appendToRC appends snippet to the file at rcPath, creating it (and any parent
-// directories) if necessary.
-func appendToRC(rcPath, snippet string) error {
-	if err := os.MkdirAll(filepath.Dir(rcPath), 0o755); err != nil {
-		return err
-	}
-	f, err := os.OpenFile(rcPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.WriteString(snippet)
-	return err
-}
-
-// runShellIntegration runs the interactive shell RC-file setup section of mine init.
-func runShellIntegration(reader *bufio.Reader) {
-	shell := os.Getenv("SHELL")
-	rcPath := rcFileForShell(shell)
-
-	// Silently skip if already installed.
-	if rcPath != "" && alreadyInstalled(rcPath) {
-		return
-	}
-
-	fmt.Println(ui.Subtitle.Render("  Shell Integration"))
-	fmt.Println()
-
-	// Pick the shell-appropriate eval line and RC snippet.
-	isFish := strings.Contains(shell, "fish")
-	var evalLine, snippet string
-	if isFish {
-		evalLine = "mine shell init | source"
-		snippet = fishIntegrationSnippet
-	} else {
-		evalLine = `eval "$(mine shell init)"`
-		snippet = shellIntegrationSnippet
-	}
-
-	if rcPath == "" {
-		// Unrecognized shell — print fallback instructions.
-		fmt.Println(ui.Muted.Render("  Unrecognized shell. Add this line to your shell config manually:"))
-		fmt.Println()
-		fmt.Printf("    %s\n", ui.Accent.Render(evalLine))
-		fmt.Println()
-		fmt.Println(ui.Muted.Render("  This enables p, pp, and menv in your shell."))
-		fmt.Println()
-		return
-	}
-
-	fmt.Printf(ui.Muted.Render("  Adding this line to %s enables p, pp, and menv:\n"), rcPath)
-	fmt.Println()
-	fmt.Printf("    %s\n", ui.Accent.Render(evalLine))
-	fmt.Println()
-	fmt.Printf("  Add it now? %s ", ui.Muted.Render("(Y/n)"))
-
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSpace(strings.ToLower(input))
-	fmt.Println()
-
-	if input == "n" || input == "no" {
-		fmt.Println(ui.Muted.Render("  No problem. Add this line to your shell config manually:"))
-		fmt.Println()
-		fmt.Printf("    %s\n", ui.Accent.Render(evalLine))
-		fmt.Println()
-		fmt.Printf("  Then restart your shell or run: %s\n", ui.Accent.Render("source "+rcPath))
-		fmt.Println()
-		return
-	}
-
-	// User said yes (or pressed Enter for default Y).
-	if err := appendToRC(rcPath, snippet); err != nil {
-		// Non-fatal: fall back to manual instructions.
-		fmt.Println(ui.Muted.Render("  Could not write to " + rcPath + ". Add this line manually:"))
-		fmt.Println()
-		fmt.Printf("    %s\n", ui.Accent.Render(evalLine))
-		fmt.Println()
-		return
-	}
-
-	ui.Ok("Added to " + rcPath + ". Restart your shell or run: " + ui.Accent.Render("source "+rcPath))
-	fmt.Println()
-}
-
 func gitUserName() string {
-	// Simple: read git config for user.name
-	// We'll keep this lightweight — no exec, just parse the file
 	home, _ := os.UserHomeDir()
 	data, err := os.ReadFile(home + "/.gitconfig")
 	if err != nil {

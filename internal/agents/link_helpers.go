@@ -8,7 +8,7 @@ import (
 
 // fileExists reports whether path exists and is a regular file (not a directory or symlink).
 func fileExists(path string) bool {
-	info, err := os.Stat(path)
+	info, err := os.Lstat(path)
 	return err == nil && info.Mode().IsRegular()
 }
 

@@ -77,7 +77,7 @@ place and want to start managing them centrally.
 **After adopt:**
 - All imported content is committed to the store's git history with message `adopt: imported configs from <agents>`
 - Originals are replaced with symlinks (unless `--copy`)
-- Run `mine agents status` to verify the result
+- Run `mine agents` to verify the result
 
 ## Link Configs
 

@@ -269,12 +269,21 @@ func createDirLink(sourcePath, sourceRel, target, agentName string, opts LinkOpt
 func checkFileSafety(sourcePath, target string, force bool) (existed, alreadyLinked bool, err error) {
 	info, statErr := os.Lstat(target)
 	if statErr != nil {
-		// Target doesn't exist — safe to create.
-		return false, false, nil
+		if os.IsNotExist(statErr) {
+			// Target doesn't exist — safe to create.
+			return false, false, nil
+		}
+		return false, false, fmt.Errorf("checking target %s: %w", target, statErr)
 	}
 
 	if info.Mode()&os.ModeSymlink != 0 {
-		dest, _ := os.Readlink(target)
+		dest, readErr := os.Readlink(target)
+		if readErr != nil {
+			if !force {
+				return true, false, fmt.Errorf("reading symlink %s: %w", target, readErr)
+			}
+			return true, false, nil
+		}
 		if dest == sourcePath {
 			// Already pointing to our canonical store.
 			return true, true, nil
@@ -302,12 +311,21 @@ func checkFileSafety(sourcePath, target string, force bool) (existed, alreadyLin
 func checkDirSafety(sourcePath, target string, force bool) (existed, alreadyLinked bool, err error) {
 	info, statErr := os.Lstat(target)
 	if statErr != nil {
-		// Target doesn't exist — safe to create.
-		return false, false, nil
+		if os.IsNotExist(statErr) {
+			// Target doesn't exist — safe to create.
+			return false, false, nil
+		}
+		return false, false, fmt.Errorf("checking target %s: %w", target, statErr)
 	}
 
 	if info.Mode()&os.ModeSymlink != 0 {
-		dest, _ := os.Readlink(target)
+		dest, readErr := os.Readlink(target)
+		if readErr != nil {
+			if !force {
+				return true, false, fmt.Errorf("reading symlink %s: %w", target, readErr)
+			}
+			return true, false, nil
+		}
 		if dest == sourcePath {
 			return true, true, nil
 		}

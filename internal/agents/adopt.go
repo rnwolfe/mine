@@ -170,7 +170,7 @@ func scanAdoptableItems(storeDir string, spec linkSpec) []AdoptItem {
 	// 4. Settings file → settings/{agent}.json (per-agent, no conflict possible).
 	if spec.SettingsFilename != "" {
 		settingsPath := filepath.Join(spec.ConfigDir, spec.SettingsFilename)
-		if fileExists(settingsPath) {
+		if fileExists(settingsPath) && !isAlreadyManagedByStore(settingsPath, storeDir) {
 			storeRel := "settings/" + spec.Name + ".json"
 			storeAbs := filepath.Join(storeDir, storeRel)
 			item := AdoptItem{

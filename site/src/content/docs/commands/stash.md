@@ -39,13 +39,27 @@ mine stash diff
 
 Shows which tracked files have been modified since last commit.
 
+## Browse Snapshot History
+
+```bash
+mine stash log
+mine stash log ~/.zshrc
+```
+
+Shows the full snapshot history for the stash repo. Pass an optional file path to filter history to commits that touched that file.
+
 ## Commit Changes
 
 ```bash
-mine stash commit "save dotfiles after brew update"
+mine stash commit
+mine stash commit -m "save dotfiles after brew update"
 ```
 
-Records the current state of all tracked files as a git commit in the stash repo.
+Records the current state of all tracked files as a git commit in the stash repo. If no message is provided, a timestamp-based message is used automatically.
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--message` | `-m` | Commit message for the snapshot |
 
 ## Restore a File
 
@@ -59,7 +73,7 @@ Restores a tracked file from the stash back to its source location.
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--version` | | Git ref to restore from (default: latest commit) |
+| `--version` | `-v` | Git ref to restore from (default: latest commit) |
 | `--force` | `-f` | Override the restored file's permissions with the stash-recorded permissions (captured at track/commit time). Without this flag, the file's existing permissions are preserved. |
 
 Without `--force`, the restored file keeps the current source file's permissions (or defaults to `0644` if the source file doesn't exist yet). Use `--force` when you want to restore both the content *and* the permissions exactly as they were when last committed.
@@ -67,7 +81,7 @@ Without `--force`, the restored file keeps the current source file's permissions
 ## Sync with Remote
 
 ```bash
-mine stash sync set-remote git@github.com:you/dotfiles.git
+mine stash sync remote git@github.com:you/dotfiles.git
 mine stash sync push
 mine stash sync pull
 ```
@@ -87,6 +101,19 @@ mine stash track ~/.config/nvim/init.lua
 
 # Check what's changed
 mine stash diff
+
+# Snapshot your current state
+mine stash commit -m "after brew update"
+
+# Browse snapshot history
+mine stash log
+mine stash log ~/.zshrc   # history for a single file
+
+# Restore a file to its latest snapshot
+mine stash restore ~/.zshrc
+
+# Restore a file to a specific version
+mine stash restore ~/.zshrc --version HEAD~2
 
 # List all tracked files
 mine stash list

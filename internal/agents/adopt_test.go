@@ -349,7 +349,7 @@ func TestAdopt_ImportsSettings(t *testing.T) {
 	}
 }
 
-func TestAdopt_CreatesSymplinksAfterImport(t *testing.T) {
+func TestAdopt_CreatesSymlinksAfterImport(t *testing.T) {
 	storeDir, homeDir := setupAdoptEnv(t)
 
 	claudeConfigDir := filepath.Join(homeDir, ".claude")

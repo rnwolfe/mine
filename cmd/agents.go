@@ -313,23 +313,30 @@ func runAgentsAdopt(_ *cobra.Command, _ []string) error {
 	importedCount := 0
 	conflictCount := 0
 	skippedCount := 0
+	alreadyManagedCount := 0
 
 	for _, item := range items {
 		printAdoptItem(item, opts.DryRun)
-		switch item.Status {
-		case "imported":
-			importedCount++
-		case "conflict":
+		// Use item.Conflict directly so conflicts are counted correctly in both
+		// dry-run mode (Status not yet set) and normal mode (Status == "conflict").
+		if item.Conflict {
 			conflictCount++
-		case "skipped":
-			skippedCount++
+		} else {
+			switch item.Status {
+			case "imported":
+				importedCount++
+			case "skipped":
+				skippedCount++
+			case "already-managed":
+				alreadyManagedCount++
+			}
 		}
 	}
 
 	fmt.Println()
 
 	if opts.DryRun {
-		wouldImport := len(items) - conflictCount
+		wouldImport := len(items) - conflictCount - alreadyManagedCount
 		if wouldImport > 0 {
 			fmt.Printf("  Would import %d item(s)", wouldImport)
 		} else {

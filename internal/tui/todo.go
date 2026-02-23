@@ -154,16 +154,30 @@ func (m *TodoModel) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "d":
 		if len(m.filtered) > 0 {
 			t := m.filtered[m.cursor]
-			// Skip delete for locally-added todos that haven't been persisted yet.
 			if t.ID < 0 {
-				break
-			}
-			m.Actions = append(m.Actions, TodoAction{Type: "delete", ID: t.ID})
-			// Remove locally
-			for i, item := range m.todos {
-				if item.ID == t.ID {
-					m.todos = append(m.todos[:i], m.todos[i+1:]...)
-					break
+				// Locally-added todo that was never persisted — remove from
+				// the in-memory slice and cancel its pending "add" action.
+				actionIdx := -t.ID - 1
+				m.Actions = append(m.Actions[:actionIdx], m.Actions[actionIdx+1:]...)
+				for i := 0; i < len(m.todos); i++ {
+					item := &m.todos[i]
+					if item.ID == t.ID {
+						m.todos = append(m.todos[:i], m.todos[i+1:]...)
+						i--
+					} else if item.ID < 0 && (-item.ID-1) > actionIdx {
+						// This local todo's action shifted left; keep the
+						// ID→action mapping consistent.
+						item.ID++
+					}
+				}
+			} else {
+				m.Actions = append(m.Actions, TodoAction{Type: "delete", ID: t.ID})
+				// Remove locally
+				for i, item := range m.todos {
+					if item.ID == t.ID {
+						m.todos = append(m.todos[:i], m.todos[i+1:]...)
+						break
+					}
 				}
 			}
 			m.applyFilter()

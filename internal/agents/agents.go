@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,6 +14,12 @@ import (
 
 	"github.com/rnwolfe/mine/internal/config"
 )
+
+// ErrNothingToCommit is returned by Commit when there are no staged changes.
+var ErrNothingToCommit = errors.New("nothing to commit — all files up to date")
+
+// ErrNoVersionHistory is returned by Log when the store has no git repository.
+var ErrNoVersionHistory = errors.New("no version history yet — run `mine agents commit` first")
 
 // Agent represents a detected coding agent.
 type Agent struct {
@@ -142,7 +149,7 @@ func starterAgentsMD() string {
 This file contains shared instructions for all your AI coding agents.
 Add your coding preferences, conventions, and project context here.
 
-Distribute to your agents with: mine agents link
+Snapshot your changes with: mine agents commit
 
 ## Coding Style
 
@@ -229,7 +236,7 @@ func Commit(message string) (string, error) {
 		return "", fmt.Errorf("git status: %w", err)
 	}
 	if strings.TrimSpace(status) == "" {
-		return "", fmt.Errorf("nothing to commit — all files up to date")
+		return "", ErrNothingToCommit
 	}
 
 	if _, err := gitCmd(dir, "commit", "-m", message); err != nil {
@@ -249,7 +256,7 @@ func Log(file string) ([]LogEntry, error) {
 	dir := Dir()
 
 	if !IsGitRepo() {
-		return nil, fmt.Errorf("no version history yet — run `mine agents commit` first")
+		return nil, ErrNoVersionHistory
 	}
 
 	if file != "" {
@@ -325,21 +332,24 @@ func Restore(file string, version string) ([]byte, error) {
 // RestoreToStore restores a file to the canonical store and re-distributes
 // to any copy-mode link targets. Symlink targets are updated automatically
 // since they point directly to the canonical store.
-func RestoreToStore(file string, version string) ([]LinkEntry, error) {
+//
+// Returns (updated, failed, err): updated contains successfully re-synced copy-mode
+// links; failed contains links that could not be re-synced (caller should warn the user).
+func RestoreToStore(file string, version string) (updated []LinkEntry, failed []LinkEntry, err error) {
 	if err := validateRelativePath(file); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	content, err := Restore(file, version)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	destPath := filepath.Join(Dir(), file)
 
 	// Ensure parent directory exists.
 	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-		return nil, fmt.Errorf("creating directory for %s: %w", file, err)
+		return nil, nil, fmt.Errorf("creating directory for %s: %w", file, err)
 	}
 
 	// Preserve existing file permissions.
@@ -349,33 +359,34 @@ func RestoreToStore(file string, version string) ([]LinkEntry, error) {
 	}
 
 	if err := os.WriteFile(destPath, content, mode); err != nil {
-		return nil, fmt.Errorf("writing %s: %w", file, err)
+		return nil, nil, fmt.Errorf("writing %s: %w", file, err)
 	}
 
 	// Re-distribute to copy-mode link targets.
-	manifest, err := ReadManifest()
-	if err != nil {
-		return nil, fmt.Errorf("reading manifest: %w", err)
+	manifest, readErr := ReadManifest()
+	if readErr != nil {
+		return nil, nil, fmt.Errorf("reading manifest: %w", readErr)
 	}
 	if manifest == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
-	var updated []LinkEntry
 	for _, link := range manifest.Links {
 		if link.Source != file || link.Mode != "copy" {
 			continue
 		}
 		if err := os.MkdirAll(filepath.Dir(link.Target), 0o755); err != nil {
-			continue // best-effort
+			failed = append(failed, link)
+			continue
 		}
 		if err := os.WriteFile(link.Target, content, mode); err != nil {
-			continue // best-effort
+			failed = append(failed, link)
+			continue
 		}
 		updated = append(updated, link)
 	}
 
-	return updated, nil
+	return updated, failed, nil
 }
 
 // gitCmd runs a git command in the given directory and returns stdout.

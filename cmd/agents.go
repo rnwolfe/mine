@@ -1,8 +1,8 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/rnwolfe/mine/internal/agents"
@@ -110,7 +110,7 @@ func runAgentsCommit(cmd *cobra.Command, _ []string) error {
 	hash, err := agents.Commit(msg)
 	if err != nil {
 		// Surface "nothing to commit" as a friendly message, not an error.
-		if strings.Contains(err.Error(), "nothing to commit") {
+		if errors.Is(err, agents.ErrNothingToCommit) {
 			fmt.Println()
 			fmt.Println(ui.Muted.Render("  Nothing to commit — all agent configs are up to date."))
 			fmt.Println()
@@ -140,7 +140,7 @@ func runAgentsLog(_ *cobra.Command, args []string) error {
 	logs, err := agents.Log(file)
 	if err != nil {
 		// Surface "no version history" as a friendly message.
-		if strings.Contains(err.Error(), "no version history") {
+		if errors.Is(err, agents.ErrNoVersionHistory) {
 			fmt.Println()
 			fmt.Println(ui.Muted.Render("  No history yet."))
 			fmt.Printf("  Run %s to create a snapshot.\n", ui.Accent.Render("mine agents commit"))
@@ -184,7 +184,7 @@ func runAgentsRestore(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("agents store not initialized — run %s first", ui.Accent.Render("mine agents init"))
 	}
 
-	updated, err := agents.RestoreToStore(file, version)
+	updated, failed, err := agents.RestoreToStore(file, version)
 	if err != nil {
 		return err
 	}
@@ -200,6 +200,12 @@ func runAgentsRestore(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  Re-synced %d copy-mode link(s):\n", len(updated))
 		for _, link := range updated {
 			fmt.Printf("    %s %s\n", ui.Muted.Render("→"), link.Target)
+		}
+	}
+	if len(failed) > 0 {
+		fmt.Printf("  Warning: %d copy-mode link(s) could not be re-synced:\n", len(failed))
+		for _, link := range failed {
+			fmt.Printf("    %s %s\n", ui.Muted.Render("✗"), link.Target)
 		}
 	}
 	fmt.Println()

@@ -1,6 +1,6 @@
 # mine — Project Status
 
-## v0.2.0 — Phase 2: Growth (Current)
+## v0.3.0-alpha.1 — Phase 2: Growth (Current)
 
 Phase 1 (Foundation) is complete. Phase 2 is well advanced, with most planned
 features shipped. Two Phase 3 features (vault, plugin system) shipped early due
@@ -28,7 +28,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - [x] **Env** (`mine env`) — Encrypted per-project environment profiles (age encryption, show/set/unset/diff/switch/export/template/inject/edit)
 - [x] **Proj** (`mine proj`) — Project registry, context switching, shell helpers (`p`, `pp`)
 - [x] **Git** (`mine git`) — Branch sweep, PR generation, changelog, wip/unwip
-- [x] **Tmux** (`mine tmux`) — Session management, named layouts, layout preview/delete, project integration, TUI picker
+- [x] **Tmux** (`mine tmux`) — Session management, named layouts, layout preview/delete, project integration, window management, rename, TUI picker
 - [x] **SSH** (`mine ssh`) — SSH connection management
 - [x] **Hook** (`mine hook`) — Four-stage hook pipeline (prevalidate/preexec/postexec/notify), user-local hooks
 - [x] **TUI picker** — Reusable Bubbletea-based fuzzy-search picker (`internal/tui`)
@@ -43,7 +43,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 
 ### Phase 3: Polish — Partially Started
 
-- [x] **Vault** (`mine vault`) — Encrypted secrets store (age encryption, passphrase-based, AI key integration)
+- [x] **Vault** (`mine vault`) — Encrypted secrets store (age encryption, passphrase-based, system keychain persistence, AI key integration)
 - [x] **Plugin system** (`mine plugin`) — Manifest, lifecycle, runtime, search, community plugin protocol
 - [ ] **Grow** (`mine grow`) — Career growth tracking, learning streaks, skill radar
 - [ ] **Dash** (`mine dash`) — Full TUI dashboard with bubbletea
@@ -53,9 +53,9 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 
 - [x] **Documentation site** — Astro Starlight on Vercel (mine.rwolfe.io), auto-deploys
 - [x] **Autodev pipeline** — Autonomous GitHub Actions implementation loop (dispatch/implement/review-fix/audit)
-- [x] **Claude Code skills** — product, autodev, brainstorm, sweep-issues, refine-issue, draft-issue, personality-audit, autodev-audit
+- [x] **Claude Code skills** — product, autodev, release, brainstorm, sweep-issues, refine-issue, draft-issue, personality-audit, autodev-audit
 - [x] **CLI personality pass** — Consistent voice, warmth, and celebration across all output
-- [x] **Analytics** (`internal/analytics`) — Anonymous usage telemetry (opt-in)
+- [x] **Analytics** (`internal/analytics`) — Anonymous usage telemetry (opt-in), routed through Vercel Edge Function ingest backend
 
 ### Binary Stats
 
@@ -63,12 +63,12 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - **Deps**: 0 runtime (single static binary)
 - **Build time**: ~3 seconds
 - **Languages**: 100% Go
-- **Tests**: 485 passing across 22 packages
+- **Tests**: 550 passing across 24 packages
 
 ### Architecture
 
 ```
-244 .go files across 22 internal packages
+497 .go files across 24 packages
 ├── cmd/            33 files — command layer (thin)
 ├── internal/
 │   ├── ai/         10 files — multi-provider AI integrations
@@ -113,7 +113,4 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 
 ### Open Enhancements
 
-- [ ] Vault keychain persistence (#120)
-- [ ] Tmux window management (#103)
-- [ ] Tmux layout TUI improvements (#105)
 - [ ] Test coverage improvement (#15)

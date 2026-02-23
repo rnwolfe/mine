@@ -7,7 +7,8 @@ set -euo pipefail
 #   scripts/autodev/parse-reviews.sh PR_NUMBER
 #
 # Outputs structured review feedback for agent consumption.
-# Exits 1 if no actionable comments found.
+# Exits 0 with empty stdout if no actionable comments found.
+# Exits 1 on error (gh API failure, jq error, etc.).
 
 source "$(dirname "$0")/config.sh"
 
@@ -24,7 +25,7 @@ FEEDBACK=""
 
 REVIEWS=$(gh api --paginate \
     "repos/$AUTODEV_REPO/pulls/$PR_NUMBER/reviews" \
-    --jq --arg exclude "$EXCLUDE_LOGIN" '[.[] | select(
+    | jq --arg exclude "$EXCLUDE_LOGIN" '[.[] | select(
         (.state == "CHANGES_REQUESTED" or .state == "COMMENTED") and
         (.body != null and .body != "") and
         (.user.login != $exclude)
@@ -48,7 +49,7 @@ fi
 
 COMMENTS=$(gh api --paginate \
     "repos/$AUTODEV_REPO/pulls/$PR_NUMBER/comments" \
-    --jq --arg exclude "$EXCLUDE_LOGIN" '[.[] | select(
+    | jq --arg exclude "$EXCLUDE_LOGIN" '[.[] | select(
         .user.login != $exclude
     )] | sort_by(.created_at) | reverse | .[0:20]')
 
@@ -71,7 +72,7 @@ fi
 
 if [ -z "$FEEDBACK" ]; then
     autodev_info "No actionable review comments found on PR #$PR_NUMBER"
-    exit 1
+    exit 0
 fi
 
 echo "$FEEDBACK"

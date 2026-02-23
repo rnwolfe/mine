@@ -171,3 +171,22 @@ to mock a real remote — `git init --bare` creates a functional remote without 
 access. For sync pull redistribution, use `SyncPullWithResult()` as the primary entry
 point (returns a summary), with `SyncPull()` delegating to it — keeps callers simple
 while allowing detailed output in the cmd layer.
+
+### L-024: Project-level vs global agent config disambiguation
+
+When implementing project-level scaffolding alongside global agent management, use a
+separate spec registry (`buildProjectSpecRegistry`) rather than extending the global
+`buildLinkRegistry`. Project-level agent dirs differ from global ones (e.g., codex uses
+`.agents/` at project level, but `~/.codex/` globally). This separation avoids coupling
+between global and project link behavior.
+
+When the agents store is initialized, the manifest is authoritative for detecting which
+agents are active — fall back to live detection ONLY when the store is not yet initialized.
+If the manifest says 0 detected agents, return 0 (don't silently fall back to a live scan
+that could produce unexpected scaffolding).
+
+For `project init` + `project link` workflows: init creates the directory structure
+(including empty skill dirs), and link replaces those dirs with symlinks to the canonical
+store. Since init already created the dirs, link requires `--force` to proceed. Document
+this in the command help text so users understand the two-step workflow.
+

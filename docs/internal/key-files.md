@@ -77,3 +77,5 @@
 | `cmd/agents.go` | agents subcommands: init, detect, link, unlink, adopt — command defs and non-status/diff handlers |
 | `cmd/agents_status.go` | runAgentsStatus, printStatusAgentRow, printLinkHealthRow, printLinkHealthSummary |
 | `cmd/agents_diff.go` | runAgentsDiff, printDiffEntry, formatDiffLine |
+| `internal/agents/project.go` | Project-level scaffolding: projectSpec, buildProjectSpecRegistry, ProjectInit, ProjectLink |
+| `cmd/agents_project.go` | agents project subcommands: init [path], link [path] — project scaffolding and skill linking |

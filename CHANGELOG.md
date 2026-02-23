@@ -7,9 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0-alpha.1] - 2026-02-22
+
 ### Added
 
 - **Config CLI** (`mine config list/get/set/unset/edit/path`) — Manage all settings from the terminal with type-aware validation and schema defaults. Eliminates manual TOML editing for common config changes. All subcommands are hook-wrapped for plugin observability.
+- **Env edit** (`mine env edit`) — Open a profile's full environment in `$EDITOR` for bulk editing — faster than running `set` repeatedly.
+- **First-run experience** (`mine tips`, `mine doctor`) — Guided onboarding screen on first launch, a `mine tips` command for contextual usage hints, and `mine doctor` to check system health and configuration.
+- **Vault keychain passphrase** — Vault and env profile passphrases can now be persisted in the system keychain (macOS Keychain / libsecret). No more re-entering on each session.
+- **Tmux window management** (`mine tmux window`) — Create, list, rename, and switch tmux windows within a session from the CLI.
+- **Tmux project sessions** (`mine tmux project`) — Create or attach to a named tmux session scoped to a project directory in one command.
+- **Tmux layout enhancements** — `mine tmux layout delete` removes saved layouts; `mine tmux new --layout <name>` auto-restores a layout when creating a session; `mine tmux layout preview` previews a layout's pane structure; bare `mine tmux layout` now opens an interactive TUI fuzzy-search picker.
+- **Tmux rename** (`mine tmux rename`) — Rename the current or a named tmux session.
+- **Stash restore `--force`** — Skip the confirmation prompt when restoring a stash entry (`mine stash restore --force`).
+- **AI system instructions** — Configure persistent system instructions for AI providers via `mine config set ai.system_instructions`.
+- **AI markdown rendering** — AI command output now renders markdown (bold, headers, code blocks) directly in the terminal.
+- **Analytics ingest backend** — Usage pings are now routed through a Vercel Edge Function; raw client data never reaches third-party servers.
+
+### Fixed
+
+- Plugin manifest entry validation consolidated into `ValidateEntry()` — all install paths (local and registry) now apply the same rules consistently.
+- Hook pipeline now fires correctly for every command — all Cobra handlers are wrapped with `hook.Wrap`, closing a gap where hooks silently didn't trigger on some subcommands.
+
+### Changed
+
+- CLI output personality updated across all commands — warmer greetings, clearer progress feedback, and small celebrations when you finish tasks.
 
 ## [0.2.0-alpha.1] - 2026-02-18
 

@@ -26,6 +26,10 @@
 | `internal/plugin/search.go` | GitHub search for mine plugins |
 | `cmd/stash.go` | Stash CLI commands (track, commit, log, restore, sync) |
 | `internal/stash/stash.go` | Stash domain logic — git-backed versioning, manifest, sync |
+| `cmd/agents.go` | Agents CLI commands (init, sync remote/push/pull) |
+| `internal/agents/agents.go` | Agents domain — canonical store, manifest types, Init, ReadManifest, WriteManifest |
+| `internal/agents/git.go` | Agents git operations — InitGitRepo, Commit, Log |
+| `internal/agents/sync.go` | Agents sync — SyncSetRemote, SyncRemoteURL, SyncPush, SyncPullWithResult |
 | `cmd/craft.go` | Craft CLI commands (dev, ci, git, list) |
 | `internal/craft/recipe.go` | Recipe engine, registry, template execution |
 | `internal/craft/builtins.go` | Built-in recipe definitions (go, node, python, rust, docker, github CI) |

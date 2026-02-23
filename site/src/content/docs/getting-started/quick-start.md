@@ -194,6 +194,9 @@ mine agents init
 # Detect which agents you have installed
 mine agents detect
 
+# Preview what would be imported (no changes made)
+mine agents adopt --dry-run
+
 # Import your existing configs and replace them with symlinks
 mine agents adopt
 ```

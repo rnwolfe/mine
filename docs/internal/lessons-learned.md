@@ -190,6 +190,16 @@ For `project init` + `project link` workflows: init creates the directory struct
 store. Since init already created the dirs, link requires `--force` to proceed. Document
 this in the command help text so users understand the two-step workflow.
 
+### L-027: Copilot fix loop — missing transition to Claude after committed changes
+After a successful `copilot-fix` run where Claude commits changes, the autodev pipeline
+got stuck: the "Transition to Claude phase" step only fired when `has_changes == 'false'`
+(agent ran but made no changes). With `has_changes == 'true'` (fix committed), the step
+was skipped, leaving the PR in `copilot` phase indefinitely. The `pull_request_review`
+trigger from Copilot's second review is filtered out (bot filter, L-020), and the 4-hour
+fallback sees "latest commit is newer than review" and skips. Fix: also trigger the
+Claude transition when copilot-fix succeeds with committed changes — one Copilot pass +
+one Claude fix is sufficient; Copilot re-review is not required when all comments are addressed.
+
 ### L-028: Agent config store pattern
 
 The canonical agents store (`~/.local/share/mine/agents/`) uses a git-backed directory
@@ -203,7 +213,7 @@ manifest JSON tracks detected agents and link mappings. Key design decisions:
   config directory exists — either signal is sufficient.
 - **Idempotent init**: `Init()` is always safe to re-run. It skips existing dirs and
   files, creates git repo only once, creates manifest only once.
-- **Manifest as contract**: All link operations read and write the manifest atomically
+- **Manifest as contract**: All link operations consistently read and write the manifest
   via `ReadManifest`/`WriteManifest`. Never cache manifest state across operations.
 
 ### L-029: Link distribution engine — safety-first symlink management
@@ -221,14 +231,4 @@ to each agent's expected config location. Key safety invariants:
   This prevents creating confusing empty symlinks.
 - The `upsertManifestLink` helper ensures the manifest reflects the last-written state —
   existing entries for the same (source, target, agent) triple are replaced, not duplicated.
-
-### L-027: Copilot fix loop — missing transition to Claude after committed changes
-After a successful `copilot-fix` run where Claude commits changes, the autodev pipeline
-got stuck: the "Transition to Claude phase" step only fired when `has_changes == 'false'`
-(agent ran but made no changes). With `has_changes == 'true'` (fix committed), the step
-was skipped, leaving the PR in `copilot` phase indefinitely. The `pull_request_review`
-trigger from Copilot's second review is filtered out (bot filter, L-020), and the 4-hour
-fallback sees "latest commit is newer than review" and skips. Fix: also trigger the
-Claude transition when copilot-fix succeeds with committed changes — one Copilot pass +
-one Claude fix is sufficient; Copilot re-review is not required when all comments are addressed.
 

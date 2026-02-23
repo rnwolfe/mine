@@ -28,8 +28,8 @@ them is worse. `mine agents` eliminates this entirely.
 ## The Solution
 
 A single git-backed store at `~/.local/share/mine/agents/` becomes the source of truth.
-Every agent's config directory gets a symlink pointing back to it. Edit once, every agent
-sees the change — immediately.
+Each agent's config directory contains symlinks for the relevant configuration files and
+folders, pointing back to it. Edit once, every agent sees the change — immediately.
 
 ```
 ~/.local/share/mine/agents/       ← canonical store (yours to edit)
@@ -101,13 +101,13 @@ mine agents sync pull
 The link engine distributes every config type that exists in your store, mapped to
 each agent's expected location:
 
-| Config Type | Canonical Location | Claude Target | Codex Target |
-|-------------|-------------------|---------------|--------------|
-| Instructions | `instructions/AGENTS.md` | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` |
-| Skills | `skills/` | `~/.claude/skills/` | `~/.codex/skills/` |
-| Commands | `commands/` | `~/.claude/commands/` | — |
-| Settings | `settings/claude.json` | `~/.claude/settings.json` | — |
-| MCP config | `mcp/.mcp.json` | `~/.claude/.mcp.json` | — |
+| Config Type | Canonical Location | Claude | Codex | Gemini CLI | OpenCode |
+|-------------|-------------------|--------|-------|------------|----------|
+| Instructions | `instructions/AGENTS.md` | `~/.claude/CLAUDE.md` | `~/.codex/AGENTS.md` | `~/.gemini/GEMINI.md` | `~/.config/opencode/AGENTS.md` |
+| Skills | `skills/` | `~/.claude/skills/` | `~/.codex/skills/` | `~/.gemini/skills/` | `~/.config/opencode/skills/` |
+| Commands | `commands/` | `~/.claude/commands/` | — | — | — |
+| Settings | `settings/<agent>.json` | `~/.claude/settings.json` | `~/.codex/settings.json` | `~/.gemini/settings.json` | `~/.config/opencode/settings.json` |
+| MCP config | `mcp/.mcp.json` | `~/.claude/.mcp.json` | — | — | — |
 
 Empty directories are skipped. Missing config types are silently ignored. Every detected
 agent gets exactly what it supports.

@@ -357,8 +357,8 @@ After `mine agents init`, the store contains:
 | `reading manifest: parsing manifest` | Corrupt `.mine-agents` file | Remove and re-run `mine agents init` |
 | `conflict` in adopt output | Multiple agents have different instruction content | Edit `instructions/AGENTS.md` manually, then re-run adopt |
 | `agents store not initialized — run mine agents init first` | Store hasn't been created yet | Run `mine agents init` |
-| `target <path> exists as a regular file; run mine agents adopt first` | A regular file exists where a symlink would go | Run `mine agents adopt` to import it first, or use `--force` to overwrite |
-| `target <path> is a symlink pointing to <other>` | An existing symlink points somewhere other than the canonical store | Run with `--force` to overwrite |
+| `target <path> exists as a regular file; run mine agents adopt to adopt it first, or use --force to overwrite` | A regular file exists where a symlink would go | Run `mine agents adopt` to import it first, or use `--force` to overwrite |
+| `target <path> is a symlink pointing to <other>; use --force to overwrite` | An existing symlink points somewhere other than the canonical store | Run with `--force` to overwrite |
 | `no remote configured — run mine agents sync remote <url> first` | No git remote has been set for the store | Run `mine agents sync remote <url>` |
 | `pull failed — resolve conflicts manually in <path>` | Git conflict during pull | Resolve conflicts manually in the store directory, then run `mine agents link` |
 | `version <hash> not found for <file>` | The specified version hash doesn't exist | Run `mine agents log` to see valid hashes |
@@ -368,10 +368,11 @@ After `mine agents init`, the store contains:
 **What happens if I edit a linked file directly?**
 
 If the file is a symlink (the default), your edits go directly into the canonical store
-because the symlink and the store file share the same inode. All other agents see the
-change immediately. If the file is a copy (created with `--copy`), your edits diverge
-from the store — `mine agents diff` will show the difference, and `mine agents link --copy`
-will overwrite the copy with the store's content.
+because the symlink points to the file in the store. All other agents see the change
+immediately. If the file is a copy (created with `--copy`), your edits diverge from the
+store — `mine agents diff` will show the difference, and re-running
+`mine agents link --copy` will leave your existing copy in place unless you pass
+`--force`, which replaces the copy with the store's content.
 
 **How do I add a new agent to the supported list?**
 

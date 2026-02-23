@@ -200,8 +200,40 @@ fallback sees "latest commit is newer than review" and skips. Fix: also trigger 
 Claude transition when copilot-fix succeeds with committed changes — one Copilot pass +
 one Claude fix is sufficient; Copilot re-review is not required when all comments are addressed.
 
+### L-028: Agent config store pattern
 
-### L-028: schedule concurrency group races with workflow_run — use idempotency guard
+The canonical agents store (`~/.local/share/mine/agents/`) uses a git-backed directory
+as its persistence layer — not SQLite. This is intentional: the store's primary value
+is portability (push to a git remote, pull on another machine). The `.mine-agents`
+manifest JSON tracks detected agents and link mappings. Key design decisions:
+
+- **`buildRegistry`** and **`buildLinkRegistry`** are separate: detection (binary + dir)
+  is independent from linking (which files go where). Keep them decoupled.
+- **Detection signals**: an agent is "detected" if either its binary is in PATH OR its
+  config directory exists — either signal is sufficient.
+- **Idempotent init**: `Init()` is always safe to re-run. It skips existing dirs and
+  files, creates git repo only once, creates manifest only once.
+- **Manifest as contract**: All link operations consistently read and write the manifest
+  via `ReadManifest`/`WriteManifest`. Never cache manifest state across operations.
+
+### L-029: Link distribution engine — safety-first symlink management
+
+The link engine (`internal/agents/link.go`) manages symlinks from the canonical store
+to each agent's expected config location. Key safety invariants:
+
+- **Never overwrite regular files** without explicit `--force`. Existing regular files
+  must go through `adopt` first (imports to store) before linking.
+- **Already-correct symlinks are silently updated** (manifest entry upserted, no filesystem
+  change). This makes repeated `mine agents link` calls idempotent.
+- **Symlinks pointing elsewhere** require `--force` to overwrite — may be an existing
+  installation managed by a different tool.
+- **Empty source dirs are skipped**: skills/, commands/ are only linked if non-empty.
+  This prevents creating confusing empty symlinks.
+- The `upsertManifestLink` helper ensures the manifest reflects the last-written state —
+  existing entries for the same (source, target, agent) triple are replaced, not duplicated.
+
+
+### L-029: schedule concurrency group races with workflow_run — use idempotency guard
 The `schedule` trigger uses `'scheduled'` as its concurrency group (PR number is unknown
 at trigger time). This means it runs concurrently with `workflow_run` and `workflow_dispatch`
 runs for the same PR (those use `autodev-review-fix-<PR_NUMBER>`). When both reach the

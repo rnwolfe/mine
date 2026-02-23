@@ -182,8 +182,34 @@ mine config set analytics false
 
 See the [config command reference](/commands/config/) for all keys and options.
 
+## Set Up Agent Configs
+
+If you use Claude Code, Codex, Gemini CLI, or OpenCode, `mine agents` keeps all
+their configurations in one place:
+
+```bash
+# Create the canonical agent config store
+mine agents init
+
+# Detect which agents you have installed
+mine agents detect
+
+# Preview what would be imported (no changes made)
+mine agents adopt --dry-run
+
+# Import your existing configs and replace them with symlinks
+mine agents adopt
+```
+
+After this, editing `~/.local/share/mine/agents/instructions/AGENTS.md` updates
+the instruction file for every linked agent at once.
+
+See the [agents feature overview](/features/agents/) for the full workflow, including
+multi-machine sync.
+
 ## Next Steps
 
 - Explore the [command reference](/commands/todo/) for all available commands
+- Read about [agent config management](/features/agents/) to unify your coding agent configs
 - Check out the [architecture docs](/contributors/architecture/) if you want to contribute
 - Join the [GitHub discussions](https://github.com/rnwolfe/mine/discussions) to share feedback

@@ -242,3 +242,13 @@ try to enable auto-merge. Fix: add an idempotency guard at the start of the fina
 — check if `human/review-merge` label is already present; if so, skip. This handles the
 race without requiring a per-PR concurrency group for schedule (which would require knowing
 the PR number before the job starts).
+
+### L-029: CHANGES_REQUESTED review blocks merge even after comments addressed
+`claude-code-action` submits PR reviews with state `CHANGES_REQUESTED`. When the
+`claude-fix` agent subsequently commits fixes, it posts new `COMMENTED` reviews but does
+NOT dismiss the original `CHANGES_REQUESTED` review. GitHub treats an unresolved
+`CHANGES_REQUESTED` review as a hard merge blocker even after all inline threads are
+resolved. Fix: add a "Dismiss CHANGES_REQUESTED reviews" step after the claude-fix commit
+that queries all reviews from `claude[bot]` with state `CHANGES_REQUESTED` and dismisses
+them via `PUT /pulls/{pr}/reviews/{review_id}/dismissals`. Requires a token with
+`pull-requests: write` permission (`AUTODEV_TOKEN`).

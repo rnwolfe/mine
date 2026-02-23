@@ -79,7 +79,7 @@ func Log(file string) ([]LogEntry, error) {
 	dir := Dir()
 
 	if !IsGitRepo() {
-		return nil, fmt.Errorf("no version history yet — run `mine agents commit` first")
+		return nil, fmt.Errorf("no version history yet — run `mine agents init` first")
 	}
 
 	args := []string{"log", "--format=%H|%h|%aI|%s"}

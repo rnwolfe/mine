@@ -53,6 +53,6 @@ Running `mine agents` with no subcommand shows an overview of the store: locatio
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `no version history yet` | No commits in the store | Run `mine agents commit` first |
+| `no version history yet` | Store not initialized (no git repo) | Run `mine agents init` first |
 | `no remote configured` | Push/pull without a remote | Run `mine agents sync remote <url>` |
 | `pull failed — resolve conflicts manually in <path>` | Rebase conflict | Resolve conflicts in the canonical store directory |

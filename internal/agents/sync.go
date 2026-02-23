@@ -12,7 +12,7 @@ import (
 func SyncSetRemote(url string) error {
 	dir := Dir()
 	if !IsGitRepo() {
-		return fmt.Errorf("no version history yet — run `mine agents commit` first")
+		return fmt.Errorf("no version history yet — run `mine agents init` first")
 	}
 
 	// Check if remote already exists.
@@ -40,7 +40,7 @@ func SyncRemoteURL() string {
 func SyncPush() error {
 	dir := Dir()
 	if !IsGitRepo() {
-		return fmt.Errorf("no version history yet — run `mine agents commit` first")
+		return fmt.Errorf("no version history yet — run `mine agents init` first")
 	}
 
 	remote := SyncRemoteURL()
@@ -69,6 +69,28 @@ type SyncPullResult struct {
 	CopiedLinks int
 }
 
+// validateLinkForRedistribution checks that a manifest link is safe to use
+// during redistribution. It prevents path traversal via link.Source (escaping
+// the agents store directory) and arbitrary writes via link.Target (outside $HOME).
+func validateLinkForRedistribution(link LinkEntry, dir, home string) error {
+	// Validate Source: resolved path must stay within the store dir.
+	srcResolved := filepath.Clean(filepath.Join(dir, link.Source))
+	sep := string(os.PathSeparator)
+	if srcResolved != dir && !strings.HasPrefix(srcResolved, dir+sep) {
+		return fmt.Errorf("source path %q escapes agents store directory", link.Source)
+	}
+
+	// Validate Target: must be absolute and within $HOME.
+	if !filepath.IsAbs(link.Target) {
+		return fmt.Errorf("target path %q is not absolute", link.Target)
+	}
+	rel, err := filepath.Rel(home, link.Target)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+sep) {
+		return fmt.Errorf("target path %q escapes home directory", link.Target)
+	}
+	return nil
+}
+
 // SyncPull pulls from the configured remote with rebase. After pulling, copy-mode
 // links are re-copied to their targets. Symlink-mode links are automatically
 // up-to-date and require no action.
@@ -83,7 +105,7 @@ func SyncPull() error {
 func SyncPullWithResult() (*SyncPullResult, error) {
 	dir := Dir()
 	if !IsGitRepo() {
-		return nil, fmt.Errorf("no version history yet — run `mine agents commit` first")
+		return nil, fmt.Errorf("no version history yet — run `mine agents init` first")
 	}
 
 	remote := SyncRemoteURL()
@@ -101,10 +123,19 @@ func SyncPullWithResult() (*SyncPullResult, error) {
 		return nil, fmt.Errorf("reading manifest after pull: %w", err)
 	}
 
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("determining home directory: %w", err)
+	}
+
 	result := &SyncPullResult{}
 	for _, link := range manifest.Links {
 		if link.Mode != "copy" {
 			continue
+		}
+
+		if err := validateLinkForRedistribution(link, dir, home); err != nil {
+			return nil, fmt.Errorf("unsafe manifest link: %w", err)
 		}
 
 		srcPath := filepath.Join(dir, link.Source)

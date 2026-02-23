@@ -132,6 +132,9 @@ func TestSyncPullWithResult_CopyModeLinks(t *testing.T) {
 	agentsDir := setupEnv(t)
 	tmpDir := t.TempDir()
 
+	// Point HOME to tmpDir so link targets within it pass the $HOME validation.
+	t.Setenv("HOME", tmpDir)
+
 	if err := Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -318,5 +321,51 @@ func TestSyncIntegration_InitCommitRemotePush(t *testing.T) {
 	// Step 5: Push.
 	if err := SyncPush(); err != nil {
 		t.Fatalf("SyncPush() error: %v", err)
+	}
+}
+
+func TestValidateLinkForRedistribution(t *testing.T) {
+	dir := "/home/user/.local/share/mine/agents"
+	home := "/home/user"
+
+	tests := []struct {
+		name    string
+		link    LinkEntry
+		wantErr bool
+	}{
+		{
+			name:    "valid link",
+			link:    LinkEntry{Source: "instructions/AGENTS.md", Target: "/home/user/.claude/CLAUDE.md"},
+			wantErr: false,
+		},
+		{
+			name:    "source path traversal",
+			link:    LinkEntry{Source: "../../.ssh/id_rsa", Target: "/home/user/.claude/CLAUDE.md"},
+			wantErr: true,
+		},
+		{
+			name:    "target not absolute",
+			link:    LinkEntry{Source: "instructions/AGENTS.md", Target: "relative/path/file"},
+			wantErr: true,
+		},
+		{
+			name:    "target escapes home",
+			link:    LinkEntry{Source: "instructions/AGENTS.md", Target: "/etc/cron.d/backdoor"},
+			wantErr: true,
+		},
+		{
+			name:    "target is home dir itself",
+			link:    LinkEntry{Source: "instructions/AGENTS.md", Target: "/home/user/.bashrc"},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateLinkForRedistribution(tt.link, dir, home)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateLinkForRedistribution() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }

@@ -65,5 +65,5 @@ After `mine agents init`, the store contains:
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `git init: exec: "git": not found` | git not in PATH | Install git |
+| `git init: exec: "git": executable file not found...` | git not in PATH | Install git |
 | `reading manifest: parsing manifest` | Corrupt `.mine-agents` file | Remove and re-run `mine agents init` |

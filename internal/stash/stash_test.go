@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rnwolfe/mine/internal/gitutil"
 )
 
 // setupEnv creates a temp directory structure for stash tests and benchmarks.
@@ -833,17 +835,17 @@ func TestGitCmd(t *testing.T) {
 	dir := t.TempDir()
 
 	// Valid command.
-	out, err := gitCmd(dir, "init")
+	out, err := gitutil.RunCmd(dir, "init")
 	if err != nil {
-		t.Fatalf("gitCmd(init) error: %v", err)
+		t.Fatalf("gitutil.RunCmd(init) error: %v", err)
 	}
 	if out == "" {
-		t.Error("gitCmd(init) returned empty output")
+		t.Error("gitutil.RunCmd(init) returned empty output")
 	}
 
 	// Invalid command.
-	_, err = gitCmd(dir, "fakecmd")
+	_, err = gitutil.RunCmd(dir, "fakecmd")
 	if err == nil {
-		t.Error("gitCmd(fakecmd) should error")
+		t.Error("gitutil.RunCmd(fakecmd) should error")
 	}
 }

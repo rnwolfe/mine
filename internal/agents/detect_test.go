@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -60,7 +61,7 @@ func TestBuildRegistry_ConfigDirsUseHome(t *testing.T) {
 		if !filepath.IsAbs(spec.ConfigDir) {
 			t.Errorf("agent %q ConfigDir %q is not absolute", spec.Name, spec.ConfigDir)
 		}
-		if len(spec.ConfigDir) <= len(home) {
+		if !strings.HasPrefix(spec.ConfigDir, home+string(filepath.Separator)) {
 			t.Errorf("agent %q ConfigDir %q does not start with home %q", spec.Name, spec.ConfigDir, home)
 		}
 	}
@@ -129,8 +130,8 @@ func TestDetectAgents_NoneInstalled(t *testing.T) {
 	_ = home
 
 	agents := detectAgents(home)
-	if len(agents) == 0 {
-		t.Fatal("detectAgents() returned empty slice, want 4 entries")
+	if len(agents) != 4 {
+		t.Fatalf("detectAgents() returned %d entries, want 4 entries (one per registry agent)", len(agents))
 	}
 	for _, a := range agents {
 		if a.Detected {

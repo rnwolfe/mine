@@ -5,12 +5,12 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/rnwolfe/mine/internal/config"
+	"github.com/rnwolfe/mine/internal/gitutil"
 )
 
 // Entry represents a tracked file in the stash.
@@ -54,15 +54,15 @@ func InitGitRepo() error {
 		return nil
 	}
 
-	if _, err := gitCmd(dir, "init"); err != nil {
+	if _, err := gitutil.RunCmd(dir, "init"); err != nil {
 		return fmt.Errorf("git init: %w", err)
 	}
 
 	// Configure committer identity for the stash repo.
-	if _, err := gitCmd(dir, "config", "user.name", "mine-stash"); err != nil {
+	if _, err := gitutil.RunCmd(dir, "config", "user.name", "mine-stash"); err != nil {
 		return fmt.Errorf("git config user.name: %w", err)
 	}
-	if _, err := gitCmd(dir, "config", "user.email", "stash@mine.local"); err != nil {
+	if _, err := gitutil.RunCmd(dir, "config", "user.email", "stash@mine.local"); err != nil {
 		return fmt.Errorf("git config user.email: %w", err)
 	}
 
@@ -297,12 +297,12 @@ func Commit(message string) (string, error) {
 	}
 
 	// Stage everything.
-	if _, err := gitCmd(dir, "add", "-A"); err != nil {
+	if _, err := gitutil.RunCmd(dir, "add", "-A"); err != nil {
 		return "", fmt.Errorf("git add: %w", err)
 	}
 
 	// Check if there's anything to commit.
-	status, err := gitCmd(dir, "status", "--porcelain")
+	status, err := gitutil.RunCmd(dir, "status", "--porcelain")
 	if err != nil {
 		return "", fmt.Errorf("git status: %w", err)
 	}
@@ -311,12 +311,12 @@ func Commit(message string) (string, error) {
 	}
 
 	// Commit.
-	if _, err := gitCmd(dir, "commit", "-m", message); err != nil {
+	if _, err := gitutil.RunCmd(dir, "commit", "-m", message); err != nil {
 		return "", fmt.Errorf("git commit: %w", err)
 	}
 
 	// Return the short hash.
-	hash, err := gitCmd(dir, "rev-parse", "--short", "HEAD")
+	hash, err := gitutil.RunCmd(dir, "rev-parse", "--short", "HEAD")
 	if err != nil {
 		return "", fmt.Errorf("getting commit hash: %w", err)
 	}
@@ -340,7 +340,7 @@ func Log(file string) ([]LogEntry, error) {
 		args = append(args, "--", entry.SafeName)
 	}
 
-	out, err := gitCmd(dir, args...)
+	out, err := gitutil.RunCmd(dir, args...)
 	if err != nil {
 		return nil, fmt.Errorf("git log: %w", err)
 	}
@@ -388,7 +388,7 @@ func Restore(file string, version string) ([]byte, error) {
 	}
 
 	// Get the file content at the specified version.
-	content, err := gitCmd(dir, "show", version+":"+entry.SafeName)
+	content, err := gitutil.RunCmd(dir, "show", version+":"+entry.SafeName)
 	if err != nil {
 		return nil, fmt.Errorf("version %s not found for %s", version, file)
 	}
@@ -472,13 +472,13 @@ func SyncSetRemote(url string) error {
 	}
 
 	// Check if remote already exists.
-	existing, _ := gitCmd(dir, "remote", "get-url", "origin")
+	existing, _ := gitutil.RunCmd(dir, "remote", "get-url", "origin")
 	if strings.TrimSpace(existing) != "" {
-		if _, err := gitCmd(dir, "remote", "set-url", "origin", url); err != nil {
+		if _, err := gitutil.RunCmd(dir, "remote", "set-url", "origin", url); err != nil {
 			return fmt.Errorf("updating remote: %w", err)
 		}
 	} else {
-		if _, err := gitCmd(dir, "remote", "add", "origin", url); err != nil {
+		if _, err := gitutil.RunCmd(dir, "remote", "add", "origin", url); err != nil {
 			return fmt.Errorf("adding remote: %w", err)
 		}
 	}
@@ -493,13 +493,13 @@ func SyncPush() error {
 	}
 
 	// Check remote exists.
-	remote, _ := gitCmd(dir, "remote", "get-url", "origin")
+	remote, _ := gitutil.RunCmd(dir, "remote", "get-url", "origin")
 	if strings.TrimSpace(remote) == "" {
 		return fmt.Errorf("no remote configured — run `mine stash sync remote <url>` first")
 	}
 
 	// Get current branch name.
-	branch, err := gitCmd(dir, "branch", "--show-current")
+	branch, err := gitutil.RunCmd(dir, "branch", "--show-current")
 	if err != nil {
 		return fmt.Errorf("getting branch: %w", err)
 	}
@@ -508,7 +508,7 @@ func SyncPush() error {
 		branch = "main"
 	}
 
-	if _, err := gitCmd(dir, "push", "-u", "origin", branch); err != nil {
+	if _, err := gitutil.RunCmd(dir, "push", "-u", "origin", branch); err != nil {
 		return fmt.Errorf("push failed: %w", err)
 	}
 	return nil
@@ -522,12 +522,12 @@ func SyncPull() error {
 	}
 
 	// Check remote exists.
-	remote, _ := gitCmd(dir, "remote", "get-url", "origin")
+	remote, _ := gitutil.RunCmd(dir, "remote", "get-url", "origin")
 	if strings.TrimSpace(remote) == "" {
 		return fmt.Errorf("no remote configured — run `mine stash sync remote <url>` first")
 	}
 
-	if _, err := gitCmd(dir, "pull", "--rebase", "origin"); err != nil {
+	if _, err := gitutil.RunCmd(dir, "pull", "--rebase", "origin"); err != nil {
 		return fmt.Errorf("pull failed — you may need to resolve conflicts manually in %s: %w", dir, err)
 	}
 
@@ -577,23 +577,7 @@ func SyncPull() error {
 // SyncRemoteURL returns the configured remote URL, or empty string if none.
 func SyncRemoteURL() string {
 	dir := Dir()
-	out, _ := gitCmd(dir, "remote", "get-url", "origin")
+	out, _ := gitutil.RunCmd(dir, "remote", "get-url", "origin")
 	return strings.TrimSpace(out)
 }
 
-// gitCmd runs a git command in the stash directory and returns stdout.
-func gitCmd(dir string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
-		}
-		return "", fmt.Errorf("%s", msg)
-	}
-	return stdout.String(), nil
-}

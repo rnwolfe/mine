@@ -1,15 +1,13 @@
 package agents
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/rnwolfe/mine/internal/config"
+	"github.com/rnwolfe/mine/internal/gitutil"
 )
 
 // Agent represents a detected coding agent.
@@ -176,32 +174,16 @@ func initGitRepo(dir string) error {
 		return nil
 	}
 
-	if _, err := gitCmd(dir, "init"); err != nil {
+	if _, err := gitutil.RunCmd(dir, "init"); err != nil {
 		return fmt.Errorf("git init: %w", err)
 	}
-	if _, err := gitCmd(dir, "config", "user.name", "mine-agents"); err != nil {
+	if _, err := gitutil.RunCmd(dir, "config", "user.name", "mine-agents"); err != nil {
 		return fmt.Errorf("git config user.name: %w", err)
 	}
-	if _, err := gitCmd(dir, "config", "user.email", "agents@mine.local"); err != nil {
+	if _, err := gitutil.RunCmd(dir, "config", "user.email", "agents@mine.local"); err != nil {
 		return fmt.Errorf("git config user.email: %w", err)
 	}
 
 	return nil
 }
 
-// gitCmd runs a git command in dir and returns stdout.
-func gitCmd(dir string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
-		}
-		return "", fmt.Errorf("%s", msg)
-	}
-	return stdout.String(), nil
-}

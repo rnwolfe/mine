@@ -252,7 +252,7 @@ func fileContentMatches(a, b string) bool {
 }
 
 // dirContentMatches compares two directories by recursively checking each entry.
-// Returns false if the entry lists differ in length or any file content differs.
+// Returns false if the entry lists differ in count, names, or any file content differs.
 func dirContentMatches(a, b string) bool {
 	aEntries, err := os.ReadDir(a)
 	if err != nil {
@@ -265,7 +265,15 @@ func dirContentMatches(a, b string) bool {
 	if len(aEntries) != len(bEntries) {
 		return false
 	}
+	// Build a set of names present in b for explicit name comparison.
+	bNames := make(map[string]bool, len(bEntries))
+	for _, entry := range bEntries {
+		bNames[entry.Name()] = true
+	}
 	for _, entry := range aEntries {
+		if !bNames[entry.Name()] {
+			return false
+		}
 		aPath := filepath.Join(a, entry.Name())
 		bPath := filepath.Join(b, entry.Name())
 		if !contentMatches(aPath, bPath) {

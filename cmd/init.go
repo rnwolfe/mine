@@ -399,8 +399,11 @@ func guessName() string {
 	return ""
 }
 
-// shellIntegrationSnippet is the exact content appended to the RC file.
+// shellIntegrationSnippet is the exact content appended to bash/zsh RC files.
 const shellIntegrationSnippet = "\n# added by mine\neval \"$(mine shell init)\"\n"
+
+// fishIntegrationSnippet is the fish-compatible equivalent (fish does not support $(...) syntax).
+const fishIntegrationSnippet = "\n# added by mine\nmine shell init | source\n"
 
 // rcFileForShell returns the RC file path for a given shell binary path or name.
 // Returns "" for unrecognized shells.
@@ -434,8 +437,12 @@ func alreadyInstalled(rcPath string) bool {
 	return strings.Contains(string(data), "mine shell init")
 }
 
-// appendToRC appends snippet to the file at rcPath, creating it if necessary.
+// appendToRC appends snippet to the file at rcPath, creating it (and any parent
+// directories) if necessary.
 func appendToRC(rcPath, snippet string) error {
+	if err := os.MkdirAll(filepath.Dir(rcPath), 0o755); err != nil {
+		return err
+	}
 	f, err := os.OpenFile(rcPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
@@ -458,7 +465,16 @@ func runShellIntegration(reader *bufio.Reader) {
 	fmt.Println(ui.Subtitle.Render("  Shell Integration"))
 	fmt.Println()
 
-	evalLine := `eval "$(mine shell init)"`
+	// Pick the shell-appropriate eval line and RC snippet.
+	isFish := strings.Contains(shell, "fish")
+	var evalLine, snippet string
+	if isFish {
+		evalLine = "mine shell init | source"
+		snippet = fishIntegrationSnippet
+	} else {
+		evalLine = `eval "$(mine shell init)"`
+		snippet = shellIntegrationSnippet
+	}
 
 	if rcPath == "" {
 		// Unrecognized shell — print fallback instructions.
@@ -492,7 +508,7 @@ func runShellIntegration(reader *bufio.Reader) {
 	}
 
 	// User said yes (or pressed Enter for default Y).
-	if err := appendToRC(rcPath, shellIntegrationSnippet); err != nil {
+	if err := appendToRC(rcPath, snippet); err != nil {
 		// Non-fatal: fall back to manual instructions.
 		fmt.Println(ui.Muted.Render("  Could not write to " + rcPath + ". Add this line manually:"))
 		fmt.Println()

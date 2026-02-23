@@ -148,7 +148,7 @@ Press Enter to let mine write the line to your RC file. This activates:
 To add it manually instead:
 
 ```bash
-echo '\n# added by mine\neval "$(mine shell init)"' >> ~/.zshrc
+printf '\n# added by mine\neval "$(mine shell init)"\n' >> ~/.zshrc
 source ~/.zshrc
 ```
 

@@ -621,6 +621,41 @@ func TestRunInit_ShellIntegration_NonWritableRCFile_NoError(t *testing.T) {
 	})
 }
 
+func TestRunInit_ShellIntegration_Fish_WritesFishSnippet(t *testing.T) {
+	tmp := initTestEnv(t)
+	t.Setenv("SHELL", "/usr/bin/fish")
+
+	// Create the fish config directory so the write succeeds.
+	fishDir := filepath.Join(tmp, ".config", "fish")
+	if err := os.MkdirAll(fishDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Answer "y" to the shell integration prompt.
+	pipeStdin(t, runInitInputs("y"))
+	captureStdout(t, func() {
+		if err := runInit(nil, nil); err != nil {
+			t.Fatalf("runInit: %v", err)
+		}
+	})
+
+	rc := filepath.Join(fishDir, "config.fish")
+	data, err := os.ReadFile(rc)
+	if err != nil {
+		t.Fatalf("read fish RC: %v", err)
+	}
+	content := string(data)
+
+	// Must contain the fish-compatible syntax.
+	if !strings.Contains(content, "mine shell init | source") {
+		t.Errorf("fish RC should contain 'mine shell init | source', got:\n%s", content)
+	}
+	// Must NOT contain bash $(…) syntax.
+	if strings.Contains(content, "$(mine shell init)") {
+		t.Errorf("fish RC must not contain bash $(...) syntax, got:\n%s", content)
+	}
+}
+
 func TestRunInit_ShellIntegration_FishConfigDirCreationFails_FallbackToManual(t *testing.T) {
 	tmp := initTestEnv(t)
 	t.Setenv("SHELL", "/usr/bin/fish")

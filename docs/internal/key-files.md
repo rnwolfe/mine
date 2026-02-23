@@ -24,6 +24,8 @@
 | `internal/plugin/runtime.go` | Plugin invocation (hooks, commands, lifecycle events) |
 | `internal/plugin/permissions.go` | Permission sandboxing, env builder, audit log |
 | `internal/plugin/search.go` | GitHub search for mine plugins |
+| `cmd/agents.go` | Agents CLI commands (init, status) |
+| `internal/agents/agents.go` | Agents domain logic — canonical store, git init, manifest read/write |
 | `cmd/stash.go` | Stash CLI commands (track, commit, log, restore, sync) |
 | `internal/stash/stash.go` | Stash domain logic — git-backed versioning, manifest, sync |
 | `cmd/craft.go` | Craft CLI commands (dev, ci, git, list) |

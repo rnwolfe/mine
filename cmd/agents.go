@@ -53,10 +53,10 @@ func runAgentsDetect(_ *cobra.Command, _ []string) error {
 	detected := agents.DetectAgents()
 
 	fmt.Println()
-	fmt.Printf("  %-14s %-30s %-28s %s\n",
-		ui.KeyStyle.Render("Agent"),
-		ui.KeyStyle.Render("Binary"),
-		ui.KeyStyle.Render("Config Dir"),
+	fmt.Printf("  %s %s %s %s\n",
+		ui.KeyStyle.Render(fmt.Sprintf("%-14s", "Agent")),
+		ui.KeyStyle.Render(fmt.Sprintf("%-30s", "Binary")),
+		ui.KeyStyle.Render(fmt.Sprintf("%-28s", "Config Dir")),
 		ui.KeyStyle.Render("Status"),
 	)
 	fmt.Println(ui.Muted.Render("  " + strings.Repeat("─", 82)))
@@ -97,17 +97,22 @@ func printAgentRow(a agents.Agent) {
 		statusStr = ui.Muted.Render(ui.IconError + "not found")
 	}
 
-	binaryDisplay := a.Binary
-	if binaryDisplay == "" {
-		binaryDisplay = ui.Muted.Render("not in PATH")
+	// Pad plain text before rendering so ANSI codes don't inflate column widths.
+	var binaryDisplay string
+	if a.Binary == "" {
+		binaryDisplay = ui.Muted.Render(fmt.Sprintf("%-30s", "not in PATH"))
+	} else {
+		binaryDisplay = fmt.Sprintf("%-30s", a.Binary)
 	}
 
-	configDisplay := a.ConfigDir
+	var configDisplay string
 	if !agents.DirExists(a.ConfigDir) {
-		configDisplay = ui.Muted.Render("not found")
+		configDisplay = ui.Muted.Render(fmt.Sprintf("%-28s", "not found"))
+	} else {
+		configDisplay = fmt.Sprintf("%-28s", a.ConfigDir)
 	}
 
-	fmt.Printf("  %-14s %-30s %-28s %s\n", a.Name, binaryDisplay, configDisplay, statusStr)
+	fmt.Printf("  %-14s %s %s %s\n", a.Name, binaryDisplay, configDisplay, statusStr)
 }
 
 // persistDetectionResults saves the detection results to the manifest.
@@ -121,7 +126,7 @@ func persistDetectionResults(detected []agents.Agent) error {
 
 	m, err := agents.ReadManifest()
 	if err != nil {
-		return err
+		return fmt.Errorf("reading manifest: %w", err)
 	}
 
 	// Replace agents list entirely — re-running detect is always idempotent.

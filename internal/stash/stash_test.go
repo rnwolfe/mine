@@ -831,7 +831,7 @@ func TestRestoreToSourceForce_NoSourceFile(t *testing.T) {
 	}
 }
 
-func TestGitCmd(t *testing.T) {
+func TestRunCmd(t *testing.T) {
 	dir := t.TempDir()
 
 	// Valid command.

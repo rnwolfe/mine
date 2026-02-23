@@ -12,7 +12,6 @@ type agentSpec struct {
 	Name      string // unique agent identifier, e.g. "claude"
 	Binary    string // executable name to search in PATH, e.g. "claude"
 	ConfigDir string // full path to agent config directory
-	SkillsDir string // full path to agent skills directory
 }
 
 // buildRegistry returns the canonical list of supported coding agents.
@@ -23,25 +22,21 @@ func buildRegistry(home string) []agentSpec {
 			Name:      "claude",
 			Binary:    "claude",
 			ConfigDir: filepath.Join(home, ".claude"),
-			SkillsDir: filepath.Join(home, ".claude", "skills"),
 		},
 		{
 			Name:      "codex",
 			Binary:    "codex",
 			ConfigDir: filepath.Join(home, ".codex"),
-			SkillsDir: filepath.Join(home, ".agents", "skills"),
 		},
 		{
 			Name:      "gemini",
 			Binary:    "gemini",
 			ConfigDir: filepath.Join(home, ".gemini"),
-			SkillsDir: filepath.Join(home, ".gemini", "skills"),
 		},
 		{
 			Name:      "opencode",
 			Binary:    "opencode",
 			ConfigDir: filepath.Join(home, ".config", "opencode"),
-			SkillsDir: filepath.Join(home, ".config", "opencode", "skills"),
 		},
 	}
 }

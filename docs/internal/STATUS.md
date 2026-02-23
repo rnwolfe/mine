@@ -68,8 +68,8 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 ### Architecture
 
 ```
-497 .go files across 24 packages
-├── cmd/            33 files — command layer (thin)
+133 .go files across 24 packages
+├── cmd/            36 files — command layer (thin)
 ├── internal/
 │   ├── ai/         10 files — multi-provider AI integrations
 │   ├── analytics/   4 files — anonymous usage telemetry
@@ -87,11 +87,11 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 │   ├── stash/       5 files — dotfile tracking + git-backed history
 │   ├── store/       2 files — SQLite with WAL
 │   ├── tips/        2 files — contextual tips system
-│   ├── tmux/        4 files — session + layout management
+│   ├── tmux/        6 files — session + layout management
 │   ├── todo/        2 files — todo domain logic
 │   ├── tui/         8 files — reusable fuzzy-search picker
 │   ├── ui/          5 files — theme, styles, print helpers
-│   ├── vault/       2 files — age-encrypted secrets store
+│   ├── vault/       7 files — age-encrypted secrets store
 │   └── version/     2 files — build metadata
 ├── site/           Astro Starlight documentation site
 ├── docs/           Internal specs, plans, decisions

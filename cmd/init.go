@@ -25,7 +25,7 @@ var initCmd = &cobra.Command{
 func runInit(_ *cobra.Command, _ []string) error {
 	fmt.Println(ui.Title.Render(ui.IconMine + " Welcome to mine!"))
 	fmt.Println()
-	fmt.Println("  Let's get you set up. This takes about 30 seconds.")
+	ui.Inf("Let's get you set up. This takes about 30 seconds.")
 	fmt.Println()
 
 	reader := bufio.NewReader(os.Stdin)
@@ -176,16 +176,26 @@ func runInit(_ *cobra.Command, _ []string) error {
 
 	paths := config.GetPaths()
 
-	ui.Ok("All set, " + name + "! " + ui.IconParty)
+	if name != "" {
+		ui.Ok("All set, " + name + "! " + ui.IconParty)
+	} else {
+		ui.Ok("All set! " + ui.IconParty)
+	}
 	fmt.Println()
 	fmt.Println(ui.Muted.Render("  Created:"))
 	fmt.Printf("    Config  %s\n", ui.Muted.Render(paths.ConfigFile))
 	fmt.Printf("    Data    %s\n", ui.Muted.Render(paths.DBFile))
 	fmt.Println()
-	fmt.Printf("  Hey %s — you're ready to go. Type %s to see your dashboard.\n",
-		ui.Accent.Render(name),
-		ui.Accent.Render("mine"),
-	)
+	if name != "" {
+		fmt.Printf("  Hey %s — you're ready to go. Type %s to see your dashboard.\n",
+			ui.Accent.Render(name),
+			ui.Accent.Render("mine"),
+		)
+	} else {
+		fmt.Printf("  You're ready to go. Type %s to see your dashboard.\n",
+			ui.Accent.Render("mine"),
+		)
+	}
 	fmt.Println()
 	fmt.Println(ui.Muted.Render("  Some things to try:"))
 	fmt.Printf("    %s  %s\n", ui.Accent.Render("mine todo add \"ship feature X\""), ui.Muted.Render("— capture a task"))

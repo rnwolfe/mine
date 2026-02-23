@@ -18,7 +18,7 @@ var tmuxProjectLayout string
 var tmuxCmd = &cobra.Command{
 	Use:     "tmux",
 	Aliases: []string{"tx"},
-	Short:   "Tmux session management and layouts",
+	Short:   "Create and switch tmux sessions without the friction",
 	Long:    `Manage tmux sessions, attach, and save/restore window layouts.`,
 	RunE:    hook.Wrap("tmux", runTmux),
 }

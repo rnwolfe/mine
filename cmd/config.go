@@ -14,7 +14,7 @@ import (
 
 var configCmd = &cobra.Command{
 	Use:   "config",
-	Short: "View and manage configuration",
+	Short: "Tweak mine to fit how you work",
 	RunE:  hook.Wrap("config", runConfigShow),
 }
 
@@ -36,14 +36,14 @@ var configListCmd = &cobra.Command{
 
 var configGetCmd = &cobra.Command{
 	Use:   "get <key>",
-	Short: "Get a configuration value",
+	Short: "Print the current value of a config key",
 	Args:  cobra.ExactArgs(1),
 	RunE:  hook.Wrap("config.get", runConfigGet),
 }
 
 var configSetCmd = &cobra.Command{
 	Use:   "set <key> <value>",
-	Short: "Set a configuration value",
+	Short: "Update a config key with a new value",
 	Long: `Set a known configuration value with type-aware validation.
 
 Keys use dot-notation (e.g. user.name, ai.provider).
@@ -54,7 +54,7 @@ Run 'mine config list' to see all available keys and their types.`,
 
 var configUnsetCmd = &cobra.Command{
 	Use:   "unset <key>",
-	Short: "Reset a config key to its default value",
+	Short: "Reset a config key back to its default",
 	Args:  cobra.ExactArgs(1),
 	RunE:  hook.Wrap("config.unset", runConfigUnset),
 }
@@ -139,7 +139,7 @@ func runConfigSet(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("saving config: %w", err)
 	}
 
-	ui.Ok(fmt.Sprintf("%s = %s", key, value))
+	ui.Ok(fmt.Sprintf("Set %s to %s", key, value))
 	return nil
 }
 

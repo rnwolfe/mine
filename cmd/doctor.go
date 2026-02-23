@@ -53,6 +53,8 @@ func runDoctor(_ *cobra.Command, _ []string) error {
 	if !allPassed {
 		return fmt.Errorf("one or more checks failed — see suggestions above")
 	}
+	ui.Ok("Everything looks good — mine is healthy and ready.")
+	fmt.Println()
 	return nil
 }
 

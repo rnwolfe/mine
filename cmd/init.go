@@ -25,7 +25,7 @@ var initCmd = &cobra.Command{
 func runInit(_ *cobra.Command, _ []string) error {
 	fmt.Println(ui.Title.Render(ui.IconMine + " Welcome to mine!"))
 	fmt.Println()
-	fmt.Println("  Let's get you set up. This takes about 30 seconds.")
+	ui.Inf("Let's get you set up. This takes about 30 seconds.")
 	fmt.Println()
 
 	reader := bufio.NewReader(os.Stdin)
@@ -55,7 +55,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	// Detect available API keys from environment
 	detectedKeys := detectAIKeys()
 	if len(detectedKeys) > 0 {
-		fmt.Println(ui.Success.Render(fmt.Sprintf("  ✓ Detected %d API key(s) in environment:", len(detectedKeys))))
+		ui.Ok(fmt.Sprintf("Detected %d API key(s) in environment:", len(detectedKeys)))
 		for provider := range detectedKeys {
 			envVar := getEnvVarForProvider(provider)
 			fmt.Printf("    %s %s\n", ui.KeyStyle.Render(provider), ui.Muted.Render(fmt.Sprintf("(%s)", envVar)))
@@ -123,19 +123,19 @@ func runInit(_ *cobra.Command, _ []string) error {
 				// Store the API key in vault.
 				passphrase, err := readPassphrase(false)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "  Warning: could not read vault passphrase: %v\n", err)
-					fmt.Fprintf(os.Stderr, "  API key not saved. Set it later with: mine ai config --provider openrouter --key <your-key>\n")
+					ui.Warn(fmt.Sprintf("Could not read vault passphrase: %v", err))
+					ui.Tip("set your key later with: mine ai config --provider openrouter --key <your-key>")
 					fmt.Println()
 				} else {
 					v := vault.New(passphrase)
 					if err := v.Set(aiVaultKey("openrouter"), keyInput); err != nil {
-						fmt.Fprintf(os.Stderr, "  Warning: could not save API key to vault: %v\n", err)
-						fmt.Fprintf(os.Stderr, "  Set it later with: mine ai config --provider openrouter --key <your-key>\n")
+						ui.Warn(fmt.Sprintf("Could not save API key to vault: %v", err))
+						ui.Tip("set your key later with: mine ai config --provider openrouter --key <your-key>")
 						fmt.Println()
 					} else {
 						cfg.AI.Provider = "openrouter"
 						cfg.AI.Model = "z-ai/glm-4.5-air:free"
-						fmt.Println(ui.Success.Render("  ✓ OpenRouter API key saved and configured"))
+						ui.Ok("OpenRouter API key saved and configured")
 						fmt.Println(ui.Muted.Render("    Using free model: z-ai/glm-4.5-air:free"))
 						fmt.Println()
 					}
@@ -176,16 +176,26 @@ func runInit(_ *cobra.Command, _ []string) error {
 
 	paths := config.GetPaths()
 
-	fmt.Println(ui.Success.Render("  ✓ All set!"))
+	if name != "" {
+		ui.Ok("All set, " + name + "! " + ui.IconParty)
+	} else {
+		ui.Ok("All set! " + ui.IconParty)
+	}
 	fmt.Println()
 	fmt.Println(ui.Muted.Render("  Created:"))
 	fmt.Printf("    Config  %s\n", ui.Muted.Render(paths.ConfigFile))
 	fmt.Printf("    Data    %s\n", ui.Muted.Render(paths.DBFile))
 	fmt.Println()
-	fmt.Printf("  Hey %s — you're ready to go. Type %s to see your dashboard.\n",
-		ui.Accent.Render(name),
-		ui.Accent.Render("mine"),
-	)
+	if name != "" {
+		fmt.Printf("  Hey %s — you're ready to go. Type %s to see your dashboard.\n",
+			ui.Accent.Render(name),
+			ui.Accent.Render("mine"),
+		)
+	} else {
+		fmt.Printf("  You're ready to go. Type %s to see your dashboard.\n",
+			ui.Accent.Render("mine"),
+		)
+	}
 	fmt.Println()
 	fmt.Println(ui.Muted.Render("  Some things to try:"))
 	fmt.Printf("    %s  %s\n", ui.Accent.Render("mine todo add \"ship feature X\""), ui.Muted.Render("— capture a task"))

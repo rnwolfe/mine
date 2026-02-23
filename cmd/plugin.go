@@ -17,7 +17,7 @@ import (
 
 var pluginCmd = &cobra.Command{
 	Use:   "plugin",
-	Short: "Manage plugins",
+	Short: "Extend mine with community plugins and hooks",
 	Long:  `Install, remove, and manage mine plugins from GitHub repositories.`,
 	RunE:  hook.Wrap("plugin", runPluginList),
 }
@@ -259,11 +259,11 @@ func runPluginSearch(_ *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
-	fmt.Printf("  Searching GitHub for mine plugins")
 	if query != "" {
-		fmt.Printf(" matching %q", query)
+		ui.Inf(fmt.Sprintf("Searching GitHub for plugins matching %q...", query))
+	} else {
+		ui.Inf("Searching GitHub for mine plugins...")
 	}
-	fmt.Println("...")
 	fmt.Println()
 
 	results, err := plugin.Search(query, pluginSearchTag)
@@ -272,7 +272,8 @@ func runPluginSearch(_ *cobra.Command, args []string) error {
 	}
 
 	if len(results) == 0 {
-		fmt.Println(ui.Muted.Render("  No plugins found."))
+		fmt.Println(ui.Muted.Render("  No plugins found for that query."))
+		ui.Tip("try a broader search term, or build your own: github.com/rnwolfe/mine")
 		fmt.Println()
 		return nil
 	}

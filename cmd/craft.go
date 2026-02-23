@@ -171,6 +171,7 @@ func runRecipe(category, name string) error {
 	}
 
 	ui.Ok(capitalize(recipe.Name) + " project ready")
+	ui.Tip("register this project with " + ui.Accent.Render("mine proj add ."))
 	fmt.Println()
 	return nil
 }

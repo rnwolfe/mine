@@ -190,6 +190,8 @@ func TestValidateRelativePath(t *testing.T) {
 		{"absolute path", "/etc/passwd", true},
 		{"parent traversal", "../secret", true},
 		{"embedded traversal", "a/../../b", true},
+		{"current directory dot", ".", true},
+		{"path resolves to dot", "a/..", true},
 	}
 
 	for _, tc := range tests {
@@ -253,9 +255,12 @@ func TestLog_NoHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := Log("")
-	if err == nil {
-		t.Error("Log() expected error when no git repo commits, got nil")
+	entries, err := Log("")
+	if err != nil {
+		t.Errorf("Log() unexpected error when no git repo commits (expected empty history): %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("Log() returned %d entries, want 0 for empty repo", len(entries))
 	}
 }
 

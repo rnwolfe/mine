@@ -54,10 +54,13 @@ func ManifestPath() string {
 	return filepath.Join(Dir(), ".mine-agents")
 }
 
-// IsInitialized returns true if the canonical store directory exists.
+// IsInitialized returns true if the canonical store directory exists and is a directory.
 func IsInitialized() bool {
-	_, err := os.Stat(Dir())
-	return err == nil
+	info, err := os.Stat(Dir())
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
 }
 
 // IsGitRepo returns true if the canonical store is a git repository.
@@ -186,7 +189,16 @@ func validateRelativePath(file string) error {
 	if filepath.IsAbs(file) {
 		return fmt.Errorf("file path must be relative to the agents store, not absolute: %q", file)
 	}
+	// Reject Windows volume-qualified paths (e.g. "C:foo") which can escape the
+	// base directory on Windows when passed to filepath.Join.
+	if filepath.VolumeName(file) != "" {
+		return fmt.Errorf("file path must not contain a volume name: %q", file)
+	}
 	clean := filepath.Clean(file)
+	// Reject paths that resolve to the current directory (e.g. "." or "a/..").
+	if clean == "." {
+		return fmt.Errorf("file path must refer to a specific file, not the current directory: %q", file)
+	}
 	if clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) {
 		return fmt.Errorf("unsafe file path (directory traversal): %q", file)
 	}
@@ -244,6 +256,11 @@ func Log(file string) ([]LogEntry, error) {
 		if err := validateRelativePath(file); err != nil {
 			return nil, err
 		}
+	}
+
+	// Return empty history if the repo has no commits yet (empty repo).
+	if _, err := gitCmd(dir, "rev-parse", "--verify", "HEAD"); err != nil {
+		return nil, nil
 	}
 
 	args := []string{"log", "--format=%H|%h|%aI|%s"}
@@ -361,7 +378,7 @@ func RestoreToStore(file string, version string) ([]LinkEntry, error) {
 	return updated, nil
 }
 
-// gitCmd runs a git command in the given directory and returns trimmed stdout.
+// gitCmd runs a git command in the given directory and returns stdout.
 func gitCmd(dir string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir

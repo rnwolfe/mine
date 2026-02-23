@@ -292,17 +292,20 @@ func validateProjectPath(path string) error {
 func projectDetectedAgents() []Agent {
 	if IsInitialized() {
 		m, err := ReadManifest()
-		if err == nil {
-			var detected []Agent
-			for _, a := range m.Agents {
-				if a.Detected {
-					detected = append(detected, a)
-				}
-			}
-			// The manifest is authoritative when the store is initialized,
-			// even if it reports zero detected agents.
-			return detected
+		if err != nil {
+			// When initialized, the manifest is authoritative. If it can't be read,
+			// treat this as zero detected agents rather than falling back to live detection.
+			return nil
 		}
+		var detected []Agent
+		for _, a := range m.Agents {
+			if a.Detected {
+				detected = append(detected, a)
+			}
+		}
+		// The manifest is authoritative when the store is initialized,
+		// even if it reports zero detected agents.
+		return detected
 	}
 	// Store not initialized: fall back to live detection.
 	var detected []Agent
@@ -322,10 +325,24 @@ func initProjectDir(path string) ProjectInitAction {
 	if err == nil {
 		if info.IsDir() {
 			action.Status = "exists"
-		} else {
-			action.Status = "skipped"
-			action.Err = fmt.Errorf("path exists but is not a directory")
+			return action
 		}
+		// If it's a symlink, follow it and accept if it resolves to a directory
+		// (e.g. a project already linked via mine agents project link).
+		if info.Mode()&os.ModeSymlink != 0 {
+			resolved, statErr := os.Stat(path)
+			if statErr != nil {
+				action.Status = "skipped"
+				action.Err = fmt.Errorf("checking symlink target: %w", statErr)
+				return action
+			}
+			if resolved.IsDir() {
+				action.Status = "exists"
+				return action
+			}
+		}
+		action.Status = "skipped"
+		action.Err = fmt.Errorf("path exists but is not a directory")
 		return action
 	}
 	if !os.IsNotExist(err) {

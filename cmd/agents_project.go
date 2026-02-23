@@ -24,7 +24,7 @@ var agentsProjectCmd = &cobra.Command{
 	Long: `Manage project-level agent configurations.
 
   mine agents project init [path]          Scaffold agent config dirs in a project
-  mine agents project link [path]          Link canonical skills to project skill dirs
+  mine agents project link [path]          Link canonical configs to project dirs
   mine agents project link --copy [path]   Copy instead of symlink`,
 	RunE: hook.Wrap("agents.project", runAgentsProjectHelp),
 }
@@ -48,13 +48,21 @@ safe — existing files and directories are preserved unless --force is given.`,
 
 var agentsProjectLinkCmd = &cobra.Command{
 	Use:   "link [path]",
-	Short: "Link canonical skills to project-level skill directories",
-	Long: `Create symlinks (or copies) from the canonical agents store skills to the
-project-level skill directories.
+	Short: "Link canonical agent configs to project-level directories",
+	Long: `Create symlinks (or copies) from the canonical agents store into the
+project-level agent config directories.
 
-Useful for sharing global skills across projects without duplication.
+Links the following from the canonical store (when present):
+  skills/        → <project>/<config-dir>/skills/   (all agents)
+  commands/      → <project>/.claude/commands/       (claude only)
+  settings/<a>.json → <project>/<config-dir>/settings.json (all agents)
+
+Useful for sharing global agent configs across projects without duplication.
 Use --copy for projects where symlinks to external paths are not appropriate
-(e.g. to check skills into the repository).
+(e.g. to check configs into the repository).
+
+If mine agents project init was run first (creating empty directories),
+use --force to replace those empty dirs with symlinks to the canonical store.
 
 Defaults to the current working directory when no path is given.`,
 	Args: cobra.MaximumNArgs(1),

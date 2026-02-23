@@ -208,14 +208,20 @@ Re-running is safe — existing files are preserved unless `--force` is given.
 ├── .claude/
 │   ├── skills/
 │   ├── commands/
-│   └── settings.json       # Seeded from canonical store (if template exists)
+│   └── settings.json       # Seeded from store settings/claude.json (if present)
 ├── .agents/
-│   └── skills/
+│   ├── skills/
+│   └── settings.json       # Seeded from store settings/codex.json (if present)
 ├── .gemini/
-│   └── skills/
+│   ├── skills/
+│   └── settings.json       # Seeded from store settings/gemini.json (if present)
 └── .opencode/
-    └── skills/
+    ├── skills/
+    └── settings.json       # Seeded from store settings/opencode.json (if present)
 ```
+
+Settings files are only created when a corresponding `settings/<agent>.json`
+template exists in the canonical store (they are optional).
 
 **Project config directories per agent:**
 
@@ -232,22 +238,31 @@ Re-running is safe — existing files are preserved unless `--force` is given.
 |------|-------------|
 | `--force` | Overwrite existing files |
 
-### Link Canonical Skills to Project
+### Link Canonical Configs to Project
 
 ```bash
 mine agents project link [path]
 mine agents project link --copy [path]
 ```
 
-Creates symlinks (or copies) from the canonical agents store skills directory to
-each detected agent's project-level skill directories. Useful for sharing global
-skills across projects without duplication.
+Creates symlinks (or copies) from the canonical agents store into each detected
+agent's project-level config directories. Links skills, commands (Claude only),
+and settings files when those exist in the canonical store.
 
+Useful for sharing global agent configs across projects without duplication.
 Use `--copy` when symlinks to external paths are not appropriate — for example,
-when you want to check project skills into the repository.
+when you want to check project configs into the repository.
 
 If `mine agents project init` was run first (which creates empty skill directories),
-use `--force` to replace them with symlinks to the canonical store.
+use `--force` to replace those empty dirs with symlinks to the canonical store.
+
+**What gets linked (when present in the canonical store):**
+
+| Source (store-relative) | Project Target | Agents |
+|------------------------|----------------|--------|
+| `skills/` | `<config-dir>/skills/` | all |
+| `commands/` | `.claude/commands/` | Claude only |
+| `settings/<agent>.json` | `<config-dir>/settings.json` | all |
 
 **Flags:**
 
@@ -255,7 +270,7 @@ use `--force` to replace them with symlinks to the canonical store.
 |------|-------------|
 | `--agent <name>` | Link only a specific agent (e.g. `claude`, `codex`) |
 | `--copy` | Copy files instead of creating symlinks |
-| `--force` | Overwrite existing files |
+| `--force` | Overwrite existing files or dirs (required after `project init`) |
 
 **Typical workflow:**
 

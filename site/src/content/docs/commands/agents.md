@@ -179,6 +179,51 @@ Healthy symlinks always match canonical (same inode) — no diff is shown.
 |------|-------------|
 | `--agent <name>` | Diff only a specific agent's links (e.g. `claude`, `gemini`) |
 
+## Snapshot History
+
+```bash
+mine agents commit [-m "message"]
+mine agents log [file]
+mine agents restore <file> [--version hash]
+```
+
+Manage git-backed version history for the canonical store.
+
+**Subcommands:**
+
+| Subcommand | Description |
+|-----------|-------------|
+| `commit [-m "msg"]` | Snapshot the current state of the store |
+| `log [file]` | Show snapshot history, optionally filtered to a file |
+| `restore <file>` | Restore a file to the latest or a specific snapshot |
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `-m, --message` | Commit message (default: timestamp-based) |
+| `-v, --version <hash>` | Version hash to restore (default: HEAD) |
+
+## Sync with Remote
+
+```bash
+mine agents sync remote git@github.com:you/agents.git
+mine agents sync push
+mine agents sync pull
+```
+
+Back up and sync your canonical agent config store with a git remote. After pulling,
+copy-mode links are automatically re-distributed to their target agent directories.
+Symlink-mode links are always up-to-date via the symlink itself.
+
+**Subcommands:**
+
+| Subcommand | Description |
+|-----------|-------------|
+| `sync remote [url]` | Get or set the remote URL |
+| `sync push` | Push store to remote |
+| `sync pull` | Pull from remote and re-distribute copy-mode links |
+
 ## Store Layout
 
 After `mine agents init`, the store contains:

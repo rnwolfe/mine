@@ -158,6 +158,21 @@ func (m *TodoModel) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				// Locally-added todo that was never persisted — remove from
 				// the in-memory slice and cancel its pending "add" action.
 				actionIdx := -t.ID - 1
+				if actionIdx < 0 || actionIdx >= len(m.Actions) {
+					// Invariant violation — skip action splice but still remove
+					// the todo from the in-memory list so the UI stays consistent.
+					for i := 0; i < len(m.todos); i++ {
+						if m.todos[i].ID == t.ID {
+							m.todos = append(m.todos[:i], m.todos[i+1:]...)
+							break
+						}
+					}
+					m.applyFilter()
+					if m.cursor >= len(m.filtered) && m.cursor > 0 {
+						m.cursor = len(m.filtered) - 1
+					}
+					break
+				}
 				m.Actions = append(m.Actions[:actionIdx], m.Actions[actionIdx+1:]...)
 				for i := 0; i < len(m.todos); i++ {
 					item := &m.todos[i]

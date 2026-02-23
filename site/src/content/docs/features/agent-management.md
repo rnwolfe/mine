@@ -14,7 +14,8 @@ mine agents init      # Create the canonical store
 mine agents detect    # Scan for installed agents
 mine agents adopt     # Import existing configs and replace with symlinks
 mine agents link      # Symlink store configs to each agent's config dir
-mine agents           # Show status
+mine agents status    # Full health report: store, agents, link states
+mine agents diff      # Show content differences from canonical store
 mine agents unlink    # Restore independent configs (replace symlinks with copies)
 ```
 
@@ -45,7 +46,12 @@ mine agents unlink    # Restore independent configs (replace symlinks with copie
    same canonical file (e.g. instruction files), adopt reports the conflict and
    skips the duplicate — leaving the decision to the user.
 
-7. **Extensible registry**: Adding a new agent in a future release requires only
+7. **Status and diff**: `mine agents status` re-runs detection and evaluates
+   every manifest link entry — reporting linked, broken, replaced, unlinked, or
+   diverged state. `mine agents diff` shows content differences for copy-mode
+   and replaced links, using `git diff --no-index` for clean unified diff output.
+
+8. **Extensible registry**: Adding a new agent in a future release requires only
    appending a new entry to the agent registry — no changes to detection logic.
 
 ## Supported Agents
@@ -64,4 +70,6 @@ mine agents unlink    # Restore independent configs (replace symlinks with copie
 - [`mine agents adopt`](/commands/agents/) — Import existing agent configs into the store
 - [`mine agents link`](/commands/agents/) — Symlink store configs to agent directories
 - [`mine agents unlink`](/commands/agents/) — Restore independent configs
-- [`mine agents`](/commands/agents/) — Show store status
+- [`mine agents status`](/commands/agents/) — Full health report: store, agents, link states
+- [`mine agents diff`](/commands/agents/) — Content differences between store and linked targets
+- [`mine agents`](/commands/agents/) — Alias for `mine agents status`

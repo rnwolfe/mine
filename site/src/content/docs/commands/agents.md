@@ -138,9 +138,46 @@ canonical store no longer propagate automatically.
 
 ```bash
 mine agents
+mine agents status
 ```
 
-Shows the agents store location, registered agent count, and link count.
+Shows a full health report for the agents store:
+
+- **Store health** — location, commit count, remote URL
+- **Sync state** — unpushed commits, uncommitted changes (shown when remote is configured)
+- **Detected agents** — all supported agents with binary path and install status
+- **Link health** — every manifest link entry with its current state
+
+**Link health states:**
+
+| Symbol | State | Meaning |
+|--------|-------|---------|
+| `✓` | `linked` | Symlink exists and points to canonical store (or copy matches) |
+| `✗` | `broken` | Symlink exists but its target is missing (dangling) |
+| `!` | `replaced` | Path exists as a regular file/dir where a symlink was expected |
+| `○` | `unlinked` | Target path does not exist |
+| `~` | `diverged` | Copy mode and content differs from canonical store |
+
+## Diff
+
+```bash
+mine agents diff
+mine agents diff --agent <name>
+```
+
+Shows content differences between the canonical store and linked targets.
+
+**When diff is shown:**
+- Copy-mode links where content has diverged from the canonical store
+- Replaced symlinks (regular files where symlinks are expected)
+
+Healthy symlinks always match canonical (same inode) — no diff is shown.
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--agent <name>` | Diff only a specific agent's links (e.g. `claude`, `gemini`) |
 
 ## Store Layout
 

@@ -27,15 +27,19 @@ var (
 	agentsAdoptAgent  string
 	agentsAdoptDryRun bool
 	agentsAdoptCopy   bool
+
+	agentsDiffAgent string
 )
 
 func init() {
 	rootCmd.AddCommand(agentsCmd)
 	agentsCmd.AddCommand(agentsInitCmd)
 	agentsCmd.AddCommand(agentsDetectCmd)
+	agentsCmd.AddCommand(agentsStatusCmd)
 	agentsCmd.AddCommand(agentsLinkCmd)
 	agentsCmd.AddCommand(agentsUnlinkCmd)
 	agentsCmd.AddCommand(agentsAdoptCmd)
+	agentsCmd.AddCommand(agentsDiffCmd)
 
 	agentsLinkCmd.Flags().StringVar(&agentsLinkAgent, "agent", "", "Link only a specific agent (e.g. claude, codex)")
 	agentsLinkCmd.Flags().BoolVar(&agentsLinkCopy, "copy", false, "Copy files instead of creating symlinks")
@@ -46,6 +50,8 @@ func init() {
 	agentsAdoptCmd.Flags().StringVar(&agentsAdoptAgent, "agent", "", "Adopt only from a specific agent (e.g. claude, codex)")
 	agentsAdoptCmd.Flags().BoolVar(&agentsAdoptDryRun, "dry-run", false, "Show what would be imported without making changes")
 	agentsAdoptCmd.Flags().BoolVar(&agentsAdoptCopy, "copy", false, "Import files but don't replace originals with symlinks")
+
+	agentsDiffCmd.Flags().StringVar(&agentsDiffAgent, "agent", "", "Diff only a specific agent's links (e.g. claude, codex)")
 }
 
 var agentsInitCmd = &cobra.Command{
@@ -90,6 +96,26 @@ Use --dry-run to preview what would be imported without making any changes.
 Use --copy to import files into the store without replacing originals with symlinks.
 Use --agent to limit adoption to a specific agent.`,
 	RunE: hook.Wrap("agents.adopt", runAgentsAdopt),
+}
+
+var agentsStatusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Show full health report: store info, detected agents, and link status",
+	RunE:  hook.Wrap("agents.status", runAgentsStatus),
+}
+
+var agentsDiffCmd = &cobra.Command{
+	Use:   "diff",
+	Short: "Show content differences between the canonical store and linked targets",
+	Long: `Show content differences between the canonical agents store and the linked
+targets. Differences are shown for copy-mode links and paths where a symlink was
+replaced with a regular file or directory.
+
+Symlinked files always match canonical (they share the same inode), so no diff is
+shown for healthy symlinks.
+
+Use --agent to limit the diff to a specific agent.`,
+	RunE: hook.Wrap("agents.diff", runAgentsDiff),
 }
 
 func runAgentsInit(_ *cobra.Command, _ []string) error {
@@ -437,36 +463,256 @@ func runAgentsStatus(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	dir := agents.Dir()
-	m, err := agents.ReadManifest()
+	result, err := agents.CheckStatus()
 	if err != nil {
-		return fmt.Errorf("reading manifest: %w", err)
+		return fmt.Errorf("checking status: %w", err)
 	}
 
 	fmt.Println()
-	ui.Kv(ui.IconTools+" Store", dir)
 
-	detectedCount := 0
-	for _, a := range m.Agents {
-		if a.Detected {
-			detectedCount++
+	// Store health.
+	storeDesc := result.Store.Dir
+	if result.Store.CommitCount > 0 {
+		storeDesc = fmt.Sprintf("%s (%d commit(s))", result.Store.Dir, result.Store.CommitCount)
+	}
+	ui.Kv(ui.IconTools+" Store", storeDesc)
+
+	// Sync state — only shown when a remote is configured.
+	if result.Store.RemoteURL != "" {
+		remoteDesc := result.Store.RemoteURL
+		if result.Store.UnpushedCommits > 0 {
+			remoteDesc = fmt.Sprintf("%s (%d unpushed)", result.Store.RemoteURL, result.Store.UnpushedCommits)
 		}
+		ui.Kv("  Remote", remoteDesc)
+	}
+	if result.Store.UncommittedFiles > 0 {
+		ui.Kv("  Changes", ui.Warning.Render(fmt.Sprintf("%d uncommitted file(s)", result.Store.UncommittedFiles)))
 	}
 
-	if len(m.Agents) == 0 {
+	fmt.Println()
+
+	// Detected agents.
+	fmt.Printf("  %s\n", ui.KeyStyle.Render("Detected Agents"))
+	if len(result.Agents) == 0 {
+		fmt.Println(ui.Muted.Render("    No agents registered yet."))
+		fmt.Printf("    Run %s to scan for installed agents.\n", ui.Accent.Render("mine agents detect"))
+	} else {
+		detectedCount := 0
+		for _, a := range result.Agents {
+			printStatusAgentRow(a)
+			if a.Detected {
+				detectedCount++
+			}
+		}
 		fmt.Println()
-		fmt.Println(ui.Muted.Render("  No agents registered yet."))
-		fmt.Printf("  Run %s to scan for installed agents.\n", ui.Accent.Render("mine agents detect"))
-	} else {
-		ui.Kv("  Agents", fmt.Sprintf("%d registered, %d detected", len(m.Agents), detectedCount))
+		ui.Kv("  Summary", fmt.Sprintf("%d registered, %d detected", len(result.Agents), detectedCount))
 	}
 
-	if len(m.Links) == 0 {
-		fmt.Println(ui.Muted.Render("  No links configured yet."))
+	fmt.Println()
+
+	// Link health.
+	fmt.Printf("  %s\n", ui.KeyStyle.Render("Links"))
+	if len(result.Links) == 0 {
+		fmt.Println(ui.Muted.Render("    No links configured yet."))
+		fmt.Printf("    Run %s to create links.\n", ui.Accent.Render("mine agents link"))
 	} else {
-		ui.Kv("  Links", fmt.Sprintf("%d active", len(m.Links)))
+		for _, lh := range result.Links {
+			printLinkHealthRow(lh)
+		}
+		fmt.Println()
+		printLinkHealthSummary(result.Links)
 	}
 
 	fmt.Println()
 	return nil
+}
+
+// printStatusAgentRow prints a single agent row in the status output.
+func printStatusAgentRow(a agents.Agent) {
+	if a.Detected {
+		binaryDisplay := a.Binary
+		if binaryDisplay == "" {
+			binaryDisplay = a.Name
+		}
+		fmt.Printf("    %s %-10s %s\n",
+			ui.Success.Render(ui.IconOk),
+			a.Name,
+			ui.Muted.Render(binaryDisplay))
+	} else {
+		fmt.Printf("    %s %-10s %s\n",
+			ui.Muted.Render("○ "),
+			a.Name,
+			ui.Muted.Render("(not installed)"))
+	}
+}
+
+// printLinkHealthRow prints a single link health row.
+func printLinkHealthRow(lh agents.LinkHealth) {
+	sourceDisplay := lh.Entry.Source
+	targetDisplay := lh.Entry.Target
+
+	switch lh.State {
+	case agents.LinkHealthLinked:
+		fmt.Printf("    %s %s %s %s\n",
+			ui.Success.Render(ui.IconOk),
+			ui.Muted.Render(sourceDisplay),
+			ui.Muted.Render(ui.IconArrow),
+			ui.Muted.Render(targetDisplay))
+	case agents.LinkHealthBroken:
+		detail := ""
+		if lh.Message != "" {
+			detail = ui.Muted.Render(" ("+lh.Message+")")
+		}
+		fmt.Printf("    %s %s %s %s%s\n",
+			ui.Error.Render("✗ "),
+			sourceDisplay,
+			ui.Muted.Render(ui.IconArrow),
+			targetDisplay,
+			detail)
+	case agents.LinkHealthReplaced:
+		detail := ""
+		if lh.Message != "" {
+			detail = ui.Muted.Render(" ("+lh.Message+")")
+		}
+		fmt.Printf("    %s %s %s %s%s\n",
+			ui.Warning.Render("! "),
+			sourceDisplay,
+			ui.Muted.Render(ui.IconArrow),
+			targetDisplay,
+			ui.Warning.Render(" (replaced with regular file)"+detail))
+	case agents.LinkHealthUnlinked:
+		fmt.Printf("    %s %s %s %s\n",
+			ui.Muted.Render("○ "),
+			sourceDisplay,
+			ui.Muted.Render(ui.IconArrow),
+			ui.Muted.Render(targetDisplay+" (missing)"))
+	case agents.LinkHealthDiverged:
+		fmt.Printf("    %s %s %s %s\n",
+			ui.Warning.Render("~ "),
+			sourceDisplay,
+			ui.Muted.Render(ui.IconArrow),
+			ui.Warning.Render(targetDisplay+" (diverged)"))
+	}
+}
+
+// printLinkHealthSummary prints counts for each link health state.
+func printLinkHealthSummary(links []agents.LinkHealth) {
+	counts := map[agents.LinkHealthState]int{}
+	for _, lh := range links {
+		counts[lh.State]++
+	}
+
+	linked := counts[agents.LinkHealthLinked]
+	problems := len(links) - linked
+
+	if problems == 0 {
+		ui.Kv("  Summary", ui.Success.Render(fmt.Sprintf("%d/%d linked", linked, len(links))))
+	} else {
+		ui.Kv("  Summary", fmt.Sprintf("%d/%d linked, %s",
+			linked, len(links),
+			ui.Warning.Render(fmt.Sprintf("%d issue(s) — run %s for details",
+				problems,
+				"mine agents status"))))
+	}
+}
+
+func runAgentsDiff(_ *cobra.Command, _ []string) error {
+	if !agents.IsInitialized() {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  No agents store yet."))
+		fmt.Printf("  Run %s first.\n", ui.Accent.Render("mine agents init"))
+		fmt.Println()
+		return nil
+	}
+
+	opts := agents.DiffOptions{
+		Agent: agentsDiffAgent,
+	}
+
+	entries, err := agents.Diff(opts)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println()
+
+	if len(entries) == 0 {
+		fmt.Println(ui.Muted.Render("  No links to diff."))
+		fmt.Printf("  Run %s to create links first.\n", ui.Accent.Render("mine agents link"))
+		fmt.Println()
+		return nil
+	}
+
+	diffCount := 0
+	for _, e := range entries {
+		printDiffEntry(e)
+		if len(e.Lines) > 0 {
+			diffCount++
+		}
+	}
+
+	fmt.Println()
+	if diffCount == 0 {
+		ui.Ok("All links match canonical store — nothing to sync")
+	} else {
+		fmt.Printf("  %s %d link(s) differ from canonical store\n",
+			ui.Warning.Render(ui.IconWarn), diffCount)
+		fmt.Printf("  Run %s to restore symlinks.\n", ui.Accent.Render("mine agents link --force"))
+	}
+	fmt.Println()
+	return nil
+}
+
+// printDiffEntry prints the diff output for a single link entry.
+func printDiffEntry(e agents.DiffEntry) {
+	switch e.State {
+	case agents.LinkHealthLinked:
+		fmt.Printf("  %s %s %s %s\n",
+			ui.Success.Render(ui.IconOk),
+			e.Link.Source,
+			ui.Muted.Render(ui.IconArrow),
+			ui.Muted.Render(e.Link.Target+" (linked, no diff)"))
+	case agents.LinkHealthBroken, agents.LinkHealthUnlinked:
+		fmt.Printf("  %s %s %s %s\n",
+			ui.Muted.Render("○ "),
+			e.Link.Source,
+			ui.Muted.Render(ui.IconArrow),
+			ui.Muted.Render(e.Link.Target))
+		if e.Err != nil {
+			fmt.Printf("      %s\n", ui.Muted.Render(e.Err.Error()))
+		}
+	case agents.LinkHealthDiverged, agents.LinkHealthReplaced:
+		stateLabel := "diverged"
+		if e.State == agents.LinkHealthReplaced {
+			stateLabel = "replaced"
+		}
+		fmt.Printf("  %s %s %s %s\n",
+			ui.Warning.Render("~ "),
+			e.Link.Source,
+			ui.Muted.Render(ui.IconArrow),
+			ui.Warning.Render(e.Link.Target+" ("+stateLabel+")"))
+		if e.Err != nil {
+			fmt.Printf("      %s\n", ui.Warning.Render(e.Err.Error()))
+		} else if len(e.Lines) == 0 {
+			fmt.Printf("      %s\n", ui.Muted.Render("(no textual diff available)"))
+		} else {
+			for _, line := range e.Lines {
+				fmt.Printf("      %s\n", formatDiffLine(line))
+			}
+		}
+	}
+}
+
+// formatDiffLine applies color to a single diff line.
+func formatDiffLine(line string) string {
+	if strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++") {
+		return ui.Success.Render(line)
+	}
+	if strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "---") {
+		return ui.Error.Render(line)
+	}
+	if strings.HasPrefix(line, "@@") {
+		return ui.Info.Render(line)
+	}
+	return ui.Muted.Render(line)
 }

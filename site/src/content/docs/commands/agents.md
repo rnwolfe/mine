@@ -171,7 +171,7 @@ Shows content differences between the canonical store and linked targets.
 - Copy-mode links where content has diverged from the canonical store
 - Replaced symlinks (regular files where symlinks are expected)
 
-Healthy symlinks always match canonical (same inode) — no diff is shown.
+Healthy symlinks always point to the canonical store — no diff is shown.
 
 **Flags:**
 

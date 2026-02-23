@@ -325,4 +325,3 @@ func runAgentsStatus(_ *cobra.Command, _ []string) error {
 	fmt.Println()
 	return nil
 }
-

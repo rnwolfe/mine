@@ -445,9 +445,15 @@ func unlinkEntry(link LinkEntry) UnlinkAction {
 			action.Err = fmt.Errorf("removing file symlink: %w", err)
 			return action
 		}
-		if err := os.WriteFile(link.Target, data, 0o644); err != nil {
+		if err := os.WriteFile(link.Target, data, destInfo.Mode().Perm()); err != nil {
 			action.Status = "skipped"
 			action.Err = fmt.Errorf("writing standalone file: %w", err)
+			return action
+		}
+		// Explicitly set permissions to match the source, bypassing the umask.
+		if err := os.Chmod(link.Target, destInfo.Mode().Perm()); err != nil {
+			action.Status = "skipped"
+			action.Err = fmt.Errorf("setting file permissions: %w", err)
 			return action
 		}
 	}

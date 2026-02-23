@@ -1127,3 +1127,47 @@ func TestLinkUnlink_FullCycle(t *testing.T) {
 		t.Errorf("manifest links count = %d after full cycle, want 0", len(m.Links))
 	}
 }
+
+func TestUnlink_PreservesFilePermissions(t *testing.T) {
+	storeDir, homeDir := setupLinkEnv(t)
+
+	// Write source file, then explicitly chmod to 0755 to bypass the umask.
+	p := filepath.Join(storeDir, "instructions", "AGENTS.md")
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte("# Instructions\n"), 0o644); err != nil {
+		t.Fatalf("writing store file: %v", err)
+	}
+	if err := os.Chmod(p, 0o755); err != nil {
+		t.Fatalf("chmod source file: %v", err)
+	}
+
+	claudeConfigDir := filepath.Join(homeDir, ".claude")
+	makeDetectedAgent(t, "claude", claudeConfigDir)
+
+	// Link (symlink mode).
+	if _, err := Link(LinkOptions{}); err != nil {
+		t.Fatalf("Link() error = %v", err)
+	}
+
+	target := filepath.Join(claudeConfigDir, "CLAUDE.md")
+
+	// Unlink — should produce a standalone file with preserved permissions.
+	if _, err := Unlink(UnlinkOptions{}); err != nil {
+		t.Fatalf("Unlink() error = %v", err)
+	}
+
+	info, err := os.Stat(target)
+	if err != nil {
+		t.Fatalf("Stat target after unlink: %v", err)
+	}
+
+	// Permissions must match the source (0755). Use Chmod in the fix to bypass
+	// the umask so the write matches the source mode exactly.
+	got := info.Mode().Perm()
+	want := os.FileMode(0o755)
+	if got != want {
+		t.Errorf("file permissions after unlink = %04o, want %04o", got, want)
+	}
+}

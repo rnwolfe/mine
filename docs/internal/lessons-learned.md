@@ -114,3 +114,13 @@ This keeps the binary CGo-free and dependency-free. Use build tags for platform 
 shared types (interfaces, no-op fallback) in an untagged file. For injectable testing,
 expose the store as a package-level `var` in the cmd package so tests can swap it out
 without modifying production code.
+
+
+### L-020: Agents and stash share git versioning patterns
+Both `internal/agents` and `internal/stash` implement git-backed versioning with the
+same `gitCmd()` helper pattern. Key difference: stash refreshes files from source paths
+before committing (because files live outside the store); agents just `git add -A` since
+the store IS the authoritative location. For agents, `RestoreToStore` writes to the
+canonical path and then re-copies to copy-mode link targets (symlink-mode targets update
+automatically since the symlink points to the canonical file). Consider extracting shared
+git helpers into `internal/gitutil/` if a third domain needs this pattern.

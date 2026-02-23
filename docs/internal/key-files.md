@@ -26,6 +26,8 @@
 | `internal/plugin/search.go` | GitHub search for mine plugins |
 | `cmd/stash.go` | Stash CLI commands (track, commit, log, restore, sync) |
 | `internal/stash/stash.go` | Stash domain logic — git-backed versioning, manifest, sync |
+| `cmd/agents.go` | Agents CLI commands (init, commit, log, restore) |
+| `internal/agents/agents.go` | Agents domain — canonical store, git versioning, manifest (JSON), restore with copy-mode link re-sync |
 | `cmd/craft.go` | Craft CLI commands (dev, ci, git, list) |
 | `internal/craft/recipe.go` | Recipe engine, registry, template execution |
 | `internal/craft/builtins.go` | Built-in recipe definitions (go, node, python, rust, docker, github CI) |

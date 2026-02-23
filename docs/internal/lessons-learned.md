@@ -145,3 +145,13 @@ canonical destination. Per-agent files (settings/claude.json) can never conflict
 Always check `isAlreadyManagedByStore` first to skip files that are already symlinks
 into the store — prevents double-adoption. Auto-commit to git history after adoption
 to provide a recovery point.
+
+### L-023: Implementing a dependent issue without its dependencies merged
+When issue dependencies haven't been merged yet, implement the minimum foundation
+needed by the current issue alongside the primary feature. Split into logical files
+by concern (agents.go, git.go, sync.go) to stay under the 500-line limit and make
+each concern independently testable. Use a bare local git repo in integration tests
+to mock a real remote — `git init --bare` creates a functional remote without network
+access. For sync pull redistribution, use `SyncPullWithResult()` as the primary entry
+point (returns a summary), with `SyncPull()` delegating to it — keeps callers simple
+while allowing detailed output in the cmd layer.

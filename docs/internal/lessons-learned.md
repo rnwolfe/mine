@@ -114,3 +114,16 @@ This keeps the binary CGo-free and dependency-free. Use build tags for platform 
 shared types (interfaces, no-op fallback) in an untagged file. For injectable testing,
 expose the store as a package-level `var` in the cmd package so tests can swap it out
 without modifying production code.
+
+### L-020: Prepend, don't replace PATH in tests
+When tests create fake binaries (agent stubs, tool mocks), prepend the temp dir to PATH
+instead of replacing it entirely. Replacing PATH removes system tools like `git` that may
+be required by domain logic (e.g. `agents.Init()` runs `git init`). Pattern:
+`t.Setenv("PATH", binDir+":"+os.Getenv("PATH"))`. See `cmd/tmux_test.go:71` for the
+reference pattern.
+
+### L-021: Dependency tracking in auto-dev issues
+When an issue explicitly depends on another unmerged PR (e.g. "Depends on: #147"),
+include the core foundation code directly rather than assuming it will be merged first.
+The implementing agent must produce a self-contained, compilable PR. Always check
+whether the dependency branch exists and cherry-pick or inline as needed.

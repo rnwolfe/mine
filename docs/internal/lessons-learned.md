@@ -114,3 +114,23 @@ This keeps the binary CGo-free and dependency-free. Use build tags for platform 
 shared types (interfaces, no-op fallback) in an untagged file. For injectable testing,
 expose the store as a package-level `var` in the cmd package so tests can swap it out
 without modifying production code.
+
+### L-020: Bot review events cause duplicate review-fix runs
+When a bot (Copilot, Claude) posts a PR review, it fires a `pull_request_review` event.
+`autodev-review-fix` has both a `pull_request_review` trigger AND a `workflow_run`/
+`workflow_dispatch` trigger. If both fire for the same review cycle, `claude-fix` or
+`copilot-fix` runs twice — wasting API calls and potentially causing state conflicts.
+Fix: in the route script, skip `pull_request_review` events when the reviewer is a bot
+(`[bot]` login suffix or login `claude`). Bot phases have dedicated trigger paths:
+copilot phase via `workflow_dispatch` (from implement), claude phase via `workflow_run`
+(after Claude Code Review completes). The `pull_request_review` path should only handle
+human-submitted reviews.
+
+### L-021: `allowed_bots` must include `claude` for `workflow_run`-triggered steps
+`claude-code-action@v1` has an `allowed_bots` parameter that controls which non-human
+actors can invoke the action. When `autodev-review-fix` is triggered by `workflow_run`
+(i.e., the "Claude Code Review" workflow completed), `github.actor` is `claude` — the
+bot identity of the Claude Code action. If `allowed_bots` only lists `github-actions[bot]`,
+the action rejects execution with: "Workflow initiated by non-human actor: claude (type: Bot)."
+Fix: set `allowed_bots: "github-actions[bot],claude"` on any agent step that can be
+reached via a `workflow_run` whose triggering workflow itself ran a Claude agent.

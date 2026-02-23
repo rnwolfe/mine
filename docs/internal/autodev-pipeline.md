@@ -164,7 +164,7 @@ number. Exits cleanly if no issues are ready.
 
 | Property | Value |
 |----------|-------|
-| Triggers | `workflow_dispatch` (from implement), `pull_request_review`, `workflow_run` (Claude review), cron `30 */4 * * *` (fallback) |
+| Triggers | `workflow_dispatch` (from implement), `pull_request_review` (human reviewers only), `workflow_run` (Claude review), cron `30 */4 * * *` (fallback) |
 | Timeout | 45 minutes |
 | Concurrency | Per-PR group (parallel review of different PRs) |
 | Agent model | Claude Sonnet 4.6, 50 max turns |
@@ -206,6 +206,10 @@ flowchart TB
 - Post-agent steps gated on `steps.<agent>.outcome == 'success'`
 - Agent failure adds `human/blocked` label; no partial changes committed
 - Protected files reverted after successful agent runs
+- `pull_request_review` events from bot actors (`[bot]` suffix or login `claude`) are skipped
+  immediately in the route script — bot phases have dedicated triggers (`workflow_dispatch`
+  for copilot, `workflow_run` for claude) and allowing both paths to fire causes duplicate
+  fix runs (see [L-020](lessons-learned.md#l-020-bot-review-events-cause-duplicate-review-fix-runs))
 
 ### 4. claude-code-review
 
@@ -344,6 +348,7 @@ NOT protected — agents are encouraged to update them.
 | Weekly audit | Monday 9 AM UTC | Pipeline health feedback loop |
 | Implement → review-fix chain | Poll ≤10 min + dispatch | Primary trigger path; bypasses bot approval gate |
 | Scheduled review poll | Every 4h (offset 30m) | Safety-net fallback for missed dispatches ([L-016](lessons-learned.md#l-016-bot-actors-trigger-github-actions-approval-gates)) |
+| Bot-reviewer PR review filter | Skip `[bot]` / `claude` on `pull_request_review` | Prevents duplicate fix runs when bot reviews fire alongside `workflow_dispatch`/`workflow_run` ([L-020](lessons-learned.md#l-020-bot-review-events-cause-duplicate-review-fix-runs)) |
 
 ## Debugging Guide
 
@@ -379,15 +384,16 @@ changes, or push failed).
 
 **Symptoms:** Copilot posts a review but `autodev-review-fix` never runs.
 
-**Diagnosis:** The primary path is implement → dispatch chain (polls for review, then
-dispatches `workflow_dispatch`). If that fails (e.g., review didn't appear within 10 min,
-or implement timed out), the `pull_request_review` trigger is gated by GitHub's first-time
-contributor approval for bot actors
-([L-016](lessons-learned.md#l-016-bot-actors-trigger-github-actions-approval-gates)).
-The 4-hour scheduled poll is the safety-net fallback.
+**Diagnosis:** The primary path is the implement → dispatch chain (polls for review up to
+10 minutes, then dispatches `workflow_dispatch`). Note: `pull_request_review` events from
+Copilot are intentionally filtered out by the route script (bot reviews are handled by
+`workflow_dispatch`, not `pull_request_review`, to avoid duplicate runs —
+[L-020](lessons-learned.md#l-020-bot-review-events-cause-duplicate-review-fix-runs)).
+If the dispatch fails (e.g., no review appeared within 10 min, or implement timed out),
+the 4-hour scheduled poll is the safety-net fallback.
 
-**Recovery:** Manually dispatch `autodev-review-fix` with the PR number, approve the gated
-workflow run in the Actions tab, or wait for the scheduled poll.
+**Recovery:** Manually dispatch `autodev-review-fix` with the PR number, or wait for the
+scheduled poll.
 
 ### Wrong model or high costs
 
@@ -409,6 +415,8 @@ These entries in [lessons-learned.md](lessons-learned.md) document hard-won pipe
 | [L-015](lessons-learned.md#l-015-copilot-review-state-is-commented-not-changes_requested) | Copilot review state is COMMENTED, not changes_requested |
 | [L-016](lessons-learned.md#l-016-bot-actors-trigger-github-actions-approval-gates) | Bot actors trigger GitHub Actions approval gates |
 | [L-017](lessons-learned.md#l-017-label-based-triggers-need-trust-verification) | Label-based triggers need trust verification |
+| [L-020](lessons-learned.md#l-020-bot-review-events-cause-duplicate-review-fix-runs) | Bot review events cause duplicate review-fix runs |
+| [L-021](lessons-learned.md#l-021-allowed_bots-must-include-claude-for-workflow_run-triggered-steps) | `allowed_bots` must include `claude` for `workflow_run`-triggered steps |
 
 ## Related Files
 

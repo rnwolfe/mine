@@ -572,6 +572,25 @@ jobs:
           git commit -m "fix: address claude review feedback (final pass)"
           git push
 
+      - name: Dismiss CHANGES_REQUESTED reviews (claude fix)
+        if: steps.route.outputs.action == 'claude-fix' && (steps.claude-feedback.outputs.no_feedback == 'true' || steps.claude-agent.outcome == 'success')
+        env:
+          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.route.outputs.pr_number }}"
+          # Dismiss any outstanding CHANGES_REQUESTED reviews from claude[bot].
+          # The claude-code-action submits CHANGES_REQUESTED reviews; subsequent COMMENTED
+          # reviews from the fix agent do not automatically dismiss them. Without explicit
+          # dismissal, GitHub blocks merge even after all comments are addressed (L-028).
+          gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
+            --jq '.[] | select(.user.login == "claude[bot]" and .state == "CHANGES_REQUESTED") | .id' \
+          | while read -r REVIEW_ID; do
+            echo "Dismissing CHANGES_REQUESTED review $REVIEW_ID from claude[bot]"
+            gh api -X PUT \
+              "repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews/$REVIEW_ID/dismissals" \
+              -f message="All review comments addressed by the claude-fix agent." || true
+          done
+
       - name: Finalize — mark phase done
         if: steps.route.outputs.action == 'claude-fix' && (steps.claude-feedback.outputs.no_feedback == 'true' || steps.claude-agent.outcome == 'success')
         env:

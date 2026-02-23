@@ -182,6 +182,17 @@ jobs:
           REVIEW_STATE="${{ github.event.review.state }}"
           echo "reviewer=$REVIEWER" >> "$GITHUB_OUTPUT"
 
+          # Skip bot reviewers entirely on pull_request_review. Bot phases are handled by
+          # dedicated triggers: copilot → workflow_dispatch (from implement), claude →
+          # workflow_run (after Claude Code Review completes). Allowing pull_request_review
+          # to fire for bots causes duplicate fix runs — each review comment Claude posts
+          # triggers a separate pull_request_review event.
+          if [[ "$REVIEWER" == *"[bot]"* ]] || [ "$REVIEWER" = "claude" ]; then
+            echo "Skipping pull_request_review from bot reviewer: $REVIEWER (handled by workflow_run/dispatch)"
+            echo "action=skip" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           IS_COPILOT=false
           if [ "$REVIEWER" = "Copilot" ] || [ "$REVIEWER" = "copilot-pull-request-reviewer[bot]" ]; then
             IS_COPILOT=true
@@ -302,7 +313,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          allowed_bots: "github-actions[bot]"
+          allowed_bots: "github-actions[bot],claude"
           prompt: |
             You are fixing Copilot review feedback on PR #${{ steps.route.outputs.pr_number }} for the mine CLI tool.
 
@@ -472,7 +483,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          allowed_bots: "github-actions[bot]"
+          allowed_bots: "github-actions[bot],claude"
           prompt: |
             You are doing a final review-fix pass on PR #${{ steps.route.outputs.pr_number }} for the mine CLI tool.
             This is the last automated fix cycle — make it count.

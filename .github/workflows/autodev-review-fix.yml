@@ -591,7 +591,21 @@ jobs:
             echo "::warning::Failed to update labels on PR #$PR_NUMBER. There may be permission/API issues."
           fi
 
+          # Enable auto-merge — squash-merges as soon as all required CI checks pass.
+          # Falls back gracefully if auto-merge is disabled on the repo or the token
+          # lacks merge permissions (human can still merge manually).
+          if gh pr merge "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --squash --auto \
+            --delete-branch 2>/dev/null; then
+            echo "Auto-merge enabled on PR #$PR_NUMBER — will squash-merge when CI passes."
+            MERGE_NOTE="Auto-merge enabled — will squash-merge once all CI checks pass."
+          else
+            echo "::warning::Auto-merge could not be enabled on PR #$PR_NUMBER. Human merge required."
+            MERGE_NOTE="Auto-merge not available — labeled \`human/review-merge\` for manual merge."
+          fi
+
           # Post completion comment
           gh pr comment "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
-            --body "Autodev review pipeline complete. Copilot and Claude reviews have been addressed. Labeled \`human/review-merge\` — ready for human merge."
+            --body "Autodev review pipeline complete. Copilot and Claude reviews have been addressed. ${MERGE_NOTE}"

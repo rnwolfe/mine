@@ -54,7 +54,7 @@ flowchart TB
     copilotFix -->|"push triggers new review"| route
     review -->|"workflow_run completed"| claudeFix
     claudeFix --> done
-    done -->|"Human merges"| merged["Merged"]
+    done -->|"Auto-merge (CI gate)"| merged["Merged"]
 
     cronMon --> auditAgent
     auditAgent --> auditIssue
@@ -258,7 +258,7 @@ stateDiagram-v2
 
     claude --> done: Claude fix applied\n(remove label, post comment)
 
-    done --> [*]: Human merges PR
+    done --> [*]: Auto-merge enabled (squash when CI passes)
 
     note right of copilot
         Max 3 iterations.
@@ -336,6 +336,7 @@ NOT protected — agents are encouraged to update them.
 | Breaker | Value | Purpose |
 |---------|-------|---------|
 | Implementation concurrency | Serialized via Actions group | One branch created at a time |
+| Dispatch guard (open PRs) | Skip if any non-blocked `via/*` PR open | Prevents batch-merge conflicts when spec breaks feature into sub-issues ([L-024](lessons-learned.md#l-024-batch-merge-conflicts-from-spec-driven-sub-issue-bursts)) |
 | Review-fix concurrency | Per-PR group | Multiple PRs reviewed in parallel |
 | Copilot iterations | Max 3 | Prevents infinite fix loops |
 | Claude fix passes | 1 | Final pass, creates follow-up issues for remainder |

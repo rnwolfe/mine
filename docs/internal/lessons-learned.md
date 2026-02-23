@@ -146,6 +146,22 @@ Always check `isAlreadyManagedByStore` first to skip files that are already syml
 into the store — prevents double-adoption. Auto-commit to git history after adoption
 to provide a recovery point.
 
+### L-024: Batch-merge conflicts from spec-driven sub-issue bursts
+When a spec or refinement breaks a large feature into multiple sub-issues and all
+are labeled `backlog/ready`, autodev dispatch can queue them in rapid succession.
+Each branches from `main`, implements a different slice, and opens a PR. The first
+PR to merge updates `main`; subsequent PRs have merge conflicts. Fix: gate dispatch
+on open autodev PR count — if any non-blocked `via/*` PR is open, skip dispatch and
+retry next cycle. This serializes the pipeline: one PR open at a time, zero conflict
+opportunity. See `scripts/autodev/pick-issue.sh`.
+
+### L-025: Auto-merge requires all-green CI as the quality gate
+Enabling `gh pr merge --squash --auto` on a PR queues it for automatic squash merge
+once all required branch-protection checks pass. This removes the human-as-bottleneck
+step (35–110 min window in measured data) while keeping CI as the hard gate. Use
+`--delete-branch` to clean up automatically. Falls back gracefully if auto-merge is
+disabled on the repo or the token lacks merge permissions.
+
 ### L-023: Implementing a dependent issue without its dependencies merged
 When issue dependencies haven't been merged yet, implement the minimum foundation
 needed by the current issue alongside the primary feature. Split into logical files

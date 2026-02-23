@@ -190,6 +190,38 @@ For `project init` + `project link` workflows: init creates the directory struct
 store. Since init already created the dirs, link requires `--force` to proceed. Document
 this in the command help text so users understand the two-step workflow.
 
+### L-028: Agent config store pattern
+
+The canonical agents store (`~/.local/share/mine/agents/`) uses a git-backed directory
+as its persistence layer — not SQLite. This is intentional: the store's primary value
+is portability (push to a git remote, pull on another machine). The `.mine-agents`
+manifest JSON tracks detected agents and link mappings. Key design decisions:
+
+- **`buildRegistry`** and **`buildLinkRegistry`** are separate: detection (binary + dir)
+  is independent from linking (which files go where). Keep them decoupled.
+- **Detection signals**: an agent is "detected" if either its binary is in PATH OR its
+  config directory exists — either signal is sufficient.
+- **Idempotent init**: `Init()` is always safe to re-run. It skips existing dirs and
+  files, creates git repo only once, creates manifest only once.
+- **Manifest as contract**: All link operations read and write the manifest atomically
+  via `ReadManifest`/`WriteManifest`. Never cache manifest state across operations.
+
+### L-029: Link distribution engine — safety-first symlink management
+
+The link engine (`internal/agents/link.go`) manages symlinks from the canonical store
+to each agent's expected config location. Key safety invariants:
+
+- **Never overwrite regular files** without explicit `--force`. Existing regular files
+  must go through `adopt` first (imports to store) before linking.
+- **Already-correct symlinks are silently updated** (manifest entry upserted, no filesystem
+  change). This makes repeated `mine agents link` calls idempotent.
+- **Symlinks pointing elsewhere** require `--force` to overwrite — may be an existing
+  installation managed by a different tool.
+- **Empty source dirs are skipped**: skills/, commands/ are only linked if non-empty.
+  This prevents creating confusing empty symlinks.
+- The `upsertManifestLink` helper ensures the manifest reflects the last-written state —
+  existing entries for the same (source, target, agent) triple are replaced, not duplicated.
+
 ### L-027: Copilot fix loop — missing transition to Claude after committed changes
 After a successful `copilot-fix` run where Claude commits changes, the autodev pipeline
 got stuck: the "Transition to Claude phase" step only fired when `has_changes == 'false'`

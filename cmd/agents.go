@@ -37,7 +37,6 @@ func runAgentsInit(_ *cobra.Command, _ []string) error {
 	fmt.Printf("  Location: %s\n", ui.Muted.Render(dir))
 	fmt.Println()
 	fmt.Printf("  Edit shared instructions: %s\n", ui.Accent.Render("instructions/AGENTS.md"))
-	fmt.Printf("  Store path:               %s\n", ui.Accent.Render(dir))
 	fmt.Println()
 	return nil
 }
@@ -74,12 +73,12 @@ func runAgentsStatus(_ *cobra.Command, _ []string) error {
 		ui.Kv("  Agents", fmt.Sprintf("%d registered, %d detected", len(m.Agents), detected))
 	}
 
-	if len(m.Links) > 0 {
+	if len(m.Links) == 0 {
+		fmt.Println(ui.Muted.Render("  No links configured yet."))
+	} else {
 		ui.Kv("  Links", fmt.Sprintf("%d active", len(m.Links)))
 	}
 
-	fmt.Println()
-	fmt.Printf("  Re-initialize: %s\n", ui.Accent.Render("mine agents init"))
 	fmt.Println()
 	return nil
 }

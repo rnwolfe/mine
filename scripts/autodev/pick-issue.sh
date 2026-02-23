@@ -41,6 +41,25 @@ verify_trusted_labeler() {
 
 # ── Pick an issue ──────────────────────────────────────────────────
 
+# ── Guard: block dispatch if any active autodev PR is open ────────
+# Prevents batch-merge conflicts that occur when multiple dependent issues
+# (e.g. from a spec that breaks a feature into sub-issues) are dispatched
+# concurrently and all branch from the same main, then conflict on merge.
+# Blocked PRs (human/blocked) are excluded — they're stalled and won't merge.
+OPEN_AUTODEV_COUNT=$(gh pr list \
+    --repo "$AUTODEV_REPO" \
+    --state open \
+    --json number,labels \
+    --jq '[.[] | select(
+        (.labels | map(.name) | any(startswith("via/")))
+        and (.labels | map(.name) | any(. == "human/blocked") | not)
+    )] | length')
+
+if [ "$OPEN_AUTODEV_COUNT" -gt 0 ]; then
+    autodev_info "Skipping dispatch: $OPEN_AUTODEV_COUNT open autodev PR(s) pending merge. Will retry next cycle."
+    exit 0
+fi
+
 if [ -n "$ISSUE_NUMBER" ]; then
     # Manual override — validate the issue exists and has agent-ready label
     LABELS=$(gh issue view "$ISSUE_NUMBER" --repo "$AUTODEV_REPO" --json labels --jq '[.labels[].name]' 2>/dev/null) \

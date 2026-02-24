@@ -54,7 +54,7 @@ that happens to be evocative. They don't require a metaphor to understand.
 | `mine contrib` | Community contribution helpers | 2 | Shipped |
 | `mine plugin` | Plugin system (install, search, manage) | 3 | Shipped |
 | `mine vault` | Secrets & credential management | 3 | Shipped |
-| `mine agents` | Coding agent configuration manager | 2 | Planned |
+| `mine agents` | Coding agent configuration manager | 2 | Shipped |
 | `mine grow` | Career growth tracking & learning | 3 | Planned |
 | `mine dash` | Full TUI dashboard | 3 | Planned |
 

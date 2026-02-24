@@ -13,7 +13,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - [x] **Config** (`mine config`) — TOML config, XDG-compliant paths, get/set/list subcommands
 - [x] **SQLite store** — WAL mode, auto-migrations, high-perf pragmas (`internal/store`)
 - [x] **Dashboard** (`mine`) — At-a-glance status with greeting, todos, tips
-- [x] **Init** (`mine init`) — Guided onboarding, git name detection
+- [x] **Init** (`mine init`) — Guided onboarding, git name detection, environment discovery + auto-registration, shell helper RC file integration, idempotent re-run with `--reset` flag
 - [x] **Todos** (`mine todo`) — Add, complete, delete, edit, list with priority/due/tags
 - [x] **Stash** (`mine stash`) — Dotfile tracking, diff detection, git-backed history, restore, sync
 - [x] **Version** (`mine version`) — Build-time version injection via ldflags
@@ -38,7 +38,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - [x] **About** (`mine about`) — About/build information
 - [x] **Status** (`mine status`) — Mine status for shell prompt integration (JSON, compact prompt segment)
 - [x] **Contrib** (`mine contrib`) — Community contribution helpers
-- [ ] **Agents** (`mine agents`) — Unified coding agent configuration manager (10 issues filed: #146–#156)
+- [x] **Agents** (`mine agents`) — Unified coding agent configuration manager; core subcommands shipped (status, diff, sync, restore, project init/link, git versioning, adopt); content management (add/list) pending (#154)
 - [ ] **Task system evolution** — Project-aware, focus-integrated todo system (#159)
 
 ### Phase 3: Polish — Partially Started
@@ -63,14 +63,15 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - **Deps**: 0 runtime (single static binary)
 - **Build time**: ~3 seconds
 - **Languages**: 100% Go
-- **Tests**: 550 passing across 24 packages
+- **Tests**: 778 passing across 25 packages
 
 ### Architecture
 
 ```
-133 .go files across 24 packages
-├── cmd/            36 files — command layer (thin)
+168 .go files across 25 packages
+├── cmd/            52 files — command layer (thin)
 ├── internal/
+│   ├── agents/     20 files — unified coding agent configuration manager
 │   ├── ai/         10 files — multi-provider AI integrations
 │   ├── analytics/   4 files — anonymous usage telemetry
 │   ├── config/      4 files — XDG config management
@@ -78,6 +79,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 │   ├── craft/       3 files — recipe-driven scaffolding engine
 │   ├── env/         2 files — encrypted per-project env profiles
 │   ├── git/         2 files — git helpers (sweep, pr, changelog)
+│   ├── gitutil/     1 file  — git utility helpers
 │   ├── hook/        7 files — four-stage hook pipeline
 │   ├── meta/        2 files — feature/bug report formatting helpers
 │   ├── plugin/      7 files — plugin system (manifest, lifecycle, runtime)
@@ -100,9 +102,9 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 
 ## Remaining Roadmap
 
-### High Value — Phase 2 Completion
+### Phase 2 Tail
 
-- [ ] `mine agents` — Unified coding agent configuration manager (issues #146–#156)
+- [ ] `mine agents` — Content management (add/list) is the remaining gap (#154)
 - [ ] Task system evolution — Project-aware, focus-integrated todos (#159)
 
 ### Phase 3 — Not Started

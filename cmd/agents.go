@@ -57,6 +57,15 @@ func init() {
 	agentsSyncCmd.AddCommand(agentsSyncRemoteCmd)
 	agentsSyncCmd.AddCommand(agentsSyncPushCmd)
 	agentsSyncCmd.AddCommand(agentsSyncPullCmd)
+
+	agentsCmd.AddCommand(agentsAddCmd)
+	agentsAddCmd.AddCommand(agentsAddSkillCmd)
+	agentsAddCmd.AddCommand(agentsAddCommandCmd)
+	agentsAddCmd.AddCommand(agentsAddAgentCmd)
+	agentsAddCmd.AddCommand(agentsAddRuleCmd)
+
+	agentsCmd.AddCommand(agentsListCmd)
+	agentsListCmd.Flags().StringVar(&agentsListType, "type", "", "Filter to a specific content type (skills, commands, agents, rules, instructions, settings)")
 }
 
 var agentsInitCmd = &cobra.Command{

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/proj"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/todo"
@@ -914,5 +915,63 @@ func TestRunTodoNext_DetailCardFields(t *testing.T) {
 	// overdue annotation
 	if !strings.Contains(out, "overdue") {
 		t.Errorf("expected overdue annotation in card output:\n%s", out)
+	}
+}
+
+// --- urgencyWeightsFromConfig tests ---
+
+func TestUrgencyWeightsFromConfig_AllNilUsesDefaults(t *testing.T) {
+	cfg := &config.Config{} // all Urgency fields nil
+	got := urgencyWeightsFromConfig(cfg)
+	defaults := todo.DefaultUrgencyWeights()
+
+	if got != defaults {
+		t.Errorf("all-nil config should return defaults:\n  got:  %+v\n  want: %+v", got, defaults)
+	}
+}
+
+func TestUrgencyWeightsFromConfig_SingleOverride(t *testing.T) {
+	overrideVal := 999
+	cfg := &config.Config{
+		Todo: config.TodoConfig{
+			Urgency: config.UrgencyWeightsConfig{
+				Overdue: &overrideVal,
+			},
+		},
+	}
+	got := urgencyWeightsFromConfig(cfg)
+	defaults := todo.DefaultUrgencyWeights()
+
+	// Overridden field reflects the new value.
+	if got.Overdue != overrideVal {
+		t.Errorf("Overdue: expected %d, got %d", overrideVal, got.Overdue)
+	}
+	// All other fields remain at their defaults.
+	if got.ScheduleToday != defaults.ScheduleToday {
+		t.Errorf("ScheduleToday: expected %d, got %d", defaults.ScheduleToday, got.ScheduleToday)
+	}
+	if got.ScheduleSoon != defaults.ScheduleSoon {
+		t.Errorf("ScheduleSoon: expected %d, got %d", defaults.ScheduleSoon, got.ScheduleSoon)
+	}
+	if got.ScheduleLater != defaults.ScheduleLater {
+		t.Errorf("ScheduleLater: expected %d, got %d", defaults.ScheduleLater, got.ScheduleLater)
+	}
+	if got.PriorityCrit != defaults.PriorityCrit {
+		t.Errorf("PriorityCrit: expected %d, got %d", defaults.PriorityCrit, got.PriorityCrit)
+	}
+	if got.PriorityHigh != defaults.PriorityHigh {
+		t.Errorf("PriorityHigh: expected %d, got %d", defaults.PriorityHigh, got.PriorityHigh)
+	}
+	if got.PriorityMed != defaults.PriorityMed {
+		t.Errorf("PriorityMed: expected %d, got %d", defaults.PriorityMed, got.PriorityMed)
+	}
+	if got.PriorityLow != defaults.PriorityLow {
+		t.Errorf("PriorityLow: expected %d, got %d", defaults.PriorityLow, got.PriorityLow)
+	}
+	if got.AgeCap != defaults.AgeCap {
+		t.Errorf("AgeCap: expected %d, got %d", defaults.AgeCap, got.AgeCap)
+	}
+	if got.ProjectBoost != defaults.ProjectBoost {
+		t.Errorf("ProjectBoost: expected %d, got %d", defaults.ProjectBoost, got.ProjectBoost)
 	}
 }

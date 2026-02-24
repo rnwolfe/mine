@@ -280,15 +280,36 @@ func TestSortByUrgency_Order(t *testing.T) {
 func TestSortByUrgency_TiebreakerOlderFirst(t *testing.T) {
 	w := defaultWeights()
 
-	older := Todo{ID: 1, Title: "older", Priority: PrioMedium, Schedule: ScheduleLater, CreatedAt: makeTime(5)}
-	newer := Todo{ID: 2, Title: "newer", Priority: PrioMedium, Schedule: ScheduleLater, CreatedAt: makeTime(0)}
+	// Both tasks created on the same calendar day (4 days ago) so they have
+	// identical age bonuses and therefore identical urgency scores. Only the
+	// wall-clock time within that day differs, which is what the tiebreaker
+	// sorts on — the task created earlier in the day should rank first.
+	sameDay := baseTime.AddDate(0, 0, -4)
+	older := Todo{
+		ID:        1,
+		Title:     "older",
+		Priority:  PrioMedium,
+		Schedule:  ScheduleLater,
+		CreatedAt: sameDay.Add(1 * time.Hour), // 01:00 that day
+	}
+	newer := Todo{
+		ID:        2,
+		Title:     "newer",
+		Priority:  PrioMedium,
+		Schedule:  ScheduleLater,
+		CreatedAt: sameDay.Add(23 * time.Hour), // 23:00 that day
+	}
 
 	todos := []Todo{newer, older}
 	SortByUrgency(todos, baseTime, nil, w)
 
-	// Older task should rank first (older = more age bonus).
+	// Scores are identical (same priority, schedule, and integer age).
+	// The tiebreaker puts the task with the earlier CreatedAt first.
 	if todos[0].ID != 1 {
-		t.Errorf("expected older task first, got ID=%d", todos[0].ID)
+		t.Errorf("expected older task (ID=1) first via tiebreaker, got ID=%d", todos[0].ID)
+	}
+	if todos[1].ID != 2 {
+		t.Errorf("expected newer task (ID=2) second via tiebreaker, got ID=%d", todos[1].ID)
 	}
 }
 

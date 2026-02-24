@@ -91,16 +91,29 @@ func UrgencyScore(t Todo, now time.Time, currentProjectPath *string, w UrgencyWe
 	return score
 }
 
+// todoWithScore pairs a todo with its precomputed urgency score so both move
+// together during sorting and the scores never fall out of sync with the items.
+type todoWithScore struct {
+	t     Todo
+	score int
+}
+
 // SortByUrgency sorts todos in-place from highest to lowest urgency score.
 // Ties are broken by creation date (older tasks first).
+// Scores are precomputed once to avoid O(n log n) * scoring cost.
 func SortByUrgency(todos []Todo, now time.Time, currentProjectPath *string, w UrgencyWeights) {
-	sort.SliceStable(todos, func(i, j int) bool {
-		si := UrgencyScore(todos[i], now, currentProjectPath, w)
-		sj := UrgencyScore(todos[j], now, currentProjectPath, w)
-		if si != sj {
-			return si > sj
+	pairs := make([]todoWithScore, len(todos))
+	for i := range todos {
+		pairs[i] = todoWithScore{t: todos[i], score: UrgencyScore(todos[i], now, currentProjectPath, w)}
+	}
+	sort.SliceStable(pairs, func(i, j int) bool {
+		if pairs[i].score != pairs[j].score {
+			return pairs[i].score > pairs[j].score
 		}
 		// Tiebreaker: older task first (prevents staleness).
-		return todos[i].CreatedAt.Before(todos[j].CreatedAt)
+		return pairs[i].t.CreatedAt.Before(pairs[j].t.CreatedAt)
 	})
+	for i := range todos {
+		todos[i] = pairs[i].t
+	}
 }

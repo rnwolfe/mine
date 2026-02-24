@@ -67,8 +67,15 @@ type ListOptions struct {
 	// Used only when Sort == SortUrgency.
 	CurrentProjectPath *string
 	// Weights overrides default urgency weights.
+	// nil means use DefaultUrgencyWeights. An explicit all-zero *UrgencyWeights
+	// is used as-is, allowing callers to fully disable all scoring factors.
 	// Used only when Sort == SortUrgency.
-	Weights UrgencyWeights
+	Weights *UrgencyWeights
+	// ReferenceTime is the "now" used for urgency scoring and due-date checks.
+	// Zero value means time.Now() is called at sort time. Set this explicitly
+	// when you need sorting and rendering to use the same instant (e.g. around midnight).
+	// Used only when Sort == SortUrgency.
+	ReferenceTime time.Time
 }
 
 // PriorityLabel returns a human-readable priority string.
@@ -310,10 +317,15 @@ func (s *Store) List(opts ListOptions) ([]Todo, error) {
 	// Apply urgency sort (default) in Go after fetching.
 	if opts.Sort == SortUrgency {
 		w := opts.Weights
-		if w == (UrgencyWeights{}) {
-			w = DefaultUrgencyWeights()
+		if w == nil {
+			def := DefaultUrgencyWeights()
+			w = &def
 		}
-		SortByUrgency(todos, time.Now(), opts.CurrentProjectPath, w)
+		ref := opts.ReferenceTime
+		if ref.IsZero() {
+			ref = time.Now()
+		}
+		SortByUrgency(todos, ref, opts.CurrentProjectPath, *w)
 	}
 
 	return todos, nil

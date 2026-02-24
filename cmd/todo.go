@@ -187,12 +187,23 @@ func runTodoList(_ *cobra.Command, _ []string) error {
 		opts.ProjectPath = projectPath
 	}
 
+	// Always resolve the cwd project for urgency scoring boost, independent of
+	// the --all flag. When --all is set, projectPath is nil (no filter) but we
+	// still want the current-project boost to apply for tasks in the active project.
+	cwdProject, err := resolveTodoProject(ps, "")
+	if err != nil {
+		return err
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
-	opts.CurrentProjectPath = projectPath
-	opts.Weights = urgencyWeightsFromConfig(cfg)
+	now := time.Now()
+	opts.CurrentProjectPath = cwdProject
+	w := urgencyWeightsFromConfig(cfg)
+	opts.Weights = &w
+	opts.ReferenceTime = now
 
 	ts := todo.NewStore(db.Conn())
 	todos, err := ts.List(opts)
@@ -546,13 +557,17 @@ func runTodoNext(_ *cobra.Command, args []string) error {
 	}
 	weights := urgencyWeightsFromConfig(cfg)
 
+	// Capture now once so sorting and rendering use the same reference instant.
+	now := time.Now()
+
 	ts := todo.NewStore(db.Conn())
 	todos, err := ts.List(todo.ListOptions{
 		AllProjects:        false,
 		ProjectPath:        projectPath,
 		Sort:               todo.SortUrgency,
 		CurrentProjectPath: projectPath,
-		Weights:            weights,
+		Weights:            &weights,
+		ReferenceTime:      now,
 	})
 	if err != nil {
 		return err
@@ -570,7 +585,6 @@ func runTodoNext(_ *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
-	now := time.Now()
 	for rank, t := range todos[:count] {
 		printTodoCard(t, rank+1, now, projectPath)
 	}
@@ -597,7 +611,9 @@ func printTodoCard(t todo.Todo, rank int, now time.Time, currentProjectPath *str
 	// Due date (if set)
 	if t.DueDate != nil {
 		due := *t.DueDate
-		dueDay := time.Date(due.Year(), due.Month(), due.Day(), 0, 0, 0, 0, due.Location())
+		// Build dueDay in the same location as today to avoid timezone mismatches
+		// when due dates are stored as date-only strings (parsed as UTC).
+		dueDay := time.Date(due.Year(), due.Month(), due.Day(), 0, 0, 0, 0, now.Location())
 		var dueStr string
 		switch {
 		case dueDay.Before(today):
@@ -610,8 +626,8 @@ func printTodoCard(t todo.Todo, rank int, now time.Time, currentProjectPath *str
 		fmt.Printf("     %s\n", dueStr)
 	}
 
-	// Project (if task belongs to one and we're not in that project)
-	if t.ProjectPath != nil {
+	// Project: show only when the task belongs to a project other than the current one.
+	if t.ProjectPath != nil && (currentProjectPath == nil || *t.ProjectPath != *currentProjectPath) {
 		projName := filepath.Base(*t.ProjectPath)
 		fmt.Printf("     %s\n", ui.Muted.Render("@"+projName))
 	}

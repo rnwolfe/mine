@@ -450,16 +450,34 @@ func (s *Store) Edit(id int, title *string, priority *int) error {
 
 // AddNote appends a timestamped annotation to an existing todo.
 // Returns an error if the todo does not exist.
+// Updates the parent todo's updated_at in the same transaction.
 func (s *Store) AddNote(todoID int, body string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+
 	var exists int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM todos WHERE id = ?`, todoID).Scan(&exists); err != nil {
+	if err = tx.QueryRow(`SELECT COUNT(*) FROM todos WHERE id = ?`, todoID).Scan(&exists); err != nil {
+		tx.Rollback()
 		return err
 	}
 	if exists == 0 {
+		tx.Rollback()
 		return fmt.Errorf("todo #%d not found", todoID)
 	}
-	_, err := s.db.Exec(`INSERT INTO todo_notes (todo_id, body) VALUES (?, ?)`, todoID, body)
-	return err
+
+	if _, err = tx.Exec(`INSERT INTO todo_notes (todo_id, body) VALUES (?, ?)`, todoID, body); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if _, err = tx.Exec(`UPDATE todos SET updated_at = CURRENT_TIMESTAMP WHERE id = ?`, todoID); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // GetWithNotes returns a todo by ID with all its timestamped notes populated,
@@ -471,7 +489,7 @@ func (s *Store) GetWithNotes(id int) (*Todo, error) {
 	}
 
 	rows, err := s.db.Query(
-		`SELECT id, body, created_at FROM todo_notes WHERE todo_id = ? ORDER BY created_at ASC`,
+		`SELECT id, body, created_at FROM todo_notes WHERE todo_id = ? ORDER BY created_at ASC, id ASC`,
 		id,
 	)
 	if err != nil {
@@ -485,8 +503,19 @@ func (s *Store) GetWithNotes(id int) (*Todo, error) {
 		if err := rows.Scan(&n.ID, &n.Body, &createdStr); err != nil {
 			return nil, err
 		}
-		n.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)
+		n.CreatedAt, err = time.Parse(time.RFC3339, createdStr)
+		if err != nil {
+			// Fallback for SQLite-native "YYYY-MM-DD HH:MM:SS" format.
+			n.CreatedAt, err = time.Parse("2006-01-02 15:04:05", createdStr)
+			if err != nil {
+				return nil, fmt.Errorf("parsing note created_at %q: %w", createdStr, err)
+			}
+		}
 		t.Notes = append(t.Notes, n)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return t, nil

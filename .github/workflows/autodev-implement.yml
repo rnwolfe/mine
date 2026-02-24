@@ -197,7 +197,7 @@ jobs:
             Valid types: feat, fix, chore, docs, refactor, test, ci.
             Derive the type from the nature of the change.
             Example: feat: add tmux layout persistence
-          claude_args: "--model claude-sonnet-4-6 --max-turns 100 --dangerously-skip-permissions"
+          claude_args: "--model claude-sonnet-4-6 --max-turns 150 --dangerously-skip-permissions"
       # ============================================================
 
       - name: Handle agent failure

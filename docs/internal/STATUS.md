@@ -38,8 +38,9 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - [x] **About** (`mine about`) — About/build information
 - [x] **Status** (`mine status`) — Mine status for shell prompt integration (JSON, compact prompt segment)
 - [x] **Contrib** (`mine contrib`) — Community contribution helpers
-- [x] **Agents** (`mine agents`) — Unified coding agent configuration manager; core subcommands shipped (status, diff, sync, restore, project init/link, git versioning, adopt); content management (add/list) pending (#154)
-- [ ] **Task system evolution** — Project-aware, focus-integrated todo system (#159)
+- [x] **Agents** (`mine agents`) — Unified coding agent configuration manager (status, diff, sync, restore, project init/link, git versioning, adopt, add, list)
+- [x] **Todo evolution** — Project-scoped todos (`--project`, cwd resolution), scheduling buckets (today/soon/later/someday), urgency sort (`mine todo next`), timestamped notes (`mine todo note`), dig focus integration (`mine dig --todo`), completion stats (`mine todo stats`)
+- [ ] **Recurring tasks** — Auto-respawn on completion with `--every` flag (#222)
 
 ### Phase 3: Polish — Partially Started
 
@@ -63,15 +64,15 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - **Deps**: 0 runtime (single static binary)
 - **Build time**: ~3 seconds
 - **Languages**: 100% Go
-- **Tests**: 778 passing across 25 packages
+- **Tests**: 939 passing across 25 packages
 
 ### Architecture
 
 ```
-168 .go files across 25 packages
-├── cmd/            52 files — command layer (thin)
+306 .go files across 25 packages
+├── cmd/            59 files — command layer (thin)
 ├── internal/
-│   ├── agents/     20 files — unified coding agent configuration manager
+│   ├── agents/     24 files — unified coding agent configuration manager
 │   ├── ai/         10 files — multi-provider AI integrations
 │   ├── analytics/   4 files — anonymous usage telemetry
 │   ├── config/      4 files — XDG config management
@@ -90,7 +91,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 │   ├── store/       2 files — SQLite with WAL
 │   ├── tips/        2 files — contextual tips system
 │   ├── tmux/        6 files — session + layout management
-│   ├── todo/        2 files — todo domain logic
+│   ├── todo/        6 files — todo domain logic (stats, notes, scheduling)
 │   ├── tui/         8 files — reusable fuzzy-search picker
 │   ├── ui/          5 files — theme, styles, print helpers
 │   ├── vault/       7 files — age-encrypted secrets store
@@ -104,8 +105,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 
 ### Phase 2 Tail
 
-- [ ] `mine agents` — Content management (add/list) is the remaining gap (#154)
-- [ ] Task system evolution — Project-aware, focus-integrated todos (#159)
+- [ ] Recurring tasks — Auto-respawn on completion with `--every` flag (#222)
 
 ### Phase 3 — Not Started
 

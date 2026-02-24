@@ -24,6 +24,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 		due_date TEXT,
 		tags TEXT DEFAULT '',
 		project_path TEXT,
+		schedule TEXT DEFAULT 'later',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		completed_at DATETIME
@@ -42,7 +43,7 @@ func TestAddAndList(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	id, err := s.Add("Test todo", PrioHigh, []string{"test"}, nil, nil)
+	id, err := s.Add("Test todo", PrioHigh, []string{"test"}, nil, nil, ScheduleLater)
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
@@ -63,6 +64,9 @@ func TestAddAndList(t *testing.T) {
 	if todos[0].Priority != PrioHigh {
 		t.Fatalf("expected priority %d, got %d", PrioHigh, todos[0].Priority)
 	}
+	if todos[0].Schedule != ScheduleLater {
+		t.Fatalf("expected schedule %q, got %q", ScheduleLater, todos[0].Schedule)
+	}
 }
 
 func TestComplete(t *testing.T) {
@@ -70,7 +74,7 @@ func TestComplete(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	id, _ := s.Add("Complete me", PrioMedium, nil, nil, nil)
+	id, _ := s.Add("Complete me", PrioMedium, nil, nil, nil, ScheduleLater)
 	if err := s.Complete(id); err != nil {
 		t.Fatalf("Complete failed: %v", err)
 	}
@@ -96,7 +100,7 @@ func TestDelete(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	id, _ := s.Add("Delete me", PrioLow, nil, nil, nil)
+	id, _ := s.Add("Delete me", PrioLow, nil, nil, nil, ScheduleLater)
 	if err := s.Delete(id); err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
@@ -112,11 +116,11 @@ func TestCount(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	s.Add("One", PrioMedium, nil, nil, nil)
-	s.Add("Two", PrioHigh, nil, nil, nil)
+	s.Add("One", PrioMedium, nil, nil, nil, ScheduleLater)
+	s.Add("Two", PrioHigh, nil, nil, nil, ScheduleLater)
 
 	yesterday := time.Now().AddDate(0, 0, -1)
-	s.Add("Overdue", PrioCrit, nil, &yesterday, nil)
+	s.Add("Overdue", PrioCrit, nil, &yesterday, nil, ScheduleLater)
 
 	open, total, overdue, err := s.Count(nil)
 	if err != nil {
@@ -138,7 +142,7 @@ func TestEdit(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	id, _ := s.Add("Original", PrioLow, nil, nil, nil)
+	id, _ := s.Add("Original", PrioLow, nil, nil, nil, ScheduleLater)
 
 	newTitle := "Edited"
 	newPrio := PrioHigh
@@ -183,7 +187,7 @@ func TestAdd_WithProjectPath(t *testing.T) {
 	s := NewStore(db)
 
 	projPath := "/home/user/myproject"
-	id, err := s.Add("project task", PrioMedium, nil, nil, &projPath)
+	id, err := s.Add("project task", PrioMedium, nil, nil, &projPath, ScheduleLater)
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
@@ -208,9 +212,9 @@ func TestList_ProjectFilter(t *testing.T) {
 	projA := "/projects/alpha"
 	projB := "/projects/beta"
 
-	s.Add("global task", PrioMedium, nil, nil, nil)
-	s.Add("alpha task", PrioMedium, nil, nil, &projA)
-	s.Add("beta task", PrioMedium, nil, nil, &projB)
+	s.Add("global task", PrioMedium, nil, nil, nil, ScheduleLater)
+	s.Add("alpha task", PrioMedium, nil, nil, &projA, ScheduleLater)
+	s.Add("beta task", PrioMedium, nil, nil, &projB, ScheduleLater)
 
 	t.Run("global_only", func(t *testing.T) {
 		// nil project path → global only
@@ -256,9 +260,9 @@ func TestCount_ProjectScoped(t *testing.T) {
 
 	projA := "/projects/alpha"
 
-	s.Add("global task", PrioMedium, nil, nil, nil)
-	s.Add("alpha task", PrioHigh, nil, nil, &projA)
-	s.Add("other project task", PrioLow, nil, nil, strPtr("/projects/other"))
+	s.Add("global task", PrioMedium, nil, nil, nil, ScheduleLater)
+	s.Add("alpha task", PrioHigh, nil, nil, &projA, ScheduleLater)
+	s.Add("other project task", PrioLow, nil, nil, strPtr("/projects/other"), ScheduleLater)
 
 	// Count nil → all todos
 	open, total, _, err := s.Count(nil)
@@ -291,9 +295,9 @@ func TestList_ShowDone_WithProject(t *testing.T) {
 	s := NewStore(db)
 
 	projA := "/projects/alpha"
-	id, _ := s.Add("alpha done", PrioMedium, nil, nil, &projA)
+	id, _ := s.Add("alpha done", PrioMedium, nil, nil, &projA, ScheduleLater)
 	s.Complete(id)
-	s.Add("alpha open", PrioMedium, nil, nil, &projA)
+	s.Add("alpha open", PrioMedium, nil, nil, &projA, ScheduleLater)
 
 	// Without ShowDone: only open
 	todos, _ := s.List(ListOptions{ProjectPath: &projA})
@@ -305,5 +309,171 @@ func TestList_ShowDone_WithProject(t *testing.T) {
 	todos, _ = s.List(ListOptions{ProjectPath: &projA, ShowDone: true})
 	if len(todos) != 2 {
 		t.Fatalf("expected 2 todos with ShowDone, got %d", len(todos))
+	}
+}
+
+// --- Schedule tests ---
+
+func TestParseSchedule(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    string
+		wantErr bool
+	}{
+		{"today", ScheduleToday, false},
+		{"t", ScheduleToday, false},
+		{"TODAY", ScheduleToday, false},
+		{"soon", ScheduleSoon, false},
+		{"s", ScheduleSoon, false},
+		{"later", ScheduleLater, false},
+		{"l", ScheduleLater, false},
+		{"someday", ScheduleSomeday, false},
+		{"sd", ScheduleSomeday, false},
+		{"SOMEDAY", ScheduleSomeday, false},
+		{"invalid", "", true},
+		{"", "", true},
+		{"mañana", "", true},
+	}
+
+	for _, tt := range tests {
+		got, err := ParseSchedule(tt.input)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("ParseSchedule(%q): expected error, got nil", tt.input)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("ParseSchedule(%q): unexpected error: %v", tt.input, err)
+			continue
+		}
+		if got != tt.want {
+			t.Errorf("ParseSchedule(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestSetSchedule(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id, err := s.Add("Test", PrioMedium, nil, nil, nil, ScheduleLater)
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	// Update to today
+	if err := s.SetSchedule(id, ScheduleToday); err != nil {
+		t.Fatalf("SetSchedule failed: %v", err)
+	}
+
+	got, err := s.Get(id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if got.Schedule != ScheduleToday {
+		t.Fatalf("expected schedule %q, got %q", ScheduleToday, got.Schedule)
+	}
+}
+
+func TestSetSchedule_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	err := s.SetSchedule(9999, ScheduleToday)
+	if err == nil {
+		t.Fatal("expected error for non-existent todo ID")
+	}
+}
+
+func TestList_ExcludesSomebodyByDefault(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	s.Add("later task", PrioMedium, nil, nil, nil, ScheduleLater)
+	s.Add("today task", PrioMedium, nil, nil, nil, ScheduleToday)
+	s.Add("someday task", PrioMedium, nil, nil, nil, ScheduleSomeday)
+
+	// Default (IncludeSomeday=false): someday excluded
+	todos, err := s.List(ListOptions{AllProjects: true})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	if len(todos) != 2 {
+		t.Fatalf("expected 2 todos (someday excluded), got %d", len(todos))
+	}
+	for _, td := range todos {
+		if td.Schedule == ScheduleSomeday {
+			t.Error("expected someday task to be excluded from default list")
+		}
+	}
+}
+
+func TestList_IncludeSomeday(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	s.Add("later task", PrioMedium, nil, nil, nil, ScheduleLater)
+	s.Add("someday task", PrioMedium, nil, nil, nil, ScheduleSomeday)
+
+	// With IncludeSomeday=true: all 2 todos
+	todos, err := s.List(ListOptions{AllProjects: true, IncludeSomeday: true})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	if len(todos) != 2 {
+		t.Fatalf("expected 2 todos with IncludeSomeday, got %d", len(todos))
+	}
+
+	found := false
+	for _, td := range todos {
+		if td.Schedule == ScheduleSomeday {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected someday task in list with IncludeSomeday=true")
+	}
+}
+
+func TestAdd_WithSchedule(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id, err := s.Add("urgent task", PrioHigh, nil, nil, nil, ScheduleToday)
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	got, err := s.Get(id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if got.Schedule != ScheduleToday {
+		t.Fatalf("expected schedule %q, got %q", ScheduleToday, got.Schedule)
+	}
+}
+
+func TestScheduleLabel(t *testing.T) {
+	tests := []struct {
+		schedule string
+		want     string
+	}{
+		{ScheduleToday, "today"},
+		{ScheduleSoon, "soon"},
+		{ScheduleLater, "later"},
+		{ScheduleSomeday, "someday"},
+		{"unknown", "later"},
+	}
+	for _, tt := range tests {
+		got := ScheduleLabel(tt.schedule)
+		if got != tt.want {
+			t.Errorf("ScheduleLabel(%q) = %q, want %q", tt.schedule, got, tt.want)
+		}
 	}
 }

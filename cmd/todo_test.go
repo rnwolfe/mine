@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -194,9 +195,9 @@ func TestRunTodoList_ShowDone(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	id, _ := ts.Add("done task", todo.PrioMedium, nil, nil, nil)
+	id, _ := ts.Add("done task", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
 	ts.Complete(id)
-	ts.Add("open task", todo.PrioMedium, nil, nil, nil)
+	ts.Add("open task", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
 	db.Close()
 
 	// --done=false: only open tasks
@@ -233,8 +234,8 @@ func TestRunTodoList_AllProjects(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("global task", todo.PrioMedium, nil, nil, nil)
-	ts.Add("project task", todo.PrioMedium, nil, nil, &projDir)
+	ts.Add("global task", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	ts.Add("project task", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater)
 	db.Close()
 
 	// Cwd outside any project.
@@ -282,9 +283,9 @@ func TestRunTodoList_ProjectFlag(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("global task", todo.PrioMedium, nil, nil, nil)
-	ts.Add("flagproj task", todo.PrioMedium, nil, nil, &projDir)
-	ts.Add("other task", todo.PrioMedium, nil, nil, func() *string { s := "/other/proj"; return &s }())
+	ts.Add("global task", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	ts.Add("flagproj task", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater)
+	ts.Add("other task", todo.PrioMedium, nil, nil, func() *string { s := "/other/proj"; return &s }(), todo.ScheduleLater)
 	db.Close()
 
 	// Cwd outside any project.
@@ -324,9 +325,9 @@ func TestRunTodoList_CwdResolution(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("global task", todo.PrioMedium, nil, nil, nil)
-	ts.Add("cwd project task", todo.PrioMedium, nil, nil, &projDir)
-	ts.Add("other project task", todo.PrioMedium, nil, nil, func() *string { s := "/other/proj"; return &s }())
+	ts.Add("global task", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	ts.Add("cwd project task", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater)
+	ts.Add("other project task", todo.PrioMedium, nil, nil, func() *string { s := "/other/proj"; return &s }(), todo.ScheduleLater)
 	db.Close()
 
 	// Change cwd into the registered project directory.
@@ -435,5 +436,281 @@ func TestResolveTodoProject_CwdOutsideProject(t *testing.T) {
 	}
 	if path != nil {
 		t.Fatalf("expected nil path when cwd is outside any project, got %q", *path)
+	}
+}
+
+// --- Schedule integration tests ---
+
+func TestRunTodoAdd_WithScheduleFlag(t *testing.T) {
+	todoTestEnv(t)
+	todoPriority = "med"
+	todoDue = ""
+	todoTags = ""
+	todoProjectName = ""
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	todoScheduleFlag = "today"
+	defer func() { todoScheduleFlag = "later" }()
+
+	err := runTodoAdd(nil, []string{"urgent task"})
+	if err != nil {
+		t.Fatalf("runTodoAdd: %v", err)
+	}
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+	todos, err := ts.List(todo.ListOptions{AllProjects: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(todos) != 1 {
+		t.Fatalf("expected 1 todo, got %d", len(todos))
+	}
+	if todos[0].Schedule != todo.ScheduleToday {
+		t.Fatalf("expected schedule %q, got %q", todo.ScheduleToday, todos[0].Schedule)
+	}
+}
+
+func TestRunTodoAdd_DefaultScheduleIsLater(t *testing.T) {
+	todoTestEnv(t)
+	todoPriority = "med"
+	todoDue = ""
+	todoTags = ""
+	todoProjectName = ""
+	todoScheduleFlag = "later"
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	err := runTodoAdd(nil, []string{"default schedule task"})
+	if err != nil {
+		t.Fatalf("runTodoAdd: %v", err)
+	}
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+	todos, err := ts.List(todo.ListOptions{AllProjects: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(todos) != 1 {
+		t.Fatalf("expected 1 todo, got %d", len(todos))
+	}
+	if todos[0].Schedule != todo.ScheduleLater {
+		t.Fatalf("expected schedule %q, got %q", todo.ScheduleLater, todos[0].Schedule)
+	}
+}
+
+func TestRunTodoAdd_InvalidSchedule_Error(t *testing.T) {
+	todoTestEnv(t)
+	todoPriority = "med"
+	todoDue = ""
+	todoTags = ""
+	todoProjectName = ""
+
+	todoScheduleFlag = "invalid"
+	defer func() { todoScheduleFlag = "later" }()
+
+	err := runTodoAdd(nil, []string{"task"})
+	if err == nil {
+		t.Fatal("expected error for invalid schedule")
+	}
+	if !strings.Contains(err.Error(), "invalid schedule") {
+		t.Errorf("expected 'invalid schedule' in error, got: %v", err)
+	}
+}
+
+func TestRunTodoSchedule_SetsSchedule(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	id, _ := ts.Add("test task", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	db.Close()
+
+	err = runTodoSchedule(nil, []string{strconv.Itoa(id), "today"})
+	if err != nil {
+		t.Fatalf("runTodoSchedule: %v", err)
+	}
+
+	db, err = store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ts = todo.NewStore(db.Conn())
+	got, err := ts.Get(id)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Schedule != todo.ScheduleToday {
+		t.Fatalf("expected schedule %q, got %q", todo.ScheduleToday, got.Schedule)
+	}
+}
+
+func TestRunTodoSchedule_ShortAlias(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	id, _ := ts.Add("alias task", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	db.Close()
+
+	// Use short alias "sd" for someday
+	err = runTodoSchedule(nil, []string{strconv.Itoa(id), "sd"})
+	if err != nil {
+		t.Fatalf("runTodoSchedule with alias: %v", err)
+	}
+
+	db, err = store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ts = todo.NewStore(db.Conn())
+	got, err := ts.Get(id)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Schedule != todo.ScheduleSomeday {
+		t.Fatalf("expected schedule %q, got %q", todo.ScheduleSomeday, got.Schedule)
+	}
+}
+
+func TestRunTodoSchedule_InvalidSchedule_Error(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	id, _ := ts.Add("task", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	db.Close()
+
+	err = runTodoSchedule(nil, []string{strconv.Itoa(id), "invalid"})
+	if err == nil {
+		t.Fatal("expected error for invalid schedule")
+	}
+	if !strings.Contains(err.Error(), "invalid schedule") {
+		t.Errorf("expected 'invalid schedule' in error, got: %v", err)
+	}
+}
+
+func TestRunTodoSchedule_InvalidID_Error(t *testing.T) {
+	todoTestEnv(t)
+
+	err := runTodoSchedule(nil, []string{"notanumber", "today"})
+	if err == nil {
+		t.Fatal("expected error for non-numeric ID")
+	}
+	if !strings.Contains(err.Error(), "not a valid todo ID") {
+		t.Errorf("expected 'not a valid todo ID' in error, got: %v", err)
+	}
+}
+
+func TestRunTodoList_ExcludesSomebayByDefault(t *testing.T) {
+	todoTestEnv(t)
+	todoShowDone = false
+	todoShowAll = true
+	todoProjectName = ""
+	todoIncludeSomeday = false
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	ts.Add("later task", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	ts.Add("someday task", todo.PrioMedium, nil, nil, nil, todo.ScheduleSomeday)
+	db.Close()
+
+	out := captureStdout(t, func() {
+		runTodoList(nil, nil)
+	})
+
+	if strings.Contains(out, "someday task") {
+		t.Error("expected someday task to be hidden in default list output")
+	}
+	if !strings.Contains(out, "later task") {
+		t.Error("expected later task in default list output")
+	}
+}
+
+func TestRunTodoList_SomedayFlagIncludesSomeday(t *testing.T) {
+	todoTestEnv(t)
+	todoShowDone = false
+	todoShowAll = true
+	todoProjectName = ""
+	todoIncludeSomeday = true
+	defer func() { todoIncludeSomeday = false }()
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	ts.Add("later task", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	ts.Add("someday task", todo.PrioMedium, nil, nil, nil, todo.ScheduleSomeday)
+	db.Close()
+
+	out := captureStdout(t, func() {
+		runTodoList(nil, nil)
+	})
+
+	if !strings.Contains(out, "someday task") {
+		t.Error("expected someday task in output with --someday flag")
+	}
+	if !strings.Contains(out, "later task") {
+		t.Error("expected later task in output with --someday flag")
 	}
 }

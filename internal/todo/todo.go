@@ -15,6 +15,14 @@ const (
 	PrioCrit   = 4
 )
 
+// Valid schedule bucket values.
+const (
+	ScheduleToday   = "today"
+	ScheduleSoon    = "soon"
+	ScheduleLater   = "later"
+	ScheduleSomeday = "someday"
+)
+
 // Todo represents a single task.
 type Todo struct {
 	ID          int
@@ -25,6 +33,7 @@ type Todo struct {
 	DueDate     *time.Time
 	Tags        []string
 	ProjectPath *string
+	Schedule    string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	CompletedAt *time.Time
@@ -34,6 +43,8 @@ type Todo struct {
 type ListOptions struct {
 	// ShowDone includes completed todos in the result.
 	ShowDone bool
+	// IncludeSomeday includes todos with schedule='someday' (hidden by default).
+	IncludeSomeday bool
 	// ProjectPath filters to a specific project plus global todos.
 	// nil means global-only (no project filter).
 	// Set AllProjects = true to ignore this field and return everything.
@@ -74,6 +85,39 @@ func PriorityIcon(p int) string {
 	}
 }
 
+// ParseSchedule validates and normalizes a schedule bucket string.
+// Accepts full names and short aliases: t=today, s=soon, l=later, sd=someday.
+func ParseSchedule(s string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "today", "t":
+		return ScheduleToday, nil
+	case "soon", "s":
+		return ScheduleSoon, nil
+	case "later", "l":
+		return ScheduleLater, nil
+	case "someday", "sd":
+		return ScheduleSomeday, nil
+	default:
+		return "", fmt.Errorf("invalid schedule %q — valid values: today (t), soon (s), later (l), someday (sd)", s)
+	}
+}
+
+// ScheduleLabel returns a short display label for a schedule bucket.
+func ScheduleLabel(schedule string) string {
+	switch schedule {
+	case ScheduleToday:
+		return "today"
+	case ScheduleSoon:
+		return "soon"
+	case ScheduleLater:
+		return "later"
+	case ScheduleSomeday:
+		return "someday"
+	default:
+		return "later"
+	}
+}
+
 // Store handles todo persistence.
 type Store struct {
 	db *sql.DB
@@ -85,17 +129,20 @@ func NewStore(db *sql.DB) *Store {
 }
 
 // Add creates a new todo and returns its ID.
-func (s *Store) Add(title string, priority int, tags []string, due *time.Time, projectPath *string) (int, error) {
+func (s *Store) Add(title string, priority int, tags []string, due *time.Time, projectPath *string, schedule string) (int, error) {
 	tagStr := strings.Join(tags, ",")
 	var dueStr *string
 	if due != nil {
 		d := due.Format("2006-01-02")
 		dueStr = &d
 	}
+	if schedule == "" {
+		schedule = ScheduleLater
+	}
 
 	res, err := s.db.Exec(
-		`INSERT INTO todos (title, priority, tags, due_date, project_path) VALUES (?, ?, ?, ?, ?)`,
-		title, priority, tagStr, dueStr, projectPath,
+		`INSERT INTO todos (title, priority, tags, due_date, project_path, schedule) VALUES (?, ?, ?, ?, ?, ?)`,
+		title, priority, tagStr, dueStr, projectPath, schedule,
 	)
 	if err != nil {
 		return 0, err
@@ -103,6 +150,22 @@ func (s *Store) Add(title string, priority int, tags []string, due *time.Time, p
 
 	id, _ := res.LastInsertId()
 	return int(id), nil
+}
+
+// SetSchedule updates the schedule bucket for a todo.
+func (s *Store) SetSchedule(id int, schedule string) error {
+	res, err := s.db.Exec(
+		`UPDATE todos SET schedule = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		schedule, id,
+	)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("todo #%d not found", id)
+	}
+	return nil
 }
 
 // Complete marks a todo as done.
@@ -145,13 +208,17 @@ func (s *Store) Delete(id int) error {
 
 // List returns todos matching the given options.
 func (s *Store) List(opts ListOptions) ([]Todo, error) {
-	query := `SELECT id, title, body, priority, done, due_date, tags, project_path, created_at, updated_at, completed_at FROM todos`
+	query := `SELECT id, title, body, priority, done, due_date, tags, project_path, schedule, created_at, updated_at, completed_at FROM todos`
 
 	var conditions []string
 	var args []any
 
 	if !opts.ShowDone {
 		conditions = append(conditions, "done = 0")
+	}
+
+	if !opts.IncludeSomeday {
+		conditions = append(conditions, "COALESCE(schedule, 'later') != 'someday'")
 	}
 
 	if !opts.AllProjects {
@@ -180,11 +247,11 @@ func (s *Store) List(opts ListOptions) ([]Todo, error) {
 	for rows.Next() {
 		var t Todo
 		var doneInt int
-		var dueStr, tagStr, projPath sql.NullString
+		var dueStr, tagStr, projPath, scheduleStr sql.NullString
 		var completedAt sql.NullTime
 		var createdStr, updatedStr string
 
-		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &createdStr, &updatedStr, &completedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &scheduleStr, &createdStr, &updatedStr, &completedAt); err != nil {
 			return nil, err
 		}
 
@@ -200,6 +267,11 @@ func (s *Store) List(opts ListOptions) ([]Todo, error) {
 		if projPath.Valid && projPath.String != "" {
 			s := projPath.String
 			t.ProjectPath = &s
+		}
+		if scheduleStr.Valid && scheduleStr.String != "" {
+			t.Schedule = scheduleStr.String
+		} else {
+			t.Schedule = ScheduleLater
 		}
 		if completedAt.Valid {
 			t.CompletedAt = &completedAt.Time
@@ -255,14 +327,14 @@ func (s *Store) Count(projectPath *string) (open int, total int, overdue int, er
 func (s *Store) Get(id int) (*Todo, error) {
 	var t Todo
 	var doneInt int
-	var dueStr, tagStr, projPath sql.NullString
+	var dueStr, tagStr, projPath, scheduleStr sql.NullString
 	var completedAt sql.NullTime
 	var createdStr, updatedStr string
 
 	err := s.db.QueryRow(
-		`SELECT id, title, body, priority, done, due_date, tags, project_path, created_at, updated_at, completed_at FROM todos WHERE id = ?`,
+		`SELECT id, title, body, priority, done, due_date, tags, project_path, schedule, created_at, updated_at, completed_at FROM todos WHERE id = ?`,
 		id,
-	).Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &createdStr, &updatedStr, &completedAt)
+	).Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &scheduleStr, &createdStr, &updatedStr, &completedAt)
 	if err != nil {
 		return nil, fmt.Errorf("todo #%d not found", id)
 	}
@@ -279,6 +351,11 @@ func (s *Store) Get(id int) (*Todo, error) {
 	if projPath.Valid && projPath.String != "" {
 		s := projPath.String
 		t.ProjectPath = &s
+	}
+	if scheduleStr.Valid && scheduleStr.String != "" {
+		t.Schedule = scheduleStr.String
+	} else {
+		t.Schedule = ScheduleLater
 	}
 	if completedAt.Valid {
 		t.CompletedAt = &completedAt.Time

@@ -14,9 +14,10 @@ import (
 
 // TodoAction represents an action taken in the todo TUI.
 type TodoAction struct {
-	Type        string // "toggle", "delete", "add", "quit"
+	Type        string // "toggle", "delete", "add", "schedule", "quit"
 	ID          int
 	Text        string
+	Schedule    string  // for "schedule" actions
 	ProjectPath *string // project context for "add" actions
 }
 
@@ -164,6 +165,25 @@ func (m *TodoModel) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case "s":
+		if len(m.filtered) > 0 {
+			t := m.filtered[m.cursor]
+			// Skip for locally-added todos that haven't been persisted yet.
+			if t.ID < 0 {
+				break
+			}
+			next := nextSchedule(t.Schedule)
+			// Update in-memory for immediate feedback.
+			for i, item := range m.todos {
+				if item.ID == t.ID {
+					m.todos[i].Schedule = next
+					break
+				}
+			}
+			m.applyFilter()
+			m.Actions = append(m.Actions, TodoAction{Type: "schedule", ID: t.ID, Schedule: next})
+		}
+
 	case "d":
 		if len(m.filtered) > 0 {
 			t := m.filtered[m.cursor]
@@ -273,6 +293,7 @@ func (m *TodoModel) handleAddKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				ID:        -len(m.Actions), // temp negative ID
 				Title:     text,
 				Priority:  todo.PrioMedium,
+				Schedule:  todo.ScheduleLater,
 				CreatedAt: now,
 				UpdatedAt: now,
 			})
@@ -394,7 +415,7 @@ func (m *TodoModel) View() string {
 	case todoModeAdd:
 		help = ui.Muted.Render("  enter save · esc cancel")
 	default:
-		help = ui.Muted.Render("  j/k move · x toggle · a add · d delete · / filter · esc clear filter · q quit")
+		help = ui.Muted.Render("  j/k move · x toggle · s schedule · a add · d delete · / filter · q quit")
 	}
 	b.WriteString(help + "\n")
 
@@ -421,6 +442,7 @@ func (m *TodoModel) renderTodoItem(t todo.Todo, selected bool, today time.Time) 
 		id = ui.Muted.Render("new ")
 	}
 	prio := todo.PriorityIcon(t.Priority)
+	schedTag := tuiScheduleTag(t.Schedule)
 	title := t.Title
 	if t.Done {
 		title = ui.Muted.Render(title)
@@ -428,7 +450,7 @@ func (m *TodoModel) renderTodoItem(t todo.Todo, selected bool, today time.Time) 
 		title = titleStyle.Render(title)
 	}
 
-	line := fmt.Sprintf("  %s %s %s %s %s", pointer, marker, id, prio, title)
+	line := fmt.Sprintf("  %s %s %s %s %s %s", pointer, marker, id, prio, schedTag, title)
 
 	// Due annotation
 	if t.DueDate != nil && !t.Done {
@@ -458,4 +480,34 @@ func (m *TodoModel) renderTodoItem(t todo.Todo, selected bool, today time.Time) 
 	}
 
 	return line
+}
+
+// tuiScheduleTag returns a compact styled schedule indicator for the TUI.
+func tuiScheduleTag(schedule string) string {
+	switch schedule {
+	case todo.ScheduleToday:
+		return lipgloss.NewStyle().Foreground(ui.Gold).Bold(true).Render("▸T")
+	case todo.ScheduleSoon:
+		return lipgloss.NewStyle().Foreground(ui.Amber).Render("▸S")
+	case todo.ScheduleSomeday:
+		return ui.Muted.Render("▸?")
+	default: // later
+		return ui.Muted.Render("▸·")
+	}
+}
+
+// nextSchedule cycles to the next schedule bucket: today → soon → later → someday → today.
+func nextSchedule(current string) string {
+	switch current {
+	case todo.ScheduleToday:
+		return todo.ScheduleSoon
+	case todo.ScheduleSoon:
+		return todo.ScheduleLater
+	case todo.ScheduleLater:
+		return todo.ScheduleSomeday
+	case todo.ScheduleSomeday:
+		return todo.ScheduleToday
+	default:
+		return todo.ScheduleSoon
+	}
 }

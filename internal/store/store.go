@@ -138,6 +138,7 @@ func (db *DB) migrate() error {
 	// See: https://www.sqlite.org/lang_altertable.html
 	alterMigrations := []string{
 		`ALTER TABLE todos ADD COLUMN project_path TEXT`,
+		`ALTER TABLE todos ADD COLUMN schedule TEXT DEFAULT 'later'`,
 	}
 	for _, m := range alterMigrations {
 		if _, err := db.conn.Exec(m); err != nil {

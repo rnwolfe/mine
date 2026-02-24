@@ -123,8 +123,9 @@ func computeStreak(db *sql.DB, projectPath *string, now time.Time) (current int,
 		return 0, 0, nil
 	}
 
-	today := now.Format("2006-01-02")
-	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
+	utcNow := now.UTC()
+	today := utcNow.Format("2006-01-02")
+	yesterday := utcNow.AddDate(0, 0, -1).Format("2006-01-02")
 
 	// Current streak: starting from the most recent completion date (which must
 	// be today or yesterday for the streak to be active).

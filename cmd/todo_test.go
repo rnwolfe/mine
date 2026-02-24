@@ -1331,7 +1331,7 @@ func TestRunTodoStats_ProjectFlag_Scoped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db.Conn().Exec(
+	_, execErr := db.Conn().Exec(
 		`INSERT INTO todos (title, priority, done, project_path, created_at, completed_at, updated_at)
 		 VALUES (?, 2, 1, ?, ?, ?, ?)`,
 		"proj done",
@@ -1341,6 +1341,9 @@ func TestRunTodoStats_ProjectFlag_Scoped(t *testing.T) {
 		now.UTC().Format("2006-01-02 15:04:05"),
 	)
 	db.Close()
+	if execErr != nil {
+		t.Fatalf("inserting project todo: %v", execErr)
+	}
 
 	out := captureStdout(t, func() {
 		runTodoStats(nil, nil)

@@ -117,6 +117,27 @@ mine todo show 5
 
 `mine todo show` renders a detail card with the task's schedule, priority, due date, project, tags, body, and all notes in chronological order. The notes section is omitted when there are none.
 
+## Completion Stats and Velocity
+
+See how your productivity trends over time with `mine todo stats`:
+
+```bash
+# View completion streak, weekly count, monthly count, avg close time
+mine todo stats
+
+# Scope stats to a specific project
+mine todo stats --project myapp
+```
+
+Output includes:
+- **Streak** — consecutive days with at least one completion (longest ever shown in parentheses)
+- **This week / This month** — completion counts with Monday-start weeks and calendar months
+- **Avg close** — average days from task creation to completion (completed tasks only)
+- **Focus time** — total accumulated focus time from linked `mine dig` sessions (when available)
+- **By project** — per-project breakdown with open count, completed count, and average close time
+
+When no completions exist, an encouraging prompt is shown rather than an error.
+
 ## Learn More
 
 See the [command reference](/commands/todo/) for all subcommands, flags, and detailed usage.

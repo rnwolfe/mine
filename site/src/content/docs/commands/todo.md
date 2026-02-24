@@ -269,6 +269,47 @@ mine todo done 3
 mine todo edit 2 "updated task name"
 ```
 
+## Completion Stats
+
+View completion velocity and streak metrics derived from your task history:
+
+```bash
+mine todo stats                   # all stats, all projects
+mine todo stats --project myapp   # stats scoped to a named project
+```
+
+Output:
+
+```
+  Task Stats
+
+  Streak        3 days 🔥 (longest: 12)
+  This week     8 completed
+  This month    23 completed
+  Avg close     2.3 days
+  Focus time    14h 30m
+
+  By project:
+    myapp          12 open   45 done  avg 1.8d
+    dotfiles        3 open   12 done  avg 0.5d
+    (global)        2 open    8 done  avg 4.1d
+```
+
+- **Streak** — consecutive calendar days with at least one completion. Still active if you haven't completed anything today but did yesterday.
+- **This week** — uses Monday-start ISO weeks.
+- **This month** — uses calendar month boundaries (1st of the month through now).
+- **Avg close** — average days from `created_at` to `completed_at`; computed only over completed tasks.
+- **Focus time** — total accumulated focus time from linked `mine dig` sessions. Omitted gracefully if no `dig` sessions exist.
+- **By project** — open/done/avg-close per project. `(global)` shows tasks with no project binding. Omitted when `--project` is set.
+
+When no completions exist, an encouraging "no completions yet" message is shown instead of an error.
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--project <name>` | Scope stats to a named project (errors if not found) |
+
 ## Error Table
 
 | Error | Cause | Fix |

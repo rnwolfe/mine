@@ -15,6 +15,7 @@ Stay on top of your work with a task system built for the terminal. `mine todo` 
 - **Tags** — organize tasks with comma-separated labels (`--tags "docs,v0.2"`)
 - **Project scoping** — tasks auto-bind to your current project based on cwd; global tasks work everywhere
 - **Cross-project view** — `--all` shows every task across all projects plus global
+- **Notes and annotations** — append timestamped notes to tasks with `mine todo note`; view full detail with `mine todo show`
 - **Interactive TUI** — full-screen fuzzy-search browser when running in a terminal; press `s` to cycle schedule
 - **Script-friendly** — plain text output when piped, so it works in shell scripts and CI
 
@@ -97,6 +98,24 @@ Someday tasks are intentionally hidden from `mine todo` to keep your daily view 
 When you run `mine todo` inside a registered project directory (one added via `mine proj add`), tasks are automatically scoped to that project. Running outside any project shows only global tasks (those not tied to any project).
 
 Use `--all` to see everything across all projects, or `--project <name>` to explicitly scope to a named project.
+
+## Notes and Annotations
+
+Capture context, failed approaches, and links directly on a task so you don't lose them.
+
+```bash
+# Add initial context when creating a task
+mine todo add "refactor auth" --note "see issue #42 — current impl is fragile"
+
+# Append a timestamped note to an existing task
+mine todo note 5 "tried approach X, failed — see PR #77"
+mine todo note 5 "pairing with Sarah tomorrow"
+
+# View full task detail including all notes
+mine todo show 5
+```
+
+`mine todo show` renders a detail card with the task's schedule, priority, due date, project, tags, body, and all notes in chronological order. The notes section is omitted when there are none.
 
 ## Learn More
 

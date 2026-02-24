@@ -157,6 +157,7 @@ func (db *DB) migrate() error {
 	alterMigrations := []string{
 		`ALTER TABLE todos ADD COLUMN project_path TEXT`,
 		`ALTER TABLE todos ADD COLUMN schedule TEXT DEFAULT 'later'`,
+		`ALTER TABLE todos ADD COLUMN recurrence TEXT DEFAULT 'none'`,
 	}
 	for _, m := range alterMigrations {
 		if _, err := db.conn.Exec(m); err != nil {

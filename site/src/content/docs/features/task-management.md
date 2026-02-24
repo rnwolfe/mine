@@ -13,10 +13,11 @@ Stay on top of your work with a task system built for the terminal. `mine todo` 
 - **Four priority levels** — low, med, high, and crit — with natural-language shortcuts (`-p h`, `-p !`)
 - **Due dates with shortcuts** — `tomorrow`, `next-week`, `next-month`, or explicit `YYYY-MM-DD`
 - **Tags** — organize tasks with comma-separated labels (`--tags "docs,v0.2"`)
+- **Recurring tasks** — `--every week` auto-spawns the next occurrence on completion; `mine todo recurring` lists all active definitions
 - **Project scoping** — tasks auto-bind to your current project based on cwd; global tasks work everywhere
 - **Cross-project view** — `--all` shows every task across all projects plus global
 - **Notes and annotations** — append timestamped notes to tasks with `mine todo note`; view full detail with `mine todo show`
-- **Interactive TUI** — full-screen fuzzy-search browser when running in a terminal; press `s` to cycle schedule
+- **Interactive TUI** — full-screen fuzzy-search browser when running in a terminal; press `s` to cycle schedule; recurring tasks show a `↻` indicator
 - **Script-friendly** — plain text output when piped, so it works in shell scripts and CI
 
 ## Quick Example
@@ -31,8 +32,16 @@ mine todo add "review PR" --schedule today
 # Park an aspirational idea in the someday bucket
 mine todo add "learn Rust" --schedule someday
 
+# Create a recurring task (auto-spawns next occurrence on completion)
+mine todo add "Review PRs" --every week
+mine todo add "Team standup prep" --every weekday
+mine todo add "Daily journal" --every day
+
 # Browse tasks sorted by urgency (someday hidden by default)
 mine todo
+
+# List all active recurring task definitions
+mine todo recurring
 
 # Answer "what should I work on right now?"
 mine todo next
@@ -49,7 +58,7 @@ mine todo schedule 5 today
 # Show tasks across all projects
 mine todo --all
 
-# Mark task #3 as done
+# Mark task #3 as done (recurring tasks auto-spawn the next occurrence)
 mine todo done 3
 ```
 
@@ -98,6 +107,50 @@ Someday tasks are intentionally hidden from `mine todo` to keep your daily view 
 When you run `mine todo` inside a registered project directory (one added via `mine proj add`), tasks are automatically scoped to that project. Running outside any project shows only global tasks (those not tied to any project).
 
 Use `--all` to see everything across all projects, or `--project <name>` to explicitly scope to a named project.
+
+## Recurring Tasks
+
+Create tasks that automatically spawn their next occurrence when you complete them.
+
+```bash
+# Create a recurring weekly task
+mine todo add "Review PRs" --every week
+
+# Other frequencies
+mine todo add "Team standup prep" --every weekday    # Mon–Fri only
+mine todo add "Daily journal" --every day            # every day
+mine todo add "Monthly retro" --every month          # same day, next month
+
+# Short aliases work too
+mine todo add "PR review" --every w   # week
+mine todo add "Daily check" --every d # day
+mine todo add "Weekday sync" --every wd
+mine todo add "Monthly plan" --every m
+
+# List all active recurring definitions
+mine todo recurring
+```
+
+When you run `mine todo done <id>` on a recurring task:
+1. The original task is marked complete.
+2. A new open task is spawned with the same title, priority, tags, project, and recurrence.
+3. The next occurrence is due based on the original task's due date (or today if none was set).
+4. The completion output shows the spawned task ID and its due date.
+
+Recurring tasks show a `↻` indicator in both the list view and the interactive TUI.
+
+### Recurrence Frequencies
+
+| Flag value | Aliases | Next occurrence |
+|------------|---------|-----------------|
+| `day` / `daily` | `d` | +1 day |
+| `weekday` | `wd` | +1 day, skip Saturday & Sunday |
+| `week` / `weekly` | `w` | +7 days |
+| `month` / `monthly` | `m` | +1 month same day, clamped to month end |
+
+### Project Removal
+
+When you remove a project with `mine proj rm`, any open tasks (including recurring ones) bound to that project are demoted to global scope. A warning is shown with the count of demoted tasks.
 
 ## Notes and Annotations
 

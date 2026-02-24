@@ -27,7 +27,7 @@ func insertCompletedAtTime(t *testing.T, s *Store, title string, createdAt, comp
 // insertOpenTodo inserts an open (not-done) todo.
 func insertOpenTodo(t *testing.T, s *Store, title string, projPath *string) int {
 	t.Helper()
-	id, err := s.Add(title, "", PrioMedium, nil, nil, projPath, ScheduleLater)
+	id, err := s.Add(title, "", PrioMedium, nil, nil, projPath, ScheduleLater, RecurrenceNone)
 	if err != nil {
 		t.Fatalf("insertOpenTodo: %v", err)
 	}

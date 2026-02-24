@@ -450,7 +450,11 @@ func (m *TodoModel) renderTodoItem(t todo.Todo, selected bool, today time.Time) 
 		title = titleStyle.Render(title)
 	}
 
-	line := fmt.Sprintf("  %s %s %s %s %s %s", pointer, marker, id, prio, schedTag, title)
+	recurTag := ""
+	if t.Recurrence != "" && t.Recurrence != todo.RecurrenceNone {
+		recurTag = " " + ui.Muted.Render("↻")
+	}
+	line := fmt.Sprintf("  %s %s %s %s %s %s%s", pointer, marker, id, prio, schedTag, title, recurTag)
 
 	// Due annotation
 	if t.DueDate != nil && !t.Done {

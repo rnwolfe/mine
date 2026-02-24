@@ -243,6 +243,22 @@ try to enable auto-merge. Fix: add an idempotency guard at the start of the fina
 race without requiring a per-PR concurrency group for schedule (which would require knowing
 the PR number before the job starts).
 
+### L-030: Changing a domain method's return signature requires updating all callers
+When `Store.Complete()` was changed from `error` to `(int, *time.Time, error)` to support
+recurring-task spawn info, every call site (`cmd/todo.go`, `cmd/dig.go`, the TUI toggle
+in `internal/tui/todo.go`) needed updating. The compiler catches this immediately, but
+test files across packages are also affected. Use a repo-wide search for the method name
+before landing the change, and update callers in the same commit. Pattern: `_, _, err :=
+ts.Complete(id)` when only the error matters.
+
+### L-031: Use raw SQL INSERT in tests to bypass domain side-effects
+When writing tests for "should not spawn" or "demote only open tasks" scenarios,
+calling the domain `Complete()` method is wrong because it triggers the spawn side-effect
+you're trying to exclude. Instead, insert a row directly via `db.Conn().Exec(INSERT …)`
+with `done=1`. This isolates the test from recurrence logic and keeps setup explicit.
+General rule: if a test's setup would accidentally trigger the behavior under test, use
+a lower-level insertion mechanism.
+
 ### L-029: CHANGES_REQUESTED review blocks merge even after comments addressed
 `claude-code-action` submits PR reviews with state `CHANGES_REQUESTED`. When the
 `claude-fix` agent subsequently commits fixes, it posts new `COMMENTED` reviews but does

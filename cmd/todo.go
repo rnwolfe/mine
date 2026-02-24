@@ -44,16 +44,17 @@ Keyboard shortcuts (interactive mode):
 }
 
 var (
-	todoPriority          string
-	todoDue               string
-	todoTags              string
-	todoShowDone          bool
-	todoShowAll           bool
-	todoProjectName       string
-	todoScheduleFlag      string
-	todoIncludeSomeday    bool
-	todoNoteFlag          string
-	todoStatsProjectFlag  string
+	todoPriority         string
+	todoDue              string
+	todoTags             string
+	todoShowDone         bool
+	todoShowAll          bool
+	todoProjectName      string
+	todoScheduleFlag     string
+	todoIncludeSomeday   bool
+	todoNoteFlag         string
+	todoStatsProjectFlag string
+	todoEveryFlag        string
 )
 
 func init() {
@@ -67,6 +68,7 @@ func init() {
 	todoCmd.AddCommand(todoNoteCmd)
 	todoCmd.AddCommand(todoShowCmd)
 	todoCmd.AddCommand(todoStatsCmd)
+	todoCmd.AddCommand(todoRecurringCmd)
 
 	// Flags on stats subcommand
 	todoStatsCmd.Flags().StringVar(&todoStatsProjectFlag, "project", "", "Scope stats to a named project")
@@ -84,6 +86,7 @@ func init() {
 	todoAddCmd.Flags().StringVar(&todoProjectName, "project", "", "Assign to a named project")
 	todoAddCmd.Flags().StringVar(&todoScheduleFlag, "schedule", "later", "Schedule bucket: today, soon, later, someday")
 	todoAddCmd.Flags().StringVar(&todoNoteFlag, "note", "", "Initial body/context for the task")
+	todoAddCmd.Flags().StringVar(&todoEveryFlag, "every", "", "Recurrence frequency: day (d), weekday (wd), week (w), month (m)")
 }
 
 var todoAddCmd = &cobra.Command{
@@ -159,6 +162,16 @@ Displays:
 
 Use --project to scope stats to a single named project.`,
 	RunE: hook.Wrap("todo.stats", runTodoStats),
+}
+
+var todoRecurringCmd = &cobra.Command{
+	Use:   "recurring",
+	Short: "List all active recurring task definitions",
+	Long: `List all open tasks that have a recurrence frequency set.
+
+Recurring tasks automatically spawn a new occurrence when completed.
+Frequencies: day, weekday, week, month.`,
+	RunE: hook.Wrap("todo.recurring", runTodoRecurring),
 }
 
 // resolveTodoProject resolves the project path for todo operations.
@@ -266,7 +279,7 @@ func runTodoTUI(ts *todo.Store, todos []todo.Todo, projectPath *string, showAll 
 					failedActions = append(failedActions, fmt.Sprintf("uncomplete #%d: %v", a.ID, err))
 				}
 			} else {
-				if err := ts.Complete(a.ID); err != nil {
+				if _, _, err := ts.Complete(a.ID); err != nil {
 					failedActions = append(failedActions, fmt.Sprintf("complete #%d: %v", a.ID, err))
 				}
 			}
@@ -276,7 +289,7 @@ func runTodoTUI(ts *todo.Store, todos []todo.Todo, projectPath *string, showAll 
 			}
 		case "add":
 			if strings.TrimSpace(a.Text) != "" {
-				if _, err := ts.Add(a.Text, "", todo.PrioMedium, nil, nil, a.ProjectPath, todo.ScheduleLater); err != nil {
+				if _, err := ts.Add(a.Text, "", todo.PrioMedium, nil, nil, a.ProjectPath, todo.ScheduleLater, todo.RecurrenceNone); err != nil {
 					failedActions = append(failedActions, fmt.Sprintf("add %q: %v", a.Text, err))
 				}
 			}
@@ -332,7 +345,11 @@ func printTodoList(todos []todo.Todo, ts *todo.Store, projectPath *string, showA
 		}
 
 		schedTag := renderScheduleTag(t.Schedule)
-		line := fmt.Sprintf("  %s %s %s %s %s", marker, id, prio, schedTag, title)
+		recurTag := ""
+		if t.Recurrence != "" && t.Recurrence != todo.RecurrenceNone {
+			recurTag = " " + ui.Muted.Render("↻")
+		}
+		line := fmt.Sprintf("  %s %s %s %s %s%s", marker, id, prio, schedTag, title, recurTag)
 
 		// Due date annotation
 		if t.DueDate != nil && !t.Done {
@@ -424,6 +441,14 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("%w\n  Use: %s", err, ui.Accent.Render("--schedule today|soon|later|someday"))
 	}
 
+	recurrence := todo.RecurrenceNone
+	if todoEveryFlag != "" {
+		recurrence, err = todo.ParseRecurrence(todoEveryFlag)
+		if err != nil {
+			return fmt.Errorf("%w\n  Use: %s", err, ui.Accent.Render("--every day|weekday|week|month"))
+		}
+	}
+
 	db, err := store.Open()
 	if err != nil {
 		return err
@@ -437,7 +462,7 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 	}
 
 	ts := todo.NewStore(db.Conn())
-	id, err := ts.Add(title, todoNoteFlag, prio, tags, due, projectPath, schedule)
+	id, err := ts.Add(title, todoNoteFlag, prio, tags, due, projectPath, schedule, recurrence)
 	if err != nil {
 		return err
 	}
@@ -458,6 +483,11 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 	if due != nil {
 		fmt.Printf("    Due: %s\n", ui.Muted.Render(due.Format("Mon, Jan 2")))
 	}
+
+	if recurrence != todo.RecurrenceNone {
+		fmt.Printf("    Recurrence: %s\n", ui.Muted.Render("↻ "+todo.RecurrenceLabel(recurrence)))
+	}
+
 	fmt.Println()
 
 	return nil
@@ -483,11 +513,24 @@ func runTodoDone(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := ts.Complete(id); err != nil {
+	spawnedID, spawnedDue, err := ts.Complete(id)
+	if err != nil {
 		return err
 	}
 
 	fmt.Printf("  %s Done! %s\n", ui.Success.Render("✓"), ui.Muted.Render(t.Title))
+
+	if spawnedID > 0 {
+		dueStr := "today"
+		if spawnedDue != nil {
+			dueStr = spawnedDue.Format("Mon, Jan 2")
+		}
+		fmt.Printf("  %s Next occurrence spawned: %s (due %s)\n",
+			ui.Muted.Render("↻"),
+			ui.Accent.Render(fmt.Sprintf("#%d", spawnedID)),
+			ui.Muted.Render(dueStr),
+		)
+	}
 
 	// Check remaining
 	open, _, _, _ := ts.Count(nil)
@@ -805,6 +848,51 @@ func printTodoStats(stats *todo.Stats, projectPath *string) {
 	}
 
 	ui.Puts("")
+}
+
+func runTodoRecurring(_ *cobra.Command, _ []string) error {
+	db, err := store.Open()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+	todos, err := ts.ListRecurring()
+	if err != nil {
+		return fmt.Errorf("listing recurring todos: %w", err)
+	}
+
+	if len(todos) == 0 {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  No recurring tasks yet."))
+		fmt.Printf("  Create one: %s\n", ui.Accent.Render(`mine todo add "Review PRs" --every week`))
+		fmt.Println()
+		return nil
+	}
+
+	fmt.Println()
+	for _, t := range todos {
+		id := ui.Muted.Render(fmt.Sprintf("#%-3d", t.ID))
+		prio := todo.PriorityIcon(t.Priority)
+		freq := ui.Muted.Render("↻ " + todo.RecurrenceLabel(t.Recurrence))
+
+		line := fmt.Sprintf("  %s %s %s  %s", id, prio, freq, t.Title)
+
+		if t.DueDate != nil {
+			line += ui.Muted.Render(fmt.Sprintf(" (next: %s)", t.DueDate.Format("Jan 2")))
+		}
+		if t.ProjectPath != nil {
+			projName := filepath.Base(*t.ProjectPath)
+			line += ui.Muted.Render(fmt.Sprintf(" @%s", projName))
+		}
+		fmt.Println(line)
+	}
+	fmt.Println()
+	fmt.Println(ui.Muted.Render(fmt.Sprintf("  %d recurring task(s)", len(todos))))
+	fmt.Println()
+
+	return nil
 }
 
 func parseDueDate(s string) *time.Time {

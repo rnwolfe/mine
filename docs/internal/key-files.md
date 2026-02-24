@@ -11,7 +11,8 @@
 | `internal/ui/theme.go` | Colors, icons, style constants |
 | `internal/store/store.go` | DB connection, migrations |
 | `internal/proj/proj.go` | Project domain logic — registry CRUD, scan, open state, settings |
-| `internal/todo/todo.go` | Todo domain logic + queries |
+| `internal/todo/todo.go` | Todo domain logic + queries (recurrence constants, ParseRecurrence, nextDueDate, DemoteProject) |
+| `internal/todo/recurrence_test.go` | Unit + integration tests for recurrence: ParseRecurrence, nextDueDate, spawn-on-complete, ListRecurring, DemoteProject |
 | `internal/config/config.go` | Config load/save, XDG paths |
 | `internal/hook/hook.go` | Hook types, Context, Handler interface |
 | `internal/hook/pipeline.go` | Hook pipeline (Wrap, stage execution, flag rewrites) |

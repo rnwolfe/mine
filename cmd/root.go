@@ -169,8 +169,17 @@ func runDashboard(_ *cobra.Command, _ []string) error {
 	}
 	defer db.Close()
 
+	ps := proj.NewStore(db.Conn())
+	currentProject, _ := ps.FindForCWD()
+
+	// Scope todo count to the current working directory's project when inside one.
+	var projPath *string
+	if currentProject != nil {
+		projPath = &currentProject.Path
+	}
+
 	ts := todo.NewStore(db.Conn())
-	open, total, overdue, err := ts.Count()
+	open, total, overdue, err := ts.Count(projPath)
 	if err != nil {
 		return fmt.Errorf("counting todos: %w", err)
 	}
@@ -184,9 +193,7 @@ func runDashboard(_ *cobra.Command, _ []string) error {
 	}
 	ui.Kv(ui.IconTodo+" Todos", todoSummary)
 
-	ps := proj.NewStore(db.Conn())
-	currentProject, err := ps.Current()
-	if err == nil && currentProject != nil {
+	if currentProject != nil {
 		projectSummary := currentProject.Name
 		if currentProject.Branch != "" {
 			projectSummary += fmt.Sprintf(" (%s)", currentProject.Branch)

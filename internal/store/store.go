@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/rnwolfe/mine/internal/config"
 	_ "modernc.org/sqlite"
@@ -129,5 +130,27 @@ func (db *DB) migrate() error {
 			return fmt.Errorf("migration failed: %w\nSQL: %s", err, m)
 		}
 	}
+
+	// ALTER TABLE migrations cannot use IF NOT EXISTS — handle idempotently.
+	// SQLite raises "duplicate column name: X" when a column already exists.
+	// The modernc.org/sqlite pure-Go driver preserves this exact error string
+	// (it mirrors the SQLite C library wording), so the string match is stable.
+	// See: https://www.sqlite.org/lang_altertable.html
+	alterMigrations := []string{
+		`ALTER TABLE todos ADD COLUMN project_path TEXT`,
+	}
+	for _, m := range alterMigrations {
+		if _, err := db.conn.Exec(m); err != nil {
+			if !strings.Contains(err.Error(), "duplicate column name") {
+				return fmt.Errorf("migration failed: %w\nSQL: %s", err, m)
+			}
+		}
+	}
+
+	// Indexes for new columns.
+	if _, err := db.conn.Exec(`CREATE INDEX IF NOT EXISTS idx_todos_project_path ON todos(project_path)`); err != nil {
+		return fmt.Errorf("migration failed: %w", err)
+	}
+
 	return nil
 }

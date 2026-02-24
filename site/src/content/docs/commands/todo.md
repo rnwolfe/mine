@@ -59,6 +59,8 @@ Tasks are automatically associated with the current project based on your workin
 - **`--project <name>`** — explicitly scope to any registered project; errors if not found
 - **`--all`** — show tasks across all projects and global (project name shown as `@name` annotation)
 
+> **Dashboard behavior**: `mine` (the dashboard) also uses cwd-based project resolution to show your todo count. This means the dashboard reflects the project containing your current directory, not the project explicitly opened via `mine proj open`. If you're outside any registered project, the dashboard shows global task counts.
+
 ```bash
 # Auto-scope from cwd (inside /projects/myapp which is registered)
 mine todo add "fix the bug"        # assigned to myapp project

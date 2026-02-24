@@ -132,6 +132,10 @@ func (db *DB) migrate() error {
 	}
 
 	// ALTER TABLE migrations cannot use IF NOT EXISTS — handle idempotently.
+	// SQLite raises "duplicate column name: X" when a column already exists.
+	// The modernc.org/sqlite pure-Go driver preserves this exact error string
+	// (it mirrors the SQLite C library wording), so the string match is stable.
+	// See: https://www.sqlite.org/lang_altertable.html
 	alterMigrations := []string{
 		`ALTER TABLE todos ADD COLUMN project_path TEXT`,
 	}

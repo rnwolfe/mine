@@ -18,6 +18,9 @@ import (
 
 var ErrProjectExists = errors.New("project already registered")
 
+// ErrProjectNotFound is returned by Get when the named project is not in the registry.
+var ErrProjectNotFound = errors.New("project not found")
+
 // Project is a registered project workspace.
 type Project struct {
 	Name         string
@@ -179,7 +182,7 @@ func (s *Store) Get(name string) (*Project, error) {
 	).Scan(&p.Name, &p.Path, &last)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("project %q not found", name)
+			return nil, fmt.Errorf("project %q: %w", name, ErrProjectNotFound)
 		}
 		return nil, fmt.Errorf("load project: %w", err)
 	}

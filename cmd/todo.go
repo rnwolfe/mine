@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -106,8 +107,11 @@ func resolveTodoProject(ps *proj.Store, projectName string) (*string, error) {
 	if projectName != "" {
 		p, err := ps.Get(projectName)
 		if err != nil {
-			return nil, fmt.Errorf("project %q not found in registry — use %s to list projects",
-				projectName, ui.Accent.Render("mine proj list"))
+			if errors.Is(err, proj.ErrProjectNotFound) {
+				return nil, fmt.Errorf("project %q not found in registry — use %s to list projects",
+					projectName, ui.Accent.Render("mine proj list"))
+			}
+			return nil, fmt.Errorf("looking up project %q: %w", projectName, err)
 		}
 		return &p.Path, nil
 	}

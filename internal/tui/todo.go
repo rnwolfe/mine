@@ -486,9 +486,9 @@ func (m *TodoModel) renderTodoItem(t todo.Todo, selected bool, today time.Time) 
 func tuiScheduleTag(schedule string) string {
 	switch schedule {
 	case todo.ScheduleToday:
-		return lipgloss.NewStyle().Foreground(ui.Gold).Bold(true).Render("▸T")
+		return ui.ScheduleTodayStyle.Render("▸T")
 	case todo.ScheduleSoon:
-		return lipgloss.NewStyle().Foreground(ui.Amber).Render("▸S")
+		return ui.ScheduleSoonStyle.Render("▸S")
 	case todo.ScheduleSomeday:
 		return ui.Muted.Render("▸?")
 	default: // later

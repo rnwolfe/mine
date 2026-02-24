@@ -14,7 +14,6 @@ import (
 	"github.com/rnwolfe/mine/internal/todo"
 	"github.com/rnwolfe/mine/internal/tui"
 	"github.com/rnwolfe/mine/internal/ui"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
@@ -314,15 +313,14 @@ func printTodoList(todos []todo.Todo, ts *todo.Store, projectPath *string, showA
 
 // renderScheduleTag returns a styled schedule indicator for list output.
 func renderScheduleTag(schedule string) string {
+	label := "[" + todo.ScheduleLabel(schedule) + "]"
 	switch schedule {
 	case todo.ScheduleToday:
-		return lipgloss.NewStyle().Foreground(ui.Gold).Bold(true).Render("[today]")
+		return ui.ScheduleTodayStyle.Render(label)
 	case todo.ScheduleSoon:
-		return lipgloss.NewStyle().Foreground(ui.Amber).Render("[soon]")
-	case todo.ScheduleSomeday:
-		return ui.Muted.Render("[sday]")
-	default: // later — muted and compact
-		return ui.Muted.Render("[latr]")
+		return ui.ScheduleSoonStyle.Render(label)
+	default: // later, someday — muted
+		return ui.Muted.Render(label)
 	}
 }
 
@@ -488,7 +486,7 @@ func runTodoSchedule(_ *cobra.Command, args []string) error {
 
 	ts := todo.NewStore(db.Conn())
 	if err := ts.SetSchedule(id, schedule); err != nil {
-		return err
+		return fmt.Errorf("scheduling todo #%d: %w", id, err)
 	}
 
 	schedLabel := renderScheduleTag(schedule)

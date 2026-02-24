@@ -154,6 +154,9 @@ func (s *Store) Add(title string, priority int, tags []string, due *time.Time, p
 
 // SetSchedule updates the schedule bucket for a todo.
 func (s *Store) SetSchedule(id int, schedule string) error {
+	if _, err := ParseSchedule(schedule); err != nil {
+		return err
+	}
 	res, err := s.db.Exec(
 		`UPDATE todos SET schedule = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
 		schedule, id,

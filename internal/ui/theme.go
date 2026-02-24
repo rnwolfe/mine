@@ -74,6 +74,14 @@ var (
 
 	ValueStyle = lipgloss.NewStyle().
 			Foreground(Bright)
+
+	// Schedule bucket styles — for todo schedule tag rendering.
+	ScheduleTodayStyle = lipgloss.NewStyle().
+				Foreground(Gold).
+				Bold(true)
+
+	ScheduleSoonStyle = lipgloss.NewStyle().
+				Foreground(Amber)
 )
 
 // Icon constants — consistent emoji language.

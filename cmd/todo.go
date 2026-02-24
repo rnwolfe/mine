@@ -52,6 +52,7 @@ var (
 	todoProjectName     string
 	todoScheduleFlag    string
 	todoIncludeSomeday  bool
+	todoNoteFlag        string
 )
 
 func init() {
@@ -62,6 +63,8 @@ func init() {
 	todoCmd.AddCommand(todoEditCmd)
 	todoCmd.AddCommand(todoScheduleCmd)
 	todoCmd.AddCommand(todoNextCmd)
+	todoCmd.AddCommand(todoNoteCmd)
+	todoCmd.AddCommand(todoShowCmd)
 
 	// Flags on the root todo command
 	todoCmd.Flags().BoolVar(&todoShowDone, "done", false, "Show completed todos too")
@@ -75,6 +78,7 @@ func init() {
 	todoAddCmd.Flags().StringVarP(&todoTags, "tags", "t", "", "Comma-separated tags")
 	todoAddCmd.Flags().StringVar(&todoProjectName, "project", "", "Assign to a named project")
 	todoAddCmd.Flags().StringVar(&todoScheduleFlag, "schedule", "later", "Schedule bucket: today, soon, later, someday")
+	todoAddCmd.Flags().StringVar(&todoNoteFlag, "note", "", "Initial body/context for the task")
 }
 
 var todoAddCmd = &cobra.Command{
@@ -120,6 +124,20 @@ var todoScheduleCmd = &cobra.Command{
 Someday tasks are hidden from the default list. Use 'mine todo --someday' to see them.`,
 	Args: cobra.ExactArgs(2),
 	RunE: hook.Wrap("todo.schedule", runTodoSchedule),
+}
+
+var todoNoteCmd = &cobra.Command{
+	Use:   "note <id> <text>",
+	Short: "Append a timestamped annotation to a task",
+	Args:  cobra.ExactArgs(2),
+	RunE:  hook.Wrap("todo.note", runTodoNote),
+}
+
+var todoShowCmd = &cobra.Command{
+	Use:   "show <id>",
+	Short: "Display full task detail including notes",
+	Args:  cobra.ExactArgs(1),
+	RunE:  hook.Wrap("todo.show", runTodoShow),
 }
 
 // resolveTodoProject resolves the project path for todo operations.
@@ -237,7 +255,7 @@ func runTodoTUI(ts *todo.Store, todos []todo.Todo, projectPath *string, showAll 
 			}
 		case "add":
 			if strings.TrimSpace(a.Text) != "" {
-				if _, err := ts.Add(a.Text, todo.PrioMedium, nil, nil, a.ProjectPath, todo.ScheduleLater); err != nil {
+				if _, err := ts.Add(a.Text, "", todo.PrioMedium, nil, nil, a.ProjectPath, todo.ScheduleLater); err != nil {
 					failedActions = append(failedActions, fmt.Sprintf("add %q: %v", a.Text, err))
 				}
 			}
@@ -376,7 +394,7 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 	}
 
 	ts := todo.NewStore(db.Conn())
-	id, err := ts.Add(title, prio, tags, due, projectPath, schedule)
+	id, err := ts.Add(title, todoNoteFlag, prio, tags, due, projectPath, schedule)
 	if err != nil {
 		return err
 	}
@@ -513,6 +531,128 @@ func runTodoSchedule(_ *cobra.Command, args []string) error {
 	fmt.Printf("  %s Scheduled #%d → %s\n", ui.Success.Render("✓"), id, schedLabel)
 	fmt.Println()
 	return nil
+}
+
+func runTodoNote(_ *cobra.Command, args []string) error {
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return fmt.Errorf("%q is not a valid todo ID — use %s to see IDs", args[0], ui.Accent.Render("mine todo"))
+	}
+	text := args[1]
+
+	db, err := store.Open()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+	if err := ts.AddNote(id, text); err != nil {
+		return err
+	}
+
+	fmt.Printf("  %s Note added to %s\n", ui.Success.Render("✓"), ui.Accent.Render(fmt.Sprintf("#%d", id)))
+	fmt.Println()
+	return nil
+}
+
+func runTodoShow(_ *cobra.Command, args []string) error {
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return fmt.Errorf("%q is not a valid todo ID — use %s to see IDs", args[0], ui.Accent.Render("mine todo"))
+	}
+
+	db, err := store.Open()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+	t, err := ts.GetWithNotes(id)
+	if err != nil {
+		return err
+	}
+
+	printTodoDetail(*t)
+	return nil
+}
+
+// printTodoDetail renders a full detail card for a single todo including body and notes.
+func printTodoDetail(t todo.Todo) {
+	now := time.Now()
+
+	fmt.Println()
+
+	// Header: ID, priority icon, title
+	idStr := ui.Muted.Render(fmt.Sprintf("#%d", t.ID))
+	prio := todo.PriorityIcon(t.Priority)
+	fmt.Printf("  %s %s  %s\n", idStr, prio, ui.Accent.Render(t.Title))
+
+	// Details row: schedule, priority label, due date
+	details := fmt.Sprintf("  Schedule: %s  Priority: %s",
+		todo.ScheduleLabel(t.Schedule),
+		todo.PriorityLabel(t.Priority),
+	)
+	if t.DueDate != nil {
+		details += fmt.Sprintf("  Due: %s", t.DueDate.Format("Jan 2"))
+	}
+	fmt.Println(ui.Muted.Render(details))
+
+	// Project and tags (if set)
+	if t.ProjectPath != nil || len(t.Tags) > 0 {
+		extra := "  "
+		if t.ProjectPath != nil {
+			extra += fmt.Sprintf("Project: %s  ", filepath.Base(*t.ProjectPath))
+		}
+		if len(t.Tags) > 0 {
+			extra += fmt.Sprintf("Tags: %s", strings.Join(t.Tags, ", "))
+		}
+		fmt.Println(ui.Muted.Render(extra))
+	}
+
+	// Timestamps
+	fmt.Println()
+	created := todoTimeAgo(t.CreatedAt, now)
+	updated := todoTimeAgo(t.UpdatedAt, now)
+	fmt.Printf("  %s\n", ui.Muted.Render(fmt.Sprintf("Created %s  Updated %s", created, updated)))
+
+	// Body (initial context from --note on add)
+	if t.Body != "" {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  Body:"))
+		fmt.Printf("    %s\n", t.Body)
+	}
+
+	// Notes from todo_notes
+	if len(t.Notes) > 0 {
+		fmt.Println()
+		fmt.Println(ui.Muted.Render("  Notes:"))
+		for _, n := range t.Notes {
+			ts := n.CreatedAt.Format("2006-01-02 15:04")
+			fmt.Printf("    %s  %s\n", ui.Muted.Render(ts), n.Body)
+		}
+	}
+
+	fmt.Println()
+}
+
+// todoTimeAgo returns a human-readable relative time string.
+func todoTimeAgo(t time.Time, now time.Time) string {
+	d := now.Sub(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		mins := int(d.Minutes())
+		return fmt.Sprintf("%d minute(s) ago", mins)
+	case d < 24*time.Hour:
+		hours := int(d.Hours())
+		return fmt.Sprintf("%d hour(s) ago", hours)
+	default:
+		days := int(d.Hours() / 24)
+		return fmt.Sprintf("%d day(s) ago", days)
+	}
 }
 
 func parsePriority(s string) int {

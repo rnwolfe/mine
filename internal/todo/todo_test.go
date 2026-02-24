@@ -15,6 +15,10 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 
+	if _, err = db.Exec(`PRAGMA foreign_keys=ON`); err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = db.Exec(`CREATE TABLE todos (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		title TEXT NOT NULL,
@@ -33,6 +37,16 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 
+	_, err = db.Exec(`CREATE TABLE todo_notes (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		todo_id INTEGER NOT NULL REFERENCES todos(id) ON DELETE CASCADE,
+		body TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	return db
 }
 
@@ -43,7 +57,7 @@ func TestAddAndList(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	id, err := s.Add("Test todo", PrioHigh, []string{"test"}, nil, nil, ScheduleLater)
+	id, err := s.Add("Test todo", "", PrioHigh, []string{"test"}, nil, nil, ScheduleLater)
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
@@ -74,7 +88,7 @@ func TestComplete(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	id, _ := s.Add("Complete me", PrioMedium, nil, nil, nil, ScheduleLater)
+	id, _ := s.Add("Complete me", "", PrioMedium, nil, nil, nil, ScheduleLater)
 	if err := s.Complete(id); err != nil {
 		t.Fatalf("Complete failed: %v", err)
 	}
@@ -100,7 +114,7 @@ func TestDelete(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	id, _ := s.Add("Delete me", PrioLow, nil, nil, nil, ScheduleLater)
+	id, _ := s.Add("Delete me", "", PrioLow, nil, nil, nil, ScheduleLater)
 	if err := s.Delete(id); err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
@@ -116,11 +130,11 @@ func TestCount(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	s.Add("One", PrioMedium, nil, nil, nil, ScheduleLater)
-	s.Add("Two", PrioHigh, nil, nil, nil, ScheduleLater)
+	s.Add("One", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	s.Add("Two", "", PrioHigh, nil, nil, nil, ScheduleLater)
 
 	yesterday := time.Now().AddDate(0, 0, -1)
-	s.Add("Overdue", PrioCrit, nil, &yesterday, nil, ScheduleLater)
+	s.Add("Overdue", "", PrioCrit, nil, &yesterday, nil, ScheduleLater)
 
 	open, total, overdue, err := s.Count(nil)
 	if err != nil {
@@ -142,7 +156,7 @@ func TestEdit(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	id, _ := s.Add("Original", PrioLow, nil, nil, nil, ScheduleLater)
+	id, _ := s.Add("Original", "", PrioLow, nil, nil, nil, ScheduleLater)
 
 	newTitle := "Edited"
 	newPrio := PrioHigh
@@ -187,7 +201,7 @@ func TestAdd_WithProjectPath(t *testing.T) {
 	s := NewStore(db)
 
 	projPath := "/home/user/myproject"
-	id, err := s.Add("project task", PrioMedium, nil, nil, &projPath, ScheduleLater)
+	id, err := s.Add("project task", "", PrioMedium, nil, nil, &projPath, ScheduleLater)
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
@@ -212,9 +226,9 @@ func TestList_ProjectFilter(t *testing.T) {
 	projA := "/projects/alpha"
 	projB := "/projects/beta"
 
-	s.Add("global task", PrioMedium, nil, nil, nil, ScheduleLater)
-	s.Add("alpha task", PrioMedium, nil, nil, &projA, ScheduleLater)
-	s.Add("beta task", PrioMedium, nil, nil, &projB, ScheduleLater)
+	s.Add("global task", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	s.Add("alpha task", "", PrioMedium, nil, nil, &projA, ScheduleLater)
+	s.Add("beta task", "", PrioMedium, nil, nil, &projB, ScheduleLater)
 
 	t.Run("global_only", func(t *testing.T) {
 		// nil project path → global only
@@ -260,9 +274,9 @@ func TestCount_ProjectScoped(t *testing.T) {
 
 	projA := "/projects/alpha"
 
-	s.Add("global task", PrioMedium, nil, nil, nil, ScheduleLater)
-	s.Add("alpha task", PrioHigh, nil, nil, &projA, ScheduleLater)
-	s.Add("other project task", PrioLow, nil, nil, strPtr("/projects/other"), ScheduleLater)
+	s.Add("global task", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	s.Add("alpha task", "", PrioHigh, nil, nil, &projA, ScheduleLater)
+	s.Add("other project task", "", PrioLow, nil, nil, strPtr("/projects/other"), ScheduleLater)
 
 	// Count nil → all todos
 	open, total, _, err := s.Count(nil)
@@ -295,9 +309,9 @@ func TestList_ShowDone_WithProject(t *testing.T) {
 	s := NewStore(db)
 
 	projA := "/projects/alpha"
-	id, _ := s.Add("alpha done", PrioMedium, nil, nil, &projA, ScheduleLater)
+	id, _ := s.Add("alpha done", "", PrioMedium, nil, nil, &projA, ScheduleLater)
 	s.Complete(id)
-	s.Add("alpha open", PrioMedium, nil, nil, &projA, ScheduleLater)
+	s.Add("alpha open", "", PrioMedium, nil, nil, &projA, ScheduleLater)
 
 	// Without ShowDone: only open
 	todos, _ := s.List(ListOptions{ProjectPath: &projA})
@@ -358,7 +372,7 @@ func TestSetSchedule(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	id, err := s.Add("Test", PrioMedium, nil, nil, nil, ScheduleLater)
+	id, err := s.Add("Test", "", PrioMedium, nil, nil, nil, ScheduleLater)
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
@@ -393,9 +407,9 @@ func TestList_ExcludesSomedayByDefault(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	s.Add("later task", PrioMedium, nil, nil, nil, ScheduleLater)
-	s.Add("today task", PrioMedium, nil, nil, nil, ScheduleToday)
-	s.Add("someday task", PrioMedium, nil, nil, nil, ScheduleSomeday)
+	s.Add("later task", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	s.Add("today task", "", PrioMedium, nil, nil, nil, ScheduleToday)
+	s.Add("someday task", "", PrioMedium, nil, nil, nil, ScheduleSomeday)
 
 	// Default (IncludeSomeday=false): someday excluded
 	todos, err := s.List(ListOptions{AllProjects: true})
@@ -417,8 +431,8 @@ func TestList_IncludeSomeday(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	s.Add("later task", PrioMedium, nil, nil, nil, ScheduleLater)
-	s.Add("someday task", PrioMedium, nil, nil, nil, ScheduleSomeday)
+	s.Add("later task", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	s.Add("someday task", "", PrioMedium, nil, nil, nil, ScheduleSomeday)
 
 	// With IncludeSomeday=true: all 2 todos
 	todos, err := s.List(ListOptions{AllProjects: true, IncludeSomeday: true})
@@ -445,7 +459,7 @@ func TestAdd_WithSchedule(t *testing.T) {
 	defer db.Close()
 	s := NewStore(db)
 
-	id, err := s.Add("urgent task", PrioHigh, nil, nil, nil, ScheduleToday)
+	id, err := s.Add("urgent task", "", PrioHigh, nil, nil, nil, ScheduleToday)
 	if err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
@@ -475,5 +489,130 @@ func TestScheduleLabel(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("ScheduleLabel(%q) = %q, want %q", tt.schedule, got, tt.want)
 		}
+	}
+}
+
+// --- Notes tests ---
+
+func TestAdd_WithBody(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id, err := s.Add("note task", "initial context here", PrioMedium, nil, nil, nil, ScheduleLater)
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	got, err := s.Get(id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if got.Body != "initial context here" {
+		t.Fatalf("expected body %q, got %q", "initial context here", got.Body)
+	}
+}
+
+func TestAddNote(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id, err := s.Add("annotated task", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	if err := s.AddNote(id, "first annotation"); err != nil {
+		t.Fatalf("AddNote failed: %v", err)
+	}
+	if err := s.AddNote(id, "second annotation"); err != nil {
+		t.Fatalf("AddNote second: %v", err)
+	}
+
+	got, err := s.GetWithNotes(id)
+	if err != nil {
+		t.Fatalf("GetWithNotes failed: %v", err)
+	}
+	if len(got.Notes) != 2 {
+		t.Fatalf("expected 2 notes, got %d", len(got.Notes))
+	}
+	if got.Notes[0].Body != "first annotation" {
+		t.Fatalf("expected first note %q, got %q", "first annotation", got.Notes[0].Body)
+	}
+	if got.Notes[1].Body != "second annotation" {
+		t.Fatalf("expected second note %q, got %q", "second annotation", got.Notes[1].Body)
+	}
+}
+
+func TestAddNote_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	err := s.AddNote(9999, "some text")
+	if err == nil {
+		t.Fatal("expected error for non-existent todo ID")
+	}
+	if err.Error() != "todo #9999 not found" {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestGetWithNotes_NoNotes(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id, err := s.Add("plain task", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	got, err := s.GetWithNotes(id)
+	if err != nil {
+		t.Fatalf("GetWithNotes failed: %v", err)
+	}
+	if len(got.Notes) != 0 {
+		t.Fatalf("expected 0 notes, got %d", len(got.Notes))
+	}
+}
+
+func TestGetWithNotes_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	_, err := s.GetWithNotes(9999)
+	if err == nil {
+		t.Fatal("expected error for non-existent todo ID")
+	}
+}
+
+func TestDelete_CascadesToNotes(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id, err := s.Add("todo with notes", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if err := s.AddNote(id, "a note"); err != nil {
+		t.Fatalf("AddNote failed: %v", err)
+	}
+
+	// Delete the todo — notes should cascade delete.
+	if err := s.Delete(id); err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+
+	// Verify notes are gone.
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM todo_notes WHERE todo_id = ?`, id).Scan(&count); err != nil {
+		t.Fatalf("query failed: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected notes to be cascade-deleted, got %d remaining", count)
 	}
 }

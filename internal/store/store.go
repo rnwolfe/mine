@@ -123,6 +123,14 @@ func (db *DB) migrate() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name)`,
 		`CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)`,
+		// Timestamped notes/annotations on todos
+		`CREATE TABLE IF NOT EXISTS todo_notes (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			todo_id INTEGER NOT NULL REFERENCES todos(id) ON DELETE CASCADE,
+			body TEXT NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_todo_notes_todo_id ON todo_notes(todo_id)`,
 	}
 
 	for _, m := range migrations {

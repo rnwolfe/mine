@@ -23,6 +23,13 @@ const (
 	ScheduleSomeday = "someday"
 )
 
+// Note represents a timestamped annotation on a todo.
+type Note struct {
+	ID        int
+	Body      string
+	CreatedAt time.Time
+}
+
 // Todo represents a single task.
 type Todo struct {
 	ID          int
@@ -37,6 +44,8 @@ type Todo struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	CompletedAt *time.Time
+	// Notes is populated only by GetWithNotes(), not List(), for performance.
+	Notes []Note
 }
 
 // SortMode controls the sort order returned by List.
@@ -154,7 +163,8 @@ func NewStore(db *sql.DB) *Store {
 }
 
 // Add creates a new todo and returns its ID.
-func (s *Store) Add(title string, priority int, tags []string, due *time.Time, projectPath *string, schedule string) (int, error) {
+// body sets the initial description/context for the todo (may be empty).
+func (s *Store) Add(title string, body string, priority int, tags []string, due *time.Time, projectPath *string, schedule string) (int, error) {
 	tagStr := strings.Join(tags, ",")
 	var dueStr *string
 	if due != nil {
@@ -166,8 +176,8 @@ func (s *Store) Add(title string, priority int, tags []string, due *time.Time, p
 	}
 
 	res, err := s.db.Exec(
-		`INSERT INTO todos (title, priority, tags, due_date, project_path, schedule) VALUES (?, ?, ?, ?, ?, ?)`,
-		title, priority, tagStr, dueStr, projectPath, schedule,
+		`INSERT INTO todos (title, body, priority, tags, due_date, project_path, schedule) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		title, body, priority, tagStr, dueStr, projectPath, schedule,
 	)
 	if err != nil {
 		return 0, err
@@ -436,4 +446,48 @@ func (s *Store) Edit(id int, title *string, priority *int) error {
 	query := fmt.Sprintf("UPDATE todos SET %s WHERE id = ?", strings.Join(sets, ", "))
 	_, err := s.db.Exec(query, args...)
 	return err
+}
+
+// AddNote appends a timestamped annotation to an existing todo.
+// Returns an error if the todo does not exist.
+func (s *Store) AddNote(todoID int, body string) error {
+	var exists int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM todos WHERE id = ?`, todoID).Scan(&exists); err != nil {
+		return err
+	}
+	if exists == 0 {
+		return fmt.Errorf("todo #%d not found", todoID)
+	}
+	_, err := s.db.Exec(`INSERT INTO todo_notes (todo_id, body) VALUES (?, ?)`, todoID, body)
+	return err
+}
+
+// GetWithNotes returns a todo by ID with all its timestamped notes populated,
+// ordered by created_at ASC. Notes are not populated by Get() or List().
+func (s *Store) GetWithNotes(id int) (*Todo, error) {
+	t, err := s.Get(id)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db.Query(
+		`SELECT id, body, created_at FROM todo_notes WHERE todo_id = ? ORDER BY created_at ASC`,
+		id,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var n Note
+		var createdStr string
+		if err := rows.Scan(&n.ID, &n.Body, &createdStr); err != nil {
+			return nil, err
+		}
+		n.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)
+		t.Notes = append(t.Notes, n)
+	}
+
+	return t, nil
 }

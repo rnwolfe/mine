@@ -84,6 +84,7 @@ mine todo add "write docs" -p low -d 2026-03-01 --tags "docs,v0.2"
 mine todo add "project task" --project myapp
 mine todo add "tackle now" --schedule today
 mine todo add "someday idea" --schedule someday
+mine todo add "refactor auth" --note "context: auth is a mess, see issue #42"
 ```
 
 ### Priorities
@@ -114,6 +115,16 @@ Schedule buckets represent *when you intend to work on* a task (not when it's du
 mine todo add "urgent fix" --schedule today
 mine todo add "maybe one day" --schedule sd
 ```
+
+### Initial Note (Body)
+
+Set an initial body/context when creating a task:
+
+```bash
+mine todo add "refactor auth" --note "context: current auth is a mess, see issue #42"
+```
+
+The body is shown in `mine todo show` output. Use it to capture why you're creating the task, links, or initial context.
 
 ## Schedule a Todo
 
@@ -181,6 +192,27 @@ Any unset field uses the default. This section is entirely optional.
 
 The urgency sort is also the default sort order for `mine todo` list output.
 
+## Add a Note to a Todo
+
+Append a timestamped annotation to an existing task:
+
+```bash
+mine todo note 5 "tried approach X, failed — see PR #42"
+mine todo note 5 "pairing with Sarah tomorrow on this"
+```
+
+Notes are stored with a timestamp and displayed chronologically in `mine todo show`. Use them to capture context, failed approaches, blockers, or links.
+
+## Show Full Task Detail
+
+Display a task's full detail card including body, all notes, and metadata:
+
+```bash
+mine todo show 5
+```
+
+Output includes: title, ID, priority, schedule, due date, project, tags, created/updated timestamps, body (if set), and all notes in chronological order. The notes section is omitted when there are no notes.
+
 ## Complete a Todo
 
 ```bash
@@ -242,5 +274,6 @@ mine todo edit 2 "updated task name"
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `project "x" not found in registry` | `--project` name doesn't match any registered project | Run `mine proj list` to see valid project names |
-| `"x" is not a valid todo ID` | Non-numeric ID passed to done/rm/edit/schedule | Use `mine todo` to see valid IDs |
+| `"x" is not a valid todo ID` | Non-numeric ID passed to done/rm/edit/schedule/note/show | Use `mine todo` to see valid IDs |
 | `invalid schedule "x"` | Unknown schedule bucket passed to `--schedule` or `schedule` subcommand | Use: `today` (t), `soon` (s), `later` (l), `someday` (sd) |
+| `todo #N not found` | Note or show command references a non-existent task ID | Use `mine todo` to see valid IDs |

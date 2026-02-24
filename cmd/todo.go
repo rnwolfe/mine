@@ -279,8 +279,19 @@ func runTodoTUI(ts *todo.Store, todos []todo.Todo, projectPath *string, showAll 
 					failedActions = append(failedActions, fmt.Sprintf("uncomplete #%d: %v", a.ID, err))
 				}
 			} else {
-				if _, _, err := ts.Complete(a.ID); err != nil {
+				spawnedID, spawnedDue, err := ts.Complete(a.ID)
+				if err != nil {
 					failedActions = append(failedActions, fmt.Sprintf("complete #%d: %v", a.ID, err))
+				} else if spawnedID > 0 {
+					dueStr := "today"
+					if spawnedDue != nil {
+						dueStr = spawnedDue.Format("Mon, Jan 2")
+					}
+					fmt.Printf("  %s Next occurrence spawned: %s (due %s)\n",
+						ui.Muted.Render("↻"),
+						ui.Accent.Render(fmt.Sprintf("#%d", spawnedID)),
+						ui.Muted.Render(dueStr),
+					)
 				}
 			}
 		case "delete":

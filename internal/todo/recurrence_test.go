@@ -296,6 +296,64 @@ func TestStoreComplete_Recurring_InheritsProject(t *testing.T) {
 	}
 }
 
+func TestStoreComplete_Recurring_SpawnsMultipleGenerations(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	// Start with a daily recurring task that has an initial due date.
+	initialDue := time.Date(2026, 2, 24, 0, 0, 0, 0, time.UTC)
+	id, err := s.Add("daily recurring chain", "", PrioMedium, nil, &initialDue, nil, ScheduleLater, RecurrenceDaily)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Complete the original task (A) to spawn the first successor (B).
+	spawnedID1, spawnedDue1, err := s.Complete(id)
+	if err != nil {
+		t.Fatalf("Complete first generation: %v", err)
+	}
+	if spawnedID1 == 0 {
+		t.Fatal("expected spawned recurring task after first completion")
+	}
+	if spawnedDue1 == nil {
+		t.Fatal("expected non-nil due date for first spawned recurring task")
+	}
+
+	spawned1, err := s.Get(spawnedID1)
+	if err != nil {
+		t.Fatalf("Get first spawned task: %v", err)
+	}
+	if spawned1.Recurrence != RecurrenceDaily {
+		t.Fatalf("first spawned recurrence: got %q, want %q", spawned1.Recurrence, RecurrenceDaily)
+	}
+
+	// Complete the first spawned task (B) to spawn the next successor (C).
+	spawnedID2, spawnedDue2, err := s.Complete(spawnedID1)
+	if err != nil {
+		t.Fatalf("Complete second generation: %v", err)
+	}
+	if spawnedID2 == 0 {
+		t.Fatal("expected spawned recurring task after second completion")
+	}
+	if spawnedDue2 == nil {
+		t.Fatal("expected non-nil due date for second spawned recurring task")
+	}
+
+	spawned2, err := s.Get(spawnedID2)
+	if err != nil {
+		t.Fatalf("Get second spawned task: %v", err)
+	}
+	if spawned2.Recurrence != RecurrenceDaily {
+		t.Fatalf("second spawned recurrence: got %q, want %q", spawned2.Recurrence, RecurrenceDaily)
+	}
+
+	// Ensure the due date is moving forward along the chain.
+	if !spawnedDue2.After(*spawnedDue1) {
+		t.Fatalf("second spawned due date should be after first: got %v, first %v", spawnedDue2, spawnedDue1)
+	}
+}
+
 func TestListRecurring_ReturnsOnlyRecurring(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

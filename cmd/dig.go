@@ -153,6 +153,7 @@ func pickProjectTask() (*todo.Todo, error) {
 }
 
 func runDigTUI(duration time.Duration, label string, todoID *int, taskTitle string) error {
+	sessionStart := time.Now()
 	result, err := tui.RunDig(duration, label, taskTitle)
 	if err != nil {
 		return err
@@ -161,13 +162,13 @@ func runDigTUI(duration time.Duration, label string, todoID *int, taskTitle stri
 	fmt.Println()
 	if result.Completed {
 		fmt.Printf("  %s %s of focused work. Nice.\n", ui.IconGem, ui.Accent.Render(label))
-		recordDigSession(duration, todoID, true)
+		recordDigSession(duration, todoID, true, sessionStart)
 		if todoID != nil {
 			maybeMarkTodoDone(*todoID, taskTitle)
 		}
 	} else if result.Canceled {
 		if result.Elapsed >= 5*time.Minute {
-			recordDigSession(result.Elapsed, todoID, false)
+			recordDigSession(result.Elapsed, todoID, false, sessionStart)
 			ui.Ok(fmt.Sprintf("Session ended early after %s. Still counts! Logged.", result.Elapsed))
 			if todoID != nil {
 				maybeMarkTodoDone(*todoID, taskTitle)
@@ -205,7 +206,7 @@ func runDigSimple(duration time.Duration, label string, todoID *int, taskTitle s
 			fmt.Println()
 			fmt.Printf("\n  %s Session ended early after %s\n", ui.IconMine, elapsed)
 			if elapsed >= 5*time.Minute {
-				recordDigSession(elapsed, todoID, false)
+				recordDigSession(elapsed, todoID, false, start)
 				ui.Ok(fmt.Sprintf("Still counts! %s logged.", elapsed))
 				if todoID != nil {
 					maybeMarkTodoDone(*todoID, taskTitle)
@@ -224,7 +225,7 @@ func runDigSimple(duration time.Duration, label string, todoID *int, taskTitle s
 				fmt.Println()
 				fmt.Println()
 				fmt.Printf("  %s %s of focused work. Nice.\n", ui.IconGem, ui.Accent.Render(label))
-				recordDigSession(duration, todoID, true)
+				recordDigSession(duration, todoID, true, start)
 				if todoID != nil {
 					maybeMarkTodoDone(*todoID, taskTitle)
 				}
@@ -295,7 +296,7 @@ func repeatChar(ch rune, n int) string {
 	return string(b)
 }
 
-func recordDigSession(duration time.Duration, todoID *int, completed bool) {
+func recordDigSession(duration time.Duration, todoID *int, completed bool, startedAt time.Time) {
 	db, err := store.Open()
 	if err != nil {
 		return
@@ -310,13 +311,14 @@ func recordDigSession(duration time.Duration, todoID *int, completed bool) {
 		comp = 1
 	}
 
-	// Insert into dig_sessions table.
+	// Insert into dig_sessions table. Failure is non-fatal: streak/KV updates
+	// are independent and should proceed even if the row insert fails.
 	if _, err := db.Conn().Exec(
-		`INSERT INTO dig_sessions (todo_id, duration_secs, completed, ended_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
-		todoID, secs, comp,
+		`INSERT INTO dig_sessions (todo_id, duration_secs, completed, started_at, ended_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+		todoID, secs, comp, startedAt.UTC().Format("2006-01-02 15:04:05"),
 	); err != nil {
 		fmt.Printf("  %s Warning: could not record session: %v\n", ui.IconMine, err)
-		return
+		// fall through — streak and KV updates are independent of session recording
 	}
 
 	// Update streak

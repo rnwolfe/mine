@@ -45,7 +45,7 @@ func TestRunDig_InvalidDuration(t *testing.T) {
 func TestRecordDigSession_UpdatesKV(t *testing.T) {
 	digTestEnv(t)
 
-	recordDigSession(25*time.Minute, nil, true)
+	recordDigSession(25*time.Minute, nil, true, time.Now().Add(-25*time.Minute))
 
 	db, err := store.Open()
 	if err != nil {
@@ -63,7 +63,7 @@ func TestRecordDigSession_UpdatesKV(t *testing.T) {
 func TestRecordDigSession_InsertsDigSession(t *testing.T) {
 	digTestEnv(t)
 
-	recordDigSession(30*time.Minute, nil, true)
+	recordDigSession(30*time.Minute, nil, true, time.Now().Add(-30*time.Minute))
 
 	db, err := store.Open()
 	if err != nil {
@@ -103,7 +103,7 @@ func TestRecordDigSession_WithTodoID(t *testing.T) {
 		t.Fatalf("Add: %v", err)
 	}
 
-	recordDigSession(25*time.Minute, &todoID, true)
+	recordDigSession(25*time.Minute, &todoID, true, time.Now().Add(-25*time.Minute))
 
 	db, err = store.Open()
 	if err != nil {
@@ -125,7 +125,7 @@ func TestRecordDigSession_EarlyCancel_MarkedNotCompleted(t *testing.T) {
 	digTestEnv(t)
 
 	// 10 minutes — counts (>= 5min), but not completed
-	recordDigSession(10*time.Minute, nil, false)
+	recordDigSession(10*time.Minute, nil, false, time.Now().Add(-10*time.Minute))
 
 	db, err := store.Open()
 	if err != nil {
@@ -175,10 +175,12 @@ func TestPrintTodoList_ShowsFocusTime(t *testing.T) {
 	}
 
 	// Insert a dig session linked to this todo.
-	db.Conn().Exec(
+	if _, err := db.Conn().Exec(
 		`INSERT INTO dig_sessions (todo_id, duration_secs, completed, ended_at) VALUES (?, ?, 1, CURRENT_TIMESTAMP)`,
 		todoID, 1500, // 25 minutes
-	)
+	); err != nil {
+		t.Fatalf("insert dig_session: %v", err)
+	}
 
 	todos, err := ts.List(todo.ListOptions{AllProjects: true})
 	if err != nil {

@@ -1,6 +1,7 @@
 package todo
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -62,23 +63,10 @@ func TestParseRecurrence_ErrorMessageContainsValidValues(t *testing.T) {
 	}
 	msg := err.Error()
 	for _, v := range []string{"day", "weekday", "week", "month"} {
-		if !contains(msg, v) {
+		if !strings.Contains(msg, v) {
 			t.Errorf("expected %q in error message, got: %s", v, msg)
 		}
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsStr(s, substr))
-}
-
-func containsStr(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 // --- nextDueDate ---
@@ -102,7 +90,7 @@ func TestNextDueDate_Weekday_SkipsSaturday(t *testing.T) {
 	}
 }
 
-func TestNextDueDate_Weekday_SkipsSunday(t *testing.T) {
+func TestNextDueDate_Weekday_FromSaturday(t *testing.T) {
 	// Saturday → skip Saturday, skip Sunday → Monday
 	base := time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC) // Saturday
 	got := nextDueDate(base, RecurrenceWeekday)

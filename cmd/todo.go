@@ -698,6 +698,9 @@ func printTodoDetail(t todo.Todo) {
 	if t.DueDate != nil {
 		details += fmt.Sprintf("  Due: %s", t.DueDate.Format("Jan 2"))
 	}
+	if t.Recurrence != "" && t.Recurrence != todo.RecurrenceNone {
+		details += fmt.Sprintf("  Recurrence: ↻ %s", todo.RecurrenceLabel(t.Recurrence))
+	}
 	fmt.Println(ui.Muted.Render(details))
 
 	// Project and tags (if set)

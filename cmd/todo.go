@@ -34,6 +34,7 @@ Keyboard shortcuts (interactive mode):
   x / space    Toggle done/undone
   a            Add new todo (type title, Enter to save)
   d            Delete selected todo
+  s            Cycle schedule bucket (today → soon → later → someday)
   /            Filter todos (fuzzy search)
   g / G        Jump to top / bottom
   Esc          Clear active filter (or no-op)
@@ -42,12 +43,14 @@ Keyboard shortcuts (interactive mode):
 }
 
 var (
-	todoPriority    string
-	todoDue         string
-	todoTags        string
-	todoShowDone    bool
-	todoShowAll     bool
-	todoProjectName string
+	todoPriority        string
+	todoDue             string
+	todoTags            string
+	todoShowDone        bool
+	todoShowAll         bool
+	todoProjectName     string
+	todoScheduleFlag    string
+	todoIncludeSomeday  bool
 )
 
 func init() {
@@ -56,17 +59,20 @@ func init() {
 	todoCmd.AddCommand(todoDoneCmd)
 	todoCmd.AddCommand(todoRmCmd)
 	todoCmd.AddCommand(todoEditCmd)
+	todoCmd.AddCommand(todoScheduleCmd)
 
 	// Flags on the root todo command
 	todoCmd.Flags().BoolVar(&todoShowDone, "done", false, "Show completed todos too")
 	todoCmd.Flags().BoolVarP(&todoShowAll, "all", "a", false, "Show todos across all projects")
 	todoCmd.Flags().StringVar(&todoProjectName, "project", "", "Scope to a named project")
+	todoCmd.Flags().BoolVar(&todoIncludeSomeday, "someday", false, "Include someday tasks in output")
 
 	// Flags on add subcommand
 	todoAddCmd.Flags().StringVarP(&todoPriority, "priority", "p", "med", "Priority: low, med, high, crit")
 	todoAddCmd.Flags().StringVarP(&todoDue, "due", "d", "", "Due date (YYYY-MM-DD, tomorrow, next-week)")
 	todoAddCmd.Flags().StringVarP(&todoTags, "tags", "t", "", "Comma-separated tags")
 	todoAddCmd.Flags().StringVar(&todoProjectName, "project", "", "Assign to a named project")
+	todoAddCmd.Flags().StringVar(&todoScheduleFlag, "schedule", "later", "Schedule bucket: today, soon, later, someday")
 }
 
 var todoAddCmd = &cobra.Command{
@@ -97,6 +103,21 @@ var todoEditCmd = &cobra.Command{
 	Short: "Rename a todo",
 	Args:  cobra.MinimumNArgs(2),
 	RunE:  hook.Wrap("todo.edit", runTodoEdit),
+}
+
+var todoScheduleCmd = &cobra.Command{
+	Use:   "schedule <id> <when>",
+	Short: "Set the scheduling intent for a todo",
+	Long: `Set the scheduling bucket for a todo. Buckets represent when you intend to work on it:
+
+  today    — tackle it today (alias: t)
+  soon     — coming up, within a few days (alias: s)
+  later    — on the radar, not urgent (alias: l)
+  someday  — aspirational, hidden from default view (alias: sd)
+
+Someday tasks are hidden from the default list. Use 'mine todo --someday' to see them.`,
+	Args: cobra.ExactArgs(2),
+	RunE: hook.Wrap("todo.schedule", runTodoSchedule),
 }
 
 // resolveTodoProject resolves the project path for todo operations.
@@ -137,8 +158,9 @@ func runTodoList(_ *cobra.Command, _ []string) error {
 	ps := proj.NewStore(db.Conn())
 
 	opts := todo.ListOptions{
-		ShowDone:    todoShowDone,
-		AllProjects: todoShowAll,
+		ShowDone:       todoShowDone,
+		AllProjects:    todoShowAll,
+		IncludeSomeday: todoIncludeSomeday,
 	}
 
 	var projectPath *string
@@ -195,9 +217,13 @@ func runTodoTUI(ts *todo.Store, todos []todo.Todo, projectPath *string, showAll 
 			}
 		case "add":
 			if strings.TrimSpace(a.Text) != "" {
-				if _, err := ts.Add(a.Text, todo.PrioMedium, nil, nil, a.ProjectPath); err != nil {
+				if _, err := ts.Add(a.Text, todo.PrioMedium, nil, nil, a.ProjectPath, todo.ScheduleLater); err != nil {
 					failedActions = append(failedActions, fmt.Sprintf("add %q: %v", a.Text, err))
 				}
+			}
+		case "schedule":
+			if err := ts.SetSchedule(a.ID, a.Schedule); err != nil {
+				failedActions = append(failedActions, fmt.Sprintf("schedule #%d: %v", a.ID, err))
 			}
 		}
 	}
@@ -239,7 +265,8 @@ func printTodoList(todos []todo.Todo, ts *todo.Store, projectPath *string, showA
 			title = ui.Muted.Render(title)
 		}
 
-		line := fmt.Sprintf("  %s %s %s %s", marker, id, prio, title)
+		schedTag := renderScheduleTag(t.Schedule)
+		line := fmt.Sprintf("  %s %s %s %s %s", marker, id, prio, schedTag, title)
 
 		// Due date annotation
 		if t.DueDate != nil && !t.Done {
@@ -284,6 +311,19 @@ func printTodoList(todos []todo.Todo, ts *todo.Store, projectPath *string, showA
 	return nil
 }
 
+// renderScheduleTag returns a styled schedule indicator for list output.
+func renderScheduleTag(schedule string) string {
+	label := "[" + todo.ScheduleLabel(schedule) + "]"
+	switch schedule {
+	case todo.ScheduleToday:
+		return ui.ScheduleTodayStyle.Render(label)
+	case todo.ScheduleSoon:
+		return ui.ScheduleSoonStyle.Render(label)
+	default: // later, someday — muted
+		return ui.Muted.Render(label)
+	}
+}
+
 func runTodoAdd(_ *cobra.Command, args []string) error {
 	title := strings.Join(args, " ")
 
@@ -296,6 +336,11 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 		for i := range tags {
 			tags[i] = strings.TrimSpace(tags[i])
 		}
+	}
+
+	schedule, err := todo.ParseSchedule(todoScheduleFlag)
+	if err != nil {
+		return fmt.Errorf("%w\n  Use: %s", err, ui.Accent.Render("--schedule today|soon|later|someday"))
 	}
 
 	db, err := store.Open()
@@ -311,7 +356,7 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 	}
 
 	ts := todo.NewStore(db.Conn())
-	id, err := ts.Add(title, prio, tags, due, projectPath)
+	id, err := ts.Add(title, prio, tags, due, projectPath, schedule)
 	if err != nil {
 		return err
 	}
@@ -323,6 +368,10 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 	if projectPath != nil {
 		projName := filepath.Base(*projectPath)
 		fmt.Printf("    Project: %s\n", ui.Muted.Render(projName))
+	}
+
+	if schedule != todo.ScheduleLater {
+		fmt.Printf("    Schedule: %s\n", renderScheduleTag(schedule))
 	}
 
 	if due != nil {
@@ -412,6 +461,36 @@ func runTodoEdit(_ *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("  %s Updated #%d → %s\n", ui.Success.Render("✓"), id, newTitle)
+	fmt.Println()
+	return nil
+}
+
+func runTodoSchedule(_ *cobra.Command, args []string) error {
+	id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return fmt.Errorf("%q is not a valid todo ID — use %s to see IDs", args[0], ui.Accent.Render("mine todo"))
+	}
+
+	schedule, err := todo.ParseSchedule(args[1])
+	if err != nil {
+		return fmt.Errorf("%w\n  Valid values: %s",
+			err,
+			ui.Accent.Render("today (t), soon (s), later (l), someday (sd)"))
+	}
+
+	db, err := store.Open()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+	if err := ts.SetSchedule(id, schedule); err != nil {
+		return fmt.Errorf("scheduling todo #%d: %w", id, err)
+	}
+
+	schedLabel := renderScheduleTag(schedule)
+	fmt.Printf("  %s Scheduled #%d → %s\n", ui.Success.Render("✓"), id, schedLabel)
 	fmt.Println()
 	return nil
 }

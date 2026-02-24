@@ -1199,3 +1199,161 @@ func TestRunTodoAdd_WithNoteFlag_SetsBody(t *testing.T) {
 		t.Fatalf("expected body %q, got %q", "context for this task", todos[0].Body)
 	}
 }
+
+// --- mine todo stats integration tests ---
+
+// statsInsertCompleted inserts a completed todo with controlled timestamps using raw SQL.
+func statsInsertCompleted(t *testing.T, title string, createdAt, completedAt time.Time) {
+	t.Helper()
+	db, err := store.Open()
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.Conn().Exec(
+		`INSERT INTO todos (title, priority, done, created_at, completed_at, updated_at)
+		 VALUES (?, 2, 1, ?, ?, ?)`,
+		title,
+		createdAt.UTC().Format("2006-01-02 15:04:05"),
+		completedAt.UTC().Format("2006-01-02 15:04:05"),
+		completedAt.UTC().Format("2006-01-02 15:04:05"),
+	)
+	if err != nil {
+		t.Fatalf("statsInsertCompleted: %v", err)
+	}
+}
+
+func TestRunTodoStats_NoCompletions(t *testing.T) {
+	todoTestEnv(t)
+	todoStatsProjectFlag = ""
+
+	out := captureStdout(t, func() {
+		runTodoStats(nil, nil)
+	})
+
+	if !strings.Contains(out, "No completions yet") {
+		t.Errorf("expected encouraging message when no completions, got:\n%s", out)
+	}
+}
+
+func TestRunTodoStats_WithCompletions(t *testing.T) {
+	todoTestEnv(t)
+	todoStatsProjectFlag = ""
+
+	now := time.Now()
+
+	// Insert a completion today.
+	statsInsertCompleted(t, "completed today", now.AddDate(0, 0, -1), now)
+
+	out := captureStdout(t, func() {
+		runTodoStats(nil, nil)
+	})
+
+	if !strings.Contains(out, "Task Stats") {
+		t.Errorf("expected 'Task Stats' header in output:\n%s", out)
+	}
+	if !strings.Contains(out, "Streak") {
+		t.Errorf("expected 'Streak' in output:\n%s", out)
+	}
+	if !strings.Contains(out, "This week") {
+		t.Errorf("expected 'This week' in output:\n%s", out)
+	}
+	if !strings.Contains(out, "This month") {
+		t.Errorf("expected 'This month' in output:\n%s", out)
+	}
+}
+
+func TestRunTodoStats_ByProjectBreakdown(t *testing.T) {
+	todoTestEnv(t)
+	todoStatsProjectFlag = ""
+
+	projDir := registerProject(t, "statsproj")
+
+	// Add todos to the project and as global.
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	ts.Add("global open", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	ts.Add("proj open", "", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater)
+	db.Close()
+
+	now := time.Now()
+	statsInsertCompleted(t, "completed global", now.AddDate(0, 0, -1), now)
+
+	out := captureStdout(t, func() {
+		runTodoStats(nil, nil)
+	})
+
+	if !strings.Contains(out, "By project") {
+		t.Errorf("expected 'By project' section in output:\n%s", out)
+	}
+	if !strings.Contains(out, "(global)") {
+		t.Errorf("expected '(global)' in project breakdown:\n%s", out)
+	}
+}
+
+func TestRunTodoStats_ProjectFlag_Scoped(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	projDir := registerProject(t, "scopedstats")
+
+	todoStatsProjectFlag = "scopedstats"
+	defer func() { todoStatsProjectFlag = "" }()
+
+	// Add one global completion and one project completion.
+	now := time.Now()
+	statsInsertCompleted(t, "global done", now.AddDate(0, 0, -1), now)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, execErr := db.Conn().Exec(
+		`INSERT INTO todos (title, priority, done, project_path, created_at, completed_at, updated_at)
+		 VALUES (?, 2, 1, ?, ?, ?, ?)`,
+		"proj done",
+		projDir,
+		now.AddDate(0, 0, -1).UTC().Format("2006-01-02 15:04:05"),
+		now.UTC().Format("2006-01-02 15:04:05"),
+		now.UTC().Format("2006-01-02 15:04:05"),
+	)
+	db.Close()
+	if execErr != nil {
+		t.Fatalf("inserting project todo: %v", execErr)
+	}
+
+	out := captureStdout(t, func() {
+		runTodoStats(nil, nil)
+	})
+
+	if !strings.Contains(out, "Task Stats") {
+		t.Errorf("expected 'Task Stats' in scoped output:\n%s", out)
+	}
+	// When scoped, "By project" breakdown should be omitted.
+	if strings.Contains(out, "By project") {
+		t.Errorf("expected 'By project' to be omitted when --project is set:\n%s", out)
+	}
+}
+
+func TestRunTodoStats_ProjectFlag_NotFound(t *testing.T) {
+	todoTestEnv(t)
+
+	todoStatsProjectFlag = "doesnotexist"
+	defer func() { todoStatsProjectFlag = "" }()
+
+	err := runTodoStats(nil, nil)
+	if err == nil {
+		t.Fatal("expected error for nonexistent project")
+	}
+	if !strings.Contains(err.Error(), "doesnotexist") {
+		t.Errorf("expected project name in error, got: %v", err)
+	}
+}

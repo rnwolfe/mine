@@ -1,12 +1,13 @@
 ---
 title: Task Management
-description: Fast task management with GTD-style scheduling buckets, priorities, due dates, tags, project scoping, and an interactive TUI
+description: Fast task management with urgency-sorted "what next?", GTD-style scheduling buckets, priorities, due dates, tags, project scoping, and an interactive TUI
 ---
 
-Stay on top of your work with a task system built for the terminal. `mine todo` gives you GTD-style scheduling buckets, priorities, due dates, tags, project binding, and an interactive fuzzy-search TUI — all stored locally in SQLite, no cloud account needed.
+Stay on top of your work with a task system built for the terminal. `mine todo` gives you GTD-style scheduling buckets, priorities, due dates, tags, project binding, urgency-ranked output, and an interactive fuzzy-search TUI — all stored locally in SQLite, no cloud account needed.
 
 ## Key Capabilities
 
+- **"What next?" urgency sort** — `mine todo next` answers the eternal question with a weighted score across overdue status, schedule, priority, age, and project context
 - **Scheduling buckets** — `today`, `soon`, `later`, `someday` separate *when you intend to work* from *when it's due*
 - **Someday parking lot** — someday tasks are hidden from default views; surface them with `--someday`
 - **Four priority levels** — low, med, high, and crit — with natural-language shortcuts (`-p h`, `-p !`)
@@ -29,8 +30,14 @@ mine todo add "review PR" --schedule today
 # Park an aspirational idea in the someday bucket
 mine todo add "learn Rust" --schedule someday
 
-# Browse tasks (someday hidden by default)
+# Browse tasks sorted by urgency (someday hidden by default)
 mine todo
+
+# Answer "what should I work on right now?"
+mine todo next
+
+# Show the top 3 most urgent tasks
+mine todo next 3
 
 # Show tasks including the someday bucket
 mine todo --someday
@@ -50,6 +57,27 @@ mine todo done 3
 Run `mine todo` in a terminal and you get a full-screen picker — scroll, filter, toggle tasks done. Press `a` to add, `/` to fuzzy-search, `s` to cycle the schedule bucket of the selected task. When you pipe the output (e.g., `mine todo | grep today`), it automatically switches to plain text.
 
 Tasks are stored in a local SQLite database. No sync, no accounts, no latency. Everything responds instantly.
+
+### Urgency Scoring ("What Next?")
+
+`mine todo next` computes a score for every open, non-someday task and surfaces the highest-scoring one:
+
+| Factor | Points |
+|--------|--------|
+| Overdue (past due date) | +100 |
+| Schedule: today | +50 |
+| Schedule: soon | +20 |
+| Schedule: later | +5 |
+| Priority: crit | +40 |
+| Priority: high | +30 |
+| Priority: med | +20 |
+| Priority: low | +10 |
+| Age (1/day, capped at 30) | up to +30 |
+| Current project match | +10 |
+
+Overdue tasks always rank above non-overdue tasks. Someday tasks are excluded entirely. The urgency sort is also the default sort order for the regular `mine todo` list view.
+
+Power users can tune the weights via `[todo.urgency]` in `~/.config/mine/config.toml`.
 
 ### Scheduling Buckets
 

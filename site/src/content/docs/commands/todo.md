@@ -131,6 +131,56 @@ Short aliases: `t`=today, `s`=soon, `l`=later, `sd`=someday
 
 Someday tasks are hidden from `mine todo` output by default. Use `mine todo --someday` to see them.
 
+## What's Next? (Urgency Sort)
+
+`mine todo next` surfaces the highest-urgency open task — the answer to "what should I work on?"
+
+```bash
+mine todo next        # show the single most urgent task
+mine todo next 3      # show the top 3 most urgent tasks
+```
+
+Urgency is scored based on:
+
+| Factor | Weight |
+|--------|--------|
+| Overdue | +100 |
+| Schedule: today | +50 |
+| Schedule: soon | +20 |
+| Schedule: later | +5 |
+| Priority: crit | +40 |
+| Priority: high | +30 |
+| Priority: med | +20 |
+| Priority: low | +10 |
+| Age (days, capped at 30) | +1/day |
+| Current project boost | +10 |
+
+- **Someday tasks are always excluded** from `next` results.
+- When no open tasks exist, a friendly "all clear" message is shown.
+- Output includes: title, priority, schedule, due date (if set), project, tags, age.
+
+### Configurable Weights
+
+Override defaults via `[todo.urgency]` in `~/.config/mine/config.toml`:
+
+```toml
+[todo.urgency]
+overdue = 100
+schedule_today = 50
+schedule_soon = 20
+schedule_later = 5
+priority_crit = 40
+priority_high = 30
+priority_med = 20
+priority_low = 10
+age_cap = 30
+project_boost = 10
+```
+
+Any unset field uses the default. This section is entirely optional.
+
+The urgency sort is also the default sort order for `mine todo` list output.
+
 ## Complete a Todo
 
 ```bash

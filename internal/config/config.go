@@ -13,6 +13,27 @@ type Config struct {
 	Shell     ShellConfig     `toml:"shell"`
 	AI        AIConfig        `toml:"ai"`
 	Analytics AnalyticsConfig `toml:"analytics"`
+	Todo      TodoConfig      `toml:"todo"`
+}
+
+// TodoConfig holds todo-related configuration.
+type TodoConfig struct {
+	Urgency UrgencyWeightsConfig `toml:"urgency"`
+}
+
+// UrgencyWeightsConfig holds optional overrides for urgency scoring weights.
+// Any field left nil uses the hardcoded default.
+type UrgencyWeightsConfig struct {
+	Overdue       *int `toml:"overdue,omitempty"`
+	ScheduleToday *int `toml:"schedule_today,omitempty"`
+	ScheduleSoon  *int `toml:"schedule_soon,omitempty"`
+	ScheduleLater *int `toml:"schedule_later,omitempty"`
+	PriorityCrit  *int `toml:"priority_crit,omitempty"`
+	PriorityHigh  *int `toml:"priority_high,omitempty"`
+	PriorityMed   *int `toml:"priority_med,omitempty"`
+	PriorityLow   *int `toml:"priority_low,omitempty"`
+	AgeCap        *int `toml:"age_cap,omitempty"`
+	ProjectBoost  *int `toml:"project_boost,omitempty"`
 }
 
 // AnalyticsConfig controls anonymous usage analytics.

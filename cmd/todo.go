@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/proj"
 	"github.com/rnwolfe/mine/internal/store"
@@ -60,6 +61,7 @@ func init() {
 	todoCmd.AddCommand(todoRmCmd)
 	todoCmd.AddCommand(todoEditCmd)
 	todoCmd.AddCommand(todoScheduleCmd)
+	todoCmd.AddCommand(todoNextCmd)
 
 	// Flags on the root todo command
 	todoCmd.Flags().BoolVar(&todoShowDone, "done", false, "Show completed todos too")
@@ -171,6 +173,24 @@ func runTodoList(_ *cobra.Command, _ []string) error {
 		}
 		opts.ProjectPath = projectPath
 	}
+
+	// Always resolve the cwd project for urgency scoring boost, independent of
+	// the --all flag. When --all is set, projectPath is nil (no filter) but we
+	// still want the current-project boost to apply for tasks in the active project.
+	cwdProject, err := resolveTodoProject(ps, "")
+	if err != nil {
+		return err
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+	now := time.Now()
+	opts.CurrentProjectPath = cwdProject
+	w := urgencyWeightsFromConfig(cfg)
+	opts.Weights = &w
+	opts.ReferenceTime = now
 
 	ts := todo.NewStore(db.Conn())
 	todos, err := ts.List(opts)

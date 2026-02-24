@@ -311,6 +311,145 @@ func TestList_MultipleSkills(t *testing.T) {
 	}
 }
 
+// ── parseFrontmatterDescription: edge cases ───────────────────────────────────
+
+func TestParseFrontmatterDescription_EmptyValue(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "SKILL.md")
+	// Bare "description:" with no value is a null scalar, not a block scalar.
+	// Subsequent lines should NOT be treated as multi-line description.
+	content := `---
+name: my-skill
+description:
+name2: should-not-be-description
+---
+
+## Instructions
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := parseFrontmatterDescription(path)
+	if got != "" {
+		t.Errorf("parseFrontmatterDescription() = %q, want empty string for bare 'description:'", got)
+	}
+}
+
+func TestParseFrontmatterDescription_LiteralBlockScalar(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "SKILL.md")
+	content := `---
+name: my-skill
+description: |
+  Literal block description.
+  Second line.
+---
+
+## Instructions
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := parseFrontmatterDescription(path)
+	want := "Literal block description. Second line."
+	if got != want {
+		t.Errorf("parseFrontmatterDescription() = %q, want %q", got, want)
+	}
+}
+
+// ── parseMarkdownDescription: frontmatter tracking ────────────────────────────
+
+func TestParseMarkdownDescription_SkipsFrontmatter(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "cmd.md")
+	// YAML frontmatter followed by real content — frontmatter keys must be skipped.
+	content := `---
+name: deploy
+---
+
+Deploy to production.
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := parseMarkdownDescription(path)
+	want := "Deploy to production."
+	if got != want {
+		t.Errorf("parseMarkdownDescription() = %q, want %q", got, want)
+	}
+}
+
+func TestParseMarkdownDescription_ThematicBreakAfterFrontmatter(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "cmd.md")
+	// A thematic break (---) inside the body must NOT re-enter frontmatter mode.
+	content := `---
+name: deploy
+---
+
+Deploy to production.
+
+---
+
+More content here.
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := parseMarkdownDescription(path)
+	want := "Deploy to production."
+	if got != want {
+		t.Errorf("parseMarkdownDescription() = %q, want %q", got, want)
+	}
+}
+
+// ── List: uninitialized store ─────────────────────────────────────────────────
+
+func TestList_UninitializedStore(t *testing.T) {
+	setupEnv(t) // sets XDG dirs but does NOT call Init()
+
+	result, err := List(ListOptions{})
+	if err != nil {
+		t.Fatalf("List() error on uninitialized store: %v", err)
+	}
+
+	// All slices should be nil/empty — no directories exist.
+	if len(result.Skills) != 0 {
+		t.Errorf("Skills = %d, want 0", len(result.Skills))
+	}
+	if len(result.Commands) != 0 {
+		t.Errorf("Commands = %d, want 0", len(result.Commands))
+	}
+	if len(result.Agents) != 0 {
+		t.Errorf("Agents = %d, want 0", len(result.Agents))
+	}
+	if len(result.Rules) != 0 {
+		t.Errorf("Rules = %d, want 0", len(result.Rules))
+	}
+	if len(result.Instructions) != 0 {
+		t.Errorf("Instructions = %d, want 0", len(result.Instructions))
+	}
+	if len(result.Settings) != 0 {
+		t.Errorf("Settings = %d, want 0", len(result.Settings))
+	}
+}
+
+func TestList_UnknownTypeReturnsError(t *testing.T) {
+	setupEnv(t)
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := List(ListOptions{Type: "bogus"})
+	if err == nil {
+		t.Error("List() with unknown type = nil, want error")
+	}
+}
+
 // ── Integration: add skill → list → verify ────────────────────────────────────
 
 func TestIntegration_AddSkillThenList(t *testing.T) {

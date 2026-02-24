@@ -2,6 +2,7 @@ package agents
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,16 @@ type ListResult struct {
 	Settings     []ContentItem
 }
 
+// validTypes is the set of accepted Type values for ListOptions.
+var validTypes = map[string]bool{
+	"skills":       true,
+	"commands":     true,
+	"agents":       true,
+	"rules":        true,
+	"instructions": true,
+	"settings":     true,
+}
+
 // ListOptions controls List behavior.
 type ListOptions struct {
 	// Type filters to a single content type. Valid values:
@@ -34,11 +45,15 @@ type ListOptions struct {
 
 // List reads the agents store and returns a categorized inventory of content.
 // If opts.Type is set, only that category is populated; all others are nil.
+// Returns an error if opts.Type is set to an unknown value.
 func List(opts ListOptions) (*ListResult, error) {
 	dir := Dir()
 	result := &ListResult{}
 
 	t := strings.ToLower(strings.TrimSpace(opts.Type))
+	if t != "" && !validTypes[t] {
+		return nil, fmt.Errorf("unknown type %q — valid types: skills, commands, agents, rules, instructions, settings", opts.Type)
+	}
 
 	if t == "" || t == "skills" {
 		items, err := listSkills(dir)
@@ -51,7 +66,7 @@ func List(opts ListOptions) (*ListResult, error) {
 	if t == "" || t == "commands" {
 		items, err := listMarkdownFiles(filepath.Join(dir, "commands"))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("listing commands: %w", err)
 		}
 		result.Commands = items
 	}
@@ -59,7 +74,7 @@ func List(opts ListOptions) (*ListResult, error) {
 	if t == "" || t == "agents" {
 		items, err := listMarkdownFiles(filepath.Join(dir, "agents"))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("listing agents: %w", err)
 		}
 		result.Agents = items
 	}
@@ -67,7 +82,7 @@ func List(opts ListOptions) (*ListResult, error) {
 	if t == "" || t == "rules" {
 		items, err := listMarkdownFiles(filepath.Join(dir, "rules"))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("listing rules: %w", err)
 		}
 		result.Rules = items
 	}
@@ -75,7 +90,7 @@ func List(opts ListOptions) (*ListResult, error) {
 	if t == "" || t == "instructions" {
 		items, err := listMarkdownFiles(filepath.Join(dir, "instructions"))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("listing instructions: %w", err)
 		}
 		result.Instructions = items
 	}
@@ -83,7 +98,7 @@ func List(opts ListOptions) (*ListResult, error) {
 	if t == "" || t == "settings" {
 		items, err := listSettings(filepath.Join(dir, "settings"))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("listing settings: %w", err)
 		}
 		result.Settings = items
 	}
@@ -173,11 +188,11 @@ func listSettings(dir string) ([]ContentItem, error) {
 			continue
 		}
 		path := filepath.Join(dir, name)
-		// Derive a human description from the filename.
-		agentName := strings.TrimSuffix(name, ".json")
-		desc := agentName + " agent settings"
+		// Strip .json extension for display name (consistent with listMarkdownFiles).
+		displayName := strings.TrimSuffix(name, ".json")
+		desc := displayName + " agent settings"
 		items = append(items, ContentItem{
-			Name:        name,
+			Name:        displayName,
 			Description: desc,
 			Path:        path,
 		})
@@ -254,8 +269,8 @@ func parseFrontmatterDescription(path string) string {
 		}
 
 		if value == "" {
-			collectingDesc = true
-			continue
+			// Bare "description:" with no value is a null scalar, not a block scalar.
+			return ""
 		}
 
 		// Single-line value.
@@ -281,11 +296,17 @@ func parseMarkdownDescription(path string) string {
 
 	scanner := bufio.NewScanner(f)
 	inFrontmatter := false
+	frontmatterDone := false
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		// Track YAML frontmatter delimiters.
-		if line == "---" {
+		// Once the closing --- is seen, stop toggling to avoid treating
+		// thematic breaks in the body as frontmatter.
+		if line == "---" && !frontmatterDone {
 			inFrontmatter = !inFrontmatter
+			if !inFrontmatter {
+				frontmatterDone = true
+			}
 			continue
 		}
 		if inFrontmatter {

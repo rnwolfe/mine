@@ -34,8 +34,8 @@ type AddRuleResult struct {
 
 // ValidateName returns an error if name is not a valid content name.
 // Valid names are 1-64 chars, start with a lowercase letter, and contain
-// only lowercase letters, digits, and hyphens (no leading/trailing hyphens,
-// no consecutive hyphens are not enforced — only the regex above applies).
+// only lowercase letters, digits, and hyphens (no leading/trailing hyphens;
+// consecutive hyphens are not prohibited — only the regex above applies).
 func ValidateName(name string) error {
 	if name == "" {
 		return fmt.Errorf("name is required")
@@ -180,9 +180,13 @@ func AddRule(name string) (*AddRuleResult, error) {
 }
 
 // checkNotExists returns an error if path already exists.
+// It also propagates unexpected errors (e.g. permission denied, I/O error)
+// so callers are not misled into thinking a path is safe to create.
 func checkNotExists(path string) error {
 	if _, err := os.Lstat(path); err == nil {
 		return fmt.Errorf("already exists")
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("checking path: %w", err)
 	}
 	return nil
 }

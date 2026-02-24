@@ -24,16 +24,6 @@ Use --type to filter to a specific content type.`,
 	RunE: hook.Wrap("agents.list", runAgentsList),
 }
 
-// validListTypes is the set of accepted --type values.
-var validListTypes = map[string]bool{
-	"skills":       true,
-	"commands":     true,
-	"agents":       true,
-	"rules":        true,
-	"instructions": true,
-	"settings":     true,
-}
-
 func runAgentsList(_ *cobra.Command, _ []string) error {
 	if !agents.IsInitialized() {
 		fmt.Println()
@@ -44,9 +34,6 @@ func runAgentsList(_ *cobra.Command, _ []string) error {
 	}
 
 	t := strings.ToLower(strings.TrimSpace(agentsListType))
-	if t != "" && !validListTypes[t] {
-		return fmt.Errorf("unknown type %q — valid types: skills, commands, agents, rules, instructions, settings", agentsListType)
-	}
 
 	result, err := agents.List(agents.ListOptions{Type: t})
 	if err != nil {

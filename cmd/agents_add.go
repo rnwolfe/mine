@@ -11,7 +11,7 @@ import (
 )
 
 var agentsAddCmd = &cobra.Command{
-	Use:   "add <type> <name>",
+	Use:   "add",
 	Short: "Scaffold new content in the canonical agents store",
 	Long: `Scaffold new content in the canonical agents store.
 
@@ -109,7 +109,10 @@ func runAgentsAddSkill(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("adding skill: %w", err)
 	}
 
-	rel, _ := filepath.Rel(agents.Dir(), result.Dir)
+	rel, err := filepath.Rel(agents.Dir(), result.Dir)
+	if err != nil {
+		rel = result.Dir
+	}
 
 	fmt.Println()
 	ui.Ok(fmt.Sprintf("Skill %s created", ui.Accent.Render(name)))
@@ -136,7 +139,10 @@ func runAgentsAddCommand(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("adding command: %w", err)
 	}
 
-	rel, _ := filepath.Rel(agents.Dir(), result.File)
+	rel, err := filepath.Rel(agents.Dir(), result.File)
+	if err != nil {
+		rel = result.File
+	}
 
 	fmt.Println()
 	ui.Ok(fmt.Sprintf("Command %s created", ui.Accent.Render(name)))
@@ -163,7 +169,10 @@ func runAgentsAddAgent(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("adding agent: %w", err)
 	}
 
-	rel, _ := filepath.Rel(agents.Dir(), result.File)
+	rel, err := filepath.Rel(agents.Dir(), result.File)
+	if err != nil {
+		rel = result.File
+	}
 
 	fmt.Println()
 	ui.Ok(fmt.Sprintf("Agent %s created", ui.Accent.Render(name)))
@@ -190,7 +199,10 @@ func runAgentsAddRule(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("adding rule: %w", err)
 	}
 
-	rel, _ := filepath.Rel(agents.Dir(), result.File)
+	rel, err := filepath.Rel(agents.Dir(), result.File)
+	if err != nil {
+		rel = result.File
+	}
 
 	fmt.Println()
 	ui.Ok(fmt.Sprintf("Rule %s created", ui.Accent.Render(name)))

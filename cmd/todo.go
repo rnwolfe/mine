@@ -752,13 +752,13 @@ func runTodoStats(_ *cobra.Command, _ []string) error {
 }
 
 func printTodoStats(stats *todo.Stats, projectPath *string) {
-	fmt.Println()
-	fmt.Println(ui.Title.Render("  Task Stats"))
-	fmt.Println()
+	ui.Puts("")
+	ui.Puts(ui.Title.Render("  Task Stats"))
+	ui.Puts("")
 
 	if stats.CompletedMonth == 0 && stats.CompletedWeek == 0 && stats.Streak == 0 {
-		fmt.Println(ui.Muted.Render("  No completions yet. Knock one out: ") + ui.Accent.Render("mine todo done <id>"))
-		fmt.Println()
+		ui.Puts(ui.Muted.Render("  No completions yet. Knock one out: ") + ui.Accent.Render("mine todo done <id>"))
+		ui.Puts("")
 		return
 	}
 
@@ -791,20 +791,20 @@ func printTodoStats(stats *todo.Stats, projectPath *string) {
 
 	// Per-project breakdown only when not scoped to a single project.
 	if projectPath == nil && len(stats.ByProject) > 0 {
-		fmt.Println()
-		fmt.Println(ui.Muted.Render("  By project:"))
+		ui.Puts("")
+		ui.Puts(ui.Muted.Render("  By project:"))
 		for _, p := range stats.ByProject {
 			avgStr := ""
 			if p.AvgClose > 0 {
 				days := p.AvgClose.Hours() / 24
 				avgStr = fmt.Sprintf("  avg %.1fd", days)
 			}
-			fmt.Printf("    %-14s %3d open  %3d done%s\n",
+			ui.Putsf("    %-14s %3d open  %3d done%s",
 				p.Name, p.Open, p.Completed, avgStr)
 		}
 	}
 
-	fmt.Println()
+	ui.Puts("")
 }
 
 func parseDueDate(s string) *time.Time {

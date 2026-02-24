@@ -67,11 +67,12 @@ func GetStats(db *sql.DB, projectPath *string, now time.Time) (*Stats, error) {
 		return nil, fmt.Errorf("computing focus time: %w", err)
 	}
 
-	// Per-project breakdown (always computed; callers may choose not to display
-	// it when scoped to a single project).
-	stats.ByProject, err = projectBreakdown(db)
-	if err != nil {
-		return nil, fmt.Errorf("computing project breakdown: %w", err)
+	// Per-project breakdown is only meaningful when not scoped to a single project.
+	if projectPath == nil {
+		stats.ByProject, err = projectBreakdown(db)
+		if err != nil {
+			return nil, fmt.Errorf("computing project breakdown: %w", err)
+		}
 	}
 
 	return stats, nil

@@ -5,12 +5,6 @@ import (
 	"time"
 )
 
-// setupStatsTestDB creates an in-memory DB with the todos + dig_sessions tables.
-func setupStatsTestDB(t *testing.T) interface{ Query(string, ...any) (interface{}, error) } {
-	t.Helper()
-	return nil // use setupTestDB from todo_test.go
-}
-
 // completedAt inserts a todo that was completed at the specified time,
 // setting both created_at and completed_at explicitly.
 func insertCompletedAtTime(t *testing.T, s *Store, title string, createdAt, completedAt time.Time) int {

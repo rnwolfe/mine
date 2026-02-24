@@ -1228,11 +1228,6 @@ func TestRunTodoStats_NoCompletions(t *testing.T) {
 	todoTestEnv(t)
 	todoStatsProjectFlag = ""
 
-	origDir, _ := os.Getwd()
-	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
 	out := captureStdout(t, func() {
 		runTodoStats(nil, nil)
 	})
@@ -1245,11 +1240,6 @@ func TestRunTodoStats_NoCompletions(t *testing.T) {
 func TestRunTodoStats_WithCompletions(t *testing.T) {
 	todoTestEnv(t)
 	todoStatsProjectFlag = ""
-
-	origDir, _ := os.Getwd()
-	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	now := time.Now()
 
@@ -1277,11 +1267,6 @@ func TestRunTodoStats_WithCompletions(t *testing.T) {
 func TestRunTodoStats_ByProjectBreakdown(t *testing.T) {
 	todoTestEnv(t)
 	todoStatsProjectFlag = ""
-
-	origDir, _ := os.Getwd()
-	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
 
 	projDir := registerProject(t, "statsproj")
 

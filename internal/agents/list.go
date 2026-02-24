@@ -280,17 +280,22 @@ func parseMarkdownDescription(path string) string {
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
+	inFrontmatter := false
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
+		// Track YAML frontmatter delimiters.
+		if line == "---" {
+			inFrontmatter = !inFrontmatter
+			continue
+		}
+		if inFrontmatter {
+			continue
+		}
 		if line == "" {
 			continue
 		}
 		// Skip heading lines (starting with #).
 		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		// Skip YAML frontmatter delimiter.
-		if line == "---" {
 			continue
 		}
 		return line

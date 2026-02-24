@@ -81,7 +81,9 @@ func runAgentsList(_ *cobra.Command, _ []string) error {
 	if total == 0 {
 		if t != "" {
 			fmt.Printf("  %s\n", ui.Muted.Render(fmt.Sprintf("No %s found.", t)))
-			fmt.Printf("  Add one with %s\n", ui.Accent.Render(fmt.Sprintf("mine agents add %s <name>", singularType(t))))
+			if t == "skills" || t == "commands" || t == "agents" || t == "rules" {
+				fmt.Printf("  Add one with %s\n", ui.Accent.Render(fmt.Sprintf("mine agents add %s <name>", singularType(t))))
+			}
 		} else {
 			fmt.Println(ui.Muted.Render("  Store is empty — add some content first."))
 			fmt.Printf("  Try %s or %s\n",

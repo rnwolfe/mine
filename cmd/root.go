@@ -170,9 +170,9 @@ func runDashboard(_ *cobra.Command, _ []string) error {
 	defer db.Close()
 
 	ps := proj.NewStore(db.Conn())
-	currentProject, _ := ps.Current()
+	currentProject, _ := ps.FindForCWD()
 
-	// Scope todo count to the current project when one is set.
+	// Scope todo count to the current working directory's project when inside one.
 	var projPath *string
 	if currentProject != nil {
 		projPath = &currentProject.Path

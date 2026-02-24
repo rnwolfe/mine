@@ -154,14 +154,14 @@ func runTodoList(_ *cobra.Command, _ []string) error {
 
 	// Launch interactive TUI when connected to a terminal.
 	if tui.IsTTY() {
-		return runTodoTUI(ts, todos, projectPath)
+		return runTodoTUI(ts, todos, projectPath, todoShowAll)
 	}
 
 	return printTodoList(todos, ts, projectPath, todoShowAll)
 }
 
-func runTodoTUI(ts *todo.Store, todos []todo.Todo, projectPath *string) error {
-	actions, err := tui.RunTodo(todos, projectPath)
+func runTodoTUI(ts *todo.Store, todos []todo.Todo, projectPath *string, showAll bool) error {
+	actions, err := tui.RunTodo(todos, projectPath, showAll)
 	if err != nil {
 		return err
 	}

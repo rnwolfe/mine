@@ -34,6 +34,10 @@ type TodoModel struct {
 	// project context for new todos added via TUI
 	projectPath *string
 
+	// showAll indicates the TUI is displaying todos across all projects,
+	// enabling @project annotations per task.
+	showAll bool
+
 	// terminal dimensions
 	width  int
 	height int
@@ -65,9 +69,11 @@ func NewTodoModel(todos []todo.Todo) *TodoModel {
 
 // RunTodo launches the interactive todo TUI. Returns actions for the caller to apply.
 // projectPath is the project context for new todos added via the TUI (may be nil).
-func RunTodo(todos []todo.Todo, projectPath *string) ([]TodoAction, error) {
+// showAll enables @project annotations when displaying todos across all projects.
+func RunTodo(todos []todo.Todo, projectPath *string, showAll bool) ([]TodoAction, error) {
 	m := NewTodoModel(todos)
 	m.projectPath = projectPath
+	m.showAll = showAll
 	prog := tea.NewProgram(m, tea.WithAltScreen())
 	result, err := prog.Run()
 	if err != nil {
@@ -445,8 +451,8 @@ func (m *TodoModel) renderTodoItem(t todo.Todo, selected bool, today time.Time) 
 		line += ui.Muted.Render(" [" + strings.Join(t.Tags, ", ") + "]")
 	}
 
-	// Project annotation (shown when browsing across multiple projects)
-	if t.ProjectPath != nil {
+	// Project annotation (only shown when browsing across all projects via --all)
+	if m.showAll && t.ProjectPath != nil {
 		projName := filepath.Base(*t.ProjectPath)
 		line += ui.Muted.Render(fmt.Sprintf(" @%s", projName))
 	}

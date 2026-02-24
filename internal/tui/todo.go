@@ -415,7 +415,7 @@ func (m *TodoModel) View() string {
 	case todoModeAdd:
 		help = ui.Muted.Render("  enter save · esc cancel")
 	default:
-		help = ui.Muted.Render("  j/k move · x toggle · s schedule · a add · d delete · / filter · q quit")
+		help = ui.Muted.Render("  j/k move · x toggle · s schedule · a add · d delete · / filter · esc clear filter · q quit")
 	}
 	b.WriteString(help + "\n")
 

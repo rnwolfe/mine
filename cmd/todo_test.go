@@ -648,7 +648,7 @@ func TestRunTodoSchedule_InvalidID_Error(t *testing.T) {
 	}
 }
 
-func TestRunTodoList_ExcludesSomebayByDefault(t *testing.T) {
+func TestRunTodoList_ExcludesSomedayByDefault(t *testing.T) {
 	todoTestEnv(t)
 	todoShowDone = false
 	todoShowAll = true

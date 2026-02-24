@@ -388,7 +388,7 @@ func TestSetSchedule_NotFound(t *testing.T) {
 	}
 }
 
-func TestList_ExcludesSomebodyByDefault(t *testing.T) {
+func TestList_ExcludesSomedayByDefault(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 	s := NewStore(db)

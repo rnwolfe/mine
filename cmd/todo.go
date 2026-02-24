@@ -318,11 +318,11 @@ func renderScheduleTag(schedule string) string {
 	case todo.ScheduleToday:
 		return lipgloss.NewStyle().Foreground(ui.Gold).Bold(true).Render("[today]")
 	case todo.ScheduleSoon:
-		return lipgloss.NewStyle().Foreground(ui.Amber).Render("[soon] ")
+		return lipgloss.NewStyle().Foreground(ui.Amber).Render("[soon]")
 	case todo.ScheduleSomeday:
-		return ui.Muted.Render("[sday] ")
+		return ui.Muted.Render("[sday]")
 	default: // later — muted and compact
-		return ui.Muted.Render("[latr] ")
+		return ui.Muted.Render("[latr]")
 	}
 }
 

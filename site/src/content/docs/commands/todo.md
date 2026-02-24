@@ -85,6 +85,8 @@ mine todo add "project task" --project myapp
 mine todo add "tackle now" --schedule today
 mine todo add "someday idea" --schedule someday
 mine todo add "refactor auth" --note "context: auth is a mess, see issue #42"
+mine todo add "Review PRs" --every week
+mine todo add "Daily standup" --every weekday
 ```
 
 ### Priorities
@@ -125,6 +127,27 @@ mine todo add "refactor auth" --note "context: current auth is a mess, see issue
 ```
 
 The body is shown in `mine todo show` output. Use it to capture why you're creating the task, links, or initial context.
+
+### Recurring Tasks
+
+Create tasks that auto-spawn the next occurrence when completed:
+
+```bash
+mine todo add "Review PRs" --every week
+mine todo add "Team standup prep" --every weekday
+mine todo add "Daily journal" --every day
+mine todo add "Monthly retro" --every month
+
+# Short aliases
+mine todo add "PR check" --every w    # week
+mine todo add "Check-in" --every d    # day
+mine todo add "Mon–Fri sync" --every wd
+mine todo add "End-of-month" --every m
+```
+
+Frequencies: `day` (d), `weekday` (wd), `week` (w), `month` (m)
+
+Recurring tasks show a `↻` indicator in the list view and TUI. Completing a recurring task prints the spawned task ID and its due date.
 
 ## Schedule a Todo
 
@@ -213,12 +236,36 @@ mine todo show 5
 
 Output includes: title, ID, priority, schedule, due date, project, tags, created/updated timestamps, body (if set), and all notes in chronological order. The notes section is omitted when there are no notes.
 
+## List Recurring Tasks
+
+```bash
+mine todo recurring
+```
+
+Lists all open tasks that have a recurrence frequency set. Displays the task ID, priority, recurrence frequency, title, next due date (if set), and project.
+
+Output:
+```
+  #1  🟡 ↻ weekly  Review PRs (next: Mar 3) @myapp
+  #3  🟡 ↻ daily   Daily journal
+```
+
+When no recurring tasks exist, a helpful hint with a creation example is shown.
+
 ## Complete a Todo
 
 ```bash
 mine todo done 1     # mark #1 as done
 mine todo do 1       # alias
 mine todo x 1        # alias
+```
+
+For **recurring tasks**, completing spawns the next occurrence automatically:
+
+```
+  ✓ Done! weekly report
+  ↻ Next occurrence spawned: #42 (due Mon, Mar 3)
+    2 remaining
 ```
 
 ## Delete a Todo
@@ -317,6 +364,7 @@ When no completions exist, an encouraging "no completions yet" message is shown 
 | `project "x" not found in registry` | `--project` name doesn't match any registered project | Run `mine proj list` to see valid project names |
 | `"x" is not a valid todo ID` | Non-numeric ID passed to done/rm/edit/schedule/note/show | Use `mine todo` to see valid IDs |
 | `invalid schedule "x"` | Unknown schedule bucket passed to `--schedule` or `schedule` subcommand | Use: `today` (t), `soon` (s), `later` (l), `someday` (sd) |
+| `invalid recurrence "x"` | Unknown frequency passed to `--every` | Use: `day` (d), `weekday` (wd), `week` (w), `month` (m) |
 | `todo #N not found` | Note or show command references a non-existent task ID | Use `mine todo` to see valid IDs |
 
 ## Focus Time Display

@@ -265,7 +265,7 @@ func maybeMarkTodoDoneWithReader(reader *bufio.Reader, todoID int, taskTitle str
 		defer db.Close()
 
 		ts := todo.NewStore(db.Conn())
-		if err := ts.Complete(todoID); err != nil {
+		if _, _, err := ts.Complete(todoID); err != nil {
 			fmt.Printf("  %s Could not mark done: %v\n", ui.IconMine, err)
 			return
 		}

@@ -197,9 +197,9 @@ func TestRunTodoList_ShowDone(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	id, _ := ts.Add("done task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
-	ts.Complete(id)
-	ts.Add("open task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	id, _ := ts.Add("done task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Complete(id) //nolint:errcheck
+	ts.Add("open task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	// --done=false: only open tasks
@@ -236,8 +236,8 @@ func TestRunTodoList_AllProjects(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("global task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
-	ts.Add("project task", "", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater)
+	ts.Add("global task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Add("project task", "", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	// Cwd outside any project.
@@ -285,9 +285,9 @@ func TestRunTodoList_ProjectFlag(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("global task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
-	ts.Add("flagproj task", "", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater)
-	ts.Add("other task", "", todo.PrioMedium, nil, nil, func() *string { s := "/other/proj"; return &s }(), todo.ScheduleLater)
+	ts.Add("global task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Add("flagproj task", "", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Add("other task", "", todo.PrioMedium, nil, nil, func() *string { s := "/other/proj"; return &s }(), todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	// Cwd outside any project.
@@ -327,9 +327,9 @@ func TestRunTodoList_CwdResolution(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("global task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
-	ts.Add("cwd project task", "", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater)
-	ts.Add("other project task", "", todo.PrioMedium, nil, nil, func() *string { s := "/other/proj"; return &s }(), todo.ScheduleLater)
+	ts.Add("global task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Add("cwd project task", "", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Add("other project task", "", todo.PrioMedium, nil, nil, func() *string { s := "/other/proj"; return &s }(), todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	// Change cwd into the registered project directory.
@@ -551,7 +551,7 @@ func TestRunTodoSchedule_SetsSchedule(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	id, _ := ts.Add("test task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	id, _ := ts.Add("test task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	err = runTodoSchedule(nil, []string{strconv.Itoa(id), "today"})
@@ -588,7 +588,7 @@ func TestRunTodoSchedule_ShortAlias(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	id, _ := ts.Add("alias task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	id, _ := ts.Add("alias task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	// Use short alias "sd" for someday
@@ -626,7 +626,7 @@ func TestRunTodoSchedule_InvalidSchedule_Error(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	id, _ := ts.Add("task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	id, _ := ts.Add("task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	err = runTodoSchedule(nil, []string{strconv.Itoa(id), "invalid"})
@@ -667,8 +667,8 @@ func TestRunTodoList_ExcludesSomedayByDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("later task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
-	ts.Add("someday task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleSomeday)
+	ts.Add("later task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Add("someday task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleSomeday, todo.RecurrenceNone)
 	db.Close()
 
 	out := captureStdout(t, func() {
@@ -701,8 +701,8 @@ func TestRunTodoList_SomedayFlagIncludesSomeday(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("later task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
-	ts.Add("someday task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleSomeday)
+	ts.Add("later task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Add("someday task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleSomeday, todo.RecurrenceNone)
 	db.Close()
 
 	out := captureStdout(t, func() {
@@ -732,9 +732,9 @@ func TestRunTodoNext_SingleHighestUrgency(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("low later task", "", todo.PrioLow, nil, nil, nil, todo.ScheduleLater)
-	ts.Add("crit today task", "", todo.PrioCrit, nil, nil, nil, todo.ScheduleToday)
-	ts.Add("med soon task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleSoon)
+	ts.Add("low later task", "", todo.PrioLow, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Add("crit today task", "", todo.PrioCrit, nil, nil, nil, todo.ScheduleToday, todo.RecurrenceNone)
+	ts.Add("med soon task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleSoon, todo.RecurrenceNone)
 	db.Close()
 
 	out := captureStdout(t, func() {
@@ -767,9 +767,9 @@ func TestRunTodoNext_TopN(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("task A", "", todo.PrioLow, nil, nil, nil, todo.ScheduleLater)
-	ts.Add("task B", "", todo.PrioCrit, nil, nil, nil, todo.ScheduleToday)
-	ts.Add("task C", "", todo.PrioHigh, nil, nil, nil, todo.ScheduleSoon)
+	ts.Add("task A", "", todo.PrioLow, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Add("task B", "", todo.PrioCrit, nil, nil, nil, todo.ScheduleToday, todo.RecurrenceNone)
+	ts.Add("task C", "", todo.PrioHigh, nil, nil, nil, todo.ScheduleSoon, todo.RecurrenceNone)
 	db.Close()
 
 	out := captureStdout(t, func() {
@@ -839,8 +839,8 @@ func TestRunTodoNext_ExcludesSomeday(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("someday idea", "", todo.PrioCrit, nil, nil, nil, todo.ScheduleSomeday)
-	ts.Add("open task", "", todo.PrioLow, nil, nil, nil, todo.ScheduleLater)
+	ts.Add("someday idea", "", todo.PrioCrit, nil, nil, nil, todo.ScheduleSomeday, todo.RecurrenceNone)
+	ts.Add("open task", "", todo.PrioLow, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	out := captureStdout(t, func() {
@@ -869,8 +869,8 @@ func TestRunTodoNext_OverdueRanksFirst(t *testing.T) {
 	}
 	ts := todo.NewStore(db.Conn())
 	past := time.Now().AddDate(0, 0, -1)
-	ts.Add("overdue low", "", todo.PrioLow, nil, &past, nil, todo.ScheduleLater)
-	ts.Add("crit today no due", "", todo.PrioCrit, nil, nil, nil, todo.ScheduleToday)
+	ts.Add("overdue low", "", todo.PrioLow, nil, &past, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Add("crit today no due", "", todo.PrioCrit, nil, nil, nil, todo.ScheduleToday, todo.RecurrenceNone)
 	db.Close()
 
 	out := captureStdout(t, func() {
@@ -899,7 +899,7 @@ func TestRunTodoNext_DetailCardFields(t *testing.T) {
 	}
 	ts := todo.NewStore(db.Conn())
 	past := time.Now().AddDate(0, 0, -2)
-	ts.Add("tagged task", "", todo.PrioHigh, []string{"docs", "v2"}, &past, nil, todo.ScheduleSoon)
+	ts.Add("tagged task", "", todo.PrioHigh, []string{"docs", "v2"}, &past, nil, todo.ScheduleSoon, todo.RecurrenceNone)
 	db.Close()
 
 	out := captureStdout(t, func() {
@@ -991,7 +991,7 @@ func TestRunTodoNote_AppendsNote(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	id, _ := ts.Add("annotated task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	id, _ := ts.Add("annotated task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	err = runTodoNote(nil, []string{strconv.Itoa(id), "first note here"})
@@ -1057,7 +1057,7 @@ func TestRunTodoShow_DisplaysDetail(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	id, _ := ts.Add("show task", "", todo.PrioHigh, []string{"docs"}, nil, nil, todo.ScheduleSoon)
+	id, _ := ts.Add("show task", "", todo.PrioHigh, []string{"docs"}, nil, nil, todo.ScheduleSoon, todo.RecurrenceNone)
 	ts.AddNote(id, "a timestamped note")
 	db.Close()
 
@@ -1092,7 +1092,7 @@ func TestRunTodoShow_NoNotes_OmitsNotesSection(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	id, _ := ts.Add("plain task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	id, _ := ts.Add("plain task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	out := captureStdout(t, func() {
@@ -1120,7 +1120,7 @@ func TestRunTodoShow_WithBody_DisplaysBody(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	id, _ := ts.Add("body task", "initial context text", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	id, _ := ts.Add("body task", "initial context text", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	out := captureStdout(t, func() {
@@ -1276,8 +1276,8 @@ func TestRunTodoStats_ByProjectBreakdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts := todo.NewStore(db.Conn())
-	ts.Add("global open", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
-	ts.Add("proj open", "", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater)
+	ts.Add("global open", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	ts.Add("proj open", "", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 
 	now := time.Now()
@@ -1355,5 +1355,302 @@ func TestRunTodoStats_ProjectFlag_NotFound(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "doesnotexist") {
 		t.Errorf("expected project name in error, got: %v", err)
+	}
+}
+
+// --- mine todo add --every integration tests ---
+
+func TestRunTodoAdd_WithEveryFlag_SetsRecurrence(t *testing.T) {
+	todoTestEnv(t)
+	todoPriority = "med"
+	todoDue = ""
+	todoTags = ""
+	todoProjectName = ""
+	todoScheduleFlag = "later"
+	todoNoteFlag = ""
+	todoEveryFlag = "week"
+	defer func() { todoEveryFlag = "" }()
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	err := runTodoAdd(nil, []string{"Review PRs"})
+	if err != nil {
+		t.Fatalf("runTodoAdd: %v", err)
+	}
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ts := todo.NewStore(db.Conn())
+	todos, err := ts.List(todo.ListOptions{AllProjects: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(todos) != 1 {
+		t.Fatalf("expected 1 todo, got %d", len(todos))
+	}
+	if todos[0].Recurrence != todo.RecurrenceWeekly {
+		t.Errorf("expected recurrence %q, got %q", todo.RecurrenceWeekly, todos[0].Recurrence)
+	}
+}
+
+func TestRunTodoAdd_WithEveryShortAlias(t *testing.T) {
+	todoTestEnv(t)
+	todoPriority = "med"
+	todoDue = ""
+	todoTags = ""
+	todoProjectName = ""
+	todoScheduleFlag = "later"
+	todoNoteFlag = ""
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	aliases := map[string]string{
+		"d":  todo.RecurrenceDaily,
+		"wd": todo.RecurrenceWeekday,
+		"w":  todo.RecurrenceWeekly,
+		"m":  todo.RecurrenceMonthly,
+	}
+	for alias, want := range aliases {
+		t.Run(alias, func(t *testing.T) {
+			todoEveryFlag = alias
+			defer func() { todoEveryFlag = "" }()
+
+			db, err := store.Open()
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Clear todos
+			db.Conn().Exec(`DELETE FROM todos`)
+			db.Close()
+
+			if err := runTodoAdd(nil, []string{"task " + alias}); err != nil {
+				t.Fatalf("runTodoAdd: %v", err)
+			}
+
+			db, err = store.Open()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+
+			ts := todo.NewStore(db.Conn())
+			todos, _ := ts.List(todo.ListOptions{AllProjects: true})
+			if len(todos) != 1 || todos[0].Recurrence != want {
+				t.Errorf("alias %q: expected recurrence %q, got %q", alias, want, todos[0].Recurrence)
+			}
+		})
+	}
+}
+
+func TestRunTodoAdd_InvalidEveryFlag_Error(t *testing.T) {
+	todoTestEnv(t)
+	todoPriority = "med"
+	todoDue = ""
+	todoTags = ""
+	todoProjectName = ""
+	todoScheduleFlag = "later"
+	todoNoteFlag = ""
+	todoEveryFlag = "biweekly"
+	defer func() { todoEveryFlag = "" }()
+
+	err := runTodoAdd(nil, []string{"task"})
+	if err == nil {
+		t.Fatal("expected error for invalid --every value")
+	}
+	if !strings.Contains(err.Error(), "invalid recurrence") {
+		t.Errorf("expected 'invalid recurrence' in error, got: %v", err)
+	}
+}
+
+// --- mine todo done (recurring spawn) integration tests ---
+
+func TestRunTodoDone_RecurringTask_SpawnsNext(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	due := time.Now().AddDate(0, 0, 0) // today
+	id, _ := ts.Add("weekly report", "", todo.PrioHigh, nil, &due, nil, todo.ScheduleLater, todo.RecurrenceWeekly)
+	db.Close()
+
+	out := captureStdout(t, func() {
+		runTodoDone(nil, []string{strconv.Itoa(id)})
+	})
+
+	if !strings.Contains(out, "Done!") {
+		t.Errorf("expected 'Done!' in output:\n%s", out)
+	}
+	if !strings.Contains(out, "Next occurrence spawned") {
+		t.Errorf("expected 'Next occurrence spawned' in output:\n%s", out)
+	}
+
+	// Verify the spawned task exists
+	db, err = store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ts = todo.NewStore(db.Conn())
+	todos, _ := ts.List(todo.ListOptions{AllProjects: true})
+	// id is done, spawned is open
+	if len(todos) != 1 {
+		t.Fatalf("expected 1 open task (spawned), got %d", len(todos))
+	}
+	if todos[0].Recurrence != todo.RecurrenceWeekly {
+		t.Errorf("spawned task has wrong recurrence: %q", todos[0].Recurrence)
+	}
+}
+
+func TestRunTodoDone_NonRecurringTask_NoSpawn(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	id, _ := ts.Add("regular task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	db.Close()
+
+	out := captureStdout(t, func() {
+		runTodoDone(nil, []string{strconv.Itoa(id)})
+	})
+
+	if strings.Contains(out, "Next occurrence spawned") {
+		t.Errorf("expected no spawn message for non-recurring task:\n%s", out)
+	}
+
+	db, err = store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ts = todo.NewStore(db.Conn())
+	open, _, _, _ := ts.Count(nil)
+	if open != 0 {
+		t.Errorf("expected 0 open tasks after completing non-recurring, got %d", open)
+	}
+}
+
+// --- mine todo recurring integration tests ---
+
+func TestRunTodoRecurring_ListsRecurringTasks(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	ts.Add("daily standup", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceDaily)
+	ts.Add("weekly report", "", todo.PrioHigh, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceWeekly)
+	ts.Add("plain task", "", todo.PrioLow, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	db.Close()
+
+	out := captureStdout(t, func() {
+		runTodoRecurring(nil, nil)
+	})
+
+	if !strings.Contains(out, "daily standup") {
+		t.Errorf("expected 'daily standup' in recurring output:\n%s", out)
+	}
+	if !strings.Contains(out, "weekly report") {
+		t.Errorf("expected 'weekly report' in recurring output:\n%s", out)
+	}
+	if strings.Contains(out, "plain task") {
+		t.Errorf("expected non-recurring 'plain task' to be absent from recurring output:\n%s", out)
+	}
+	if !strings.Contains(out, "↻") {
+		t.Errorf("expected recurrence indicator '↻' in output:\n%s", out)
+	}
+}
+
+func TestRunTodoRecurring_NoTasks_ShowsEmptyMessage(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	out := captureStdout(t, func() {
+		runTodoRecurring(nil, nil)
+	})
+
+	if !strings.Contains(out, "No recurring tasks yet") {
+		t.Errorf("expected 'No recurring tasks yet' message:\n%s", out)
+	}
+}
+
+// --- mine proj rm demotion integration tests ---
+
+func TestRunProjRm_DemotesOrphanedTodos(t *testing.T) {
+	todoTestEnv(t)
+
+	projDir := registerProject(t, "demoproj")
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	ts.Add("proj task", "", todo.PrioMedium, nil, nil, &projDir, todo.ScheduleLater, todo.RecurrenceWeekly)
+	ts.Add("global task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
+	db.Close()
+
+	projRmYes = true
+	defer func() { projRmYes = false }()
+
+	out := captureStdout(t, func() {
+		runProjRm(nil, []string{"demoproj"})
+	})
+
+	if !strings.Contains(out, "demoted to global") {
+		t.Errorf("expected demotion warning in output:\n%s", out)
+	}
+
+	// The project task should now be global
+	db, err = store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ts = todo.NewStore(db.Conn())
+	todos, _ := ts.List(todo.ListOptions{AllProjects: true})
+	for _, task := range todos {
+		if task.ProjectPath != nil {
+			t.Errorf("task %q still has project path after demotion", task.Title)
+		}
 	}
 }

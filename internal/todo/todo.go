@@ -23,6 +23,15 @@ const (
 	ScheduleSomeday = "someday"
 )
 
+// Valid recurrence values.
+const (
+	RecurrenceNone    = "none"
+	RecurrenceDaily   = "daily"
+	RecurrenceWeekday = "weekday"
+	RecurrenceWeekly  = "weekly"
+	RecurrenceMonthly = "monthly"
+)
+
 // Note represents a timestamped annotation on a todo.
 type Note struct {
 	ID        int
@@ -41,6 +50,7 @@ type Todo struct {
 	Tags        []string
 	ProjectPath *string
 	Schedule    string
+	Recurrence  string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	CompletedAt *time.Time
@@ -136,6 +146,68 @@ func ParseSchedule(s string) (string, error) {
 	}
 }
 
+// ParseRecurrence validates and normalizes a recurrence string.
+// Accepts short aliases: d/day/daily, wd/weekday, w/week/weekly, m/month/monthly.
+func ParseRecurrence(s string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "d", "day", "daily":
+		return RecurrenceDaily, nil
+	case "wd", "weekday":
+		return RecurrenceWeekday, nil
+	case "w", "week", "weekly":
+		return RecurrenceWeekly, nil
+	case "m", "month", "monthly":
+		return RecurrenceMonthly, nil
+	default:
+		return "", fmt.Errorf("invalid recurrence %q — valid values: day (d), weekday (wd), week (w), month (m)", s)
+	}
+}
+
+// RecurrenceLabel returns a short display label for a recurrence value.
+func RecurrenceLabel(r string) string {
+	switch r {
+	case RecurrenceDaily:
+		return "daily"
+	case RecurrenceWeekday:
+		return "weekday"
+	case RecurrenceWeekly:
+		return "weekly"
+	case RecurrenceMonthly:
+		return "monthly"
+	default:
+		return ""
+	}
+}
+
+// nextDueDate computes the next due date based on the recurrence frequency.
+// base is the current due date (or today if no due date was set).
+func nextDueDate(base time.Time, recurrence string) time.Time {
+	switch recurrence {
+	case RecurrenceDaily:
+		return base.AddDate(0, 0, 1)
+	case RecurrenceWeekday:
+		next := base.AddDate(0, 0, 1)
+		for next.Weekday() == time.Saturday || next.Weekday() == time.Sunday {
+			next = next.AddDate(0, 0, 1)
+		}
+		return next
+	case RecurrenceWeekly:
+		return base.AddDate(0, 0, 7)
+	case RecurrenceMonthly:
+		// Clamp to end of next month if day exceeds it.
+		y, m, d := base.Date()
+		nextMonth := time.Date(y, m+1, 1, 0, 0, 0, 0, base.Location())
+		// Last day of next month.
+		lastDay := time.Date(nextMonth.Year(), nextMonth.Month()+1, 0, 0, 0, 0, 0, base.Location()).Day()
+		if d > lastDay {
+			d = lastDay
+		}
+		return time.Date(nextMonth.Year(), nextMonth.Month(), d, 0, 0, 0, 0, base.Location())
+	default:
+		return base
+	}
+}
+
 // ScheduleLabel returns a short display label for a schedule bucket.
 func ScheduleLabel(schedule string) string {
 	switch schedule {
@@ -164,7 +236,8 @@ func NewStore(db *sql.DB) *Store {
 
 // Add creates a new todo and returns its ID.
 // body sets the initial description/context for the todo (may be empty).
-func (s *Store) Add(title string, body string, priority int, tags []string, due *time.Time, projectPath *string, schedule string) (int, error) {
+// recurrence is one of the Recurrence* constants (or "" / "none" for non-recurring).
+func (s *Store) Add(title string, body string, priority int, tags []string, due *time.Time, projectPath *string, schedule string, recurrence string) (int, error) {
 	tagStr := strings.Join(tags, ",")
 	var dueStr *string
 	if due != nil {
@@ -174,10 +247,13 @@ func (s *Store) Add(title string, body string, priority int, tags []string, due 
 	if schedule == "" {
 		schedule = ScheduleLater
 	}
+	if recurrence == "" {
+		recurrence = RecurrenceNone
+	}
 
 	res, err := s.db.Exec(
-		`INSERT INTO todos (title, body, priority, tags, due_date, project_path, schedule) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		title, body, priority, tagStr, dueStr, projectPath, schedule,
+		`INSERT INTO todos (title, body, priority, tags, due_date, project_path, schedule, recurrence) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		title, body, priority, tagStr, dueStr, projectPath, schedule, recurrence,
 	)
 	if err != nil {
 		return 0, err
@@ -206,20 +282,44 @@ func (s *Store) SetSchedule(id int, schedule string) error {
 	return nil
 }
 
-// Complete marks a todo as done.
-func (s *Store) Complete(id int) error {
-	res, err := s.db.Exec(
+// Complete marks a todo as done. For recurring tasks it also spawns the next occurrence.
+// Returns (spawnedID, spawnedDue, err) where spawnedID > 0 if a new occurrence was created.
+func (s *Store) Complete(id int) (spawnedID int, spawnedDue *time.Time, err error) {
+	// Fetch the todo before completing so we have recurrence/due info.
+	t, err := s.Get(id)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	res, execErr := s.db.Exec(
 		`UPDATE todos SET done = 1, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND done = 0`,
 		id,
 	)
-	if err != nil {
-		return err
+	if execErr != nil {
+		return 0, nil, execErr
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("todo #%d not found or already done", id)
+		return 0, nil, fmt.Errorf("todo #%d not found or already done", id)
 	}
-	return nil
+
+	// Spawn next occurrence for recurring tasks.
+	if t.Recurrence != "" && t.Recurrence != RecurrenceNone {
+		base := time.Now()
+		if t.DueDate != nil {
+			base = *t.DueDate
+		}
+		// Strip time component — only keep date.
+		base = time.Date(base.Year(), base.Month(), base.Day(), 0, 0, 0, 0, base.Location())
+		next := nextDueDate(base, t.Recurrence)
+		spawnedID, err = s.Add(t.Title, t.Body, t.Priority, t.Tags, &next, t.ProjectPath, ScheduleToday, t.Recurrence)
+		if err != nil {
+			return 0, nil, fmt.Errorf("spawning next occurrence: %w", err)
+		}
+		return spawnedID, &next, nil
+	}
+
+	return 0, nil, nil
 }
 
 // Uncomplete marks a todo as not done.
@@ -246,7 +346,7 @@ func (s *Store) Delete(id int) error {
 
 // List returns todos matching the given options.
 func (s *Store) List(opts ListOptions) ([]Todo, error) {
-	query := `SELECT id, title, body, priority, done, due_date, tags, project_path, schedule, created_at, updated_at, completed_at FROM todos`
+	query := `SELECT id, title, body, priority, done, due_date, tags, project_path, schedule, recurrence, created_at, updated_at, completed_at FROM todos`
 
 	var conditions []string
 	var args []any
@@ -289,11 +389,11 @@ func (s *Store) List(opts ListOptions) ([]Todo, error) {
 	for rows.Next() {
 		var t Todo
 		var doneInt int
-		var dueStr, tagStr, projPath, scheduleStr sql.NullString
+		var dueStr, tagStr, projPath, scheduleStr, recurrenceStr sql.NullString
 		var completedAt sql.NullTime
 		var createdStr, updatedStr string
 
-		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &scheduleStr, &createdStr, &updatedStr, &completedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &scheduleStr, &recurrenceStr, &createdStr, &updatedStr, &completedAt); err != nil {
 			return nil, err
 		}
 
@@ -314,6 +414,11 @@ func (s *Store) List(opts ListOptions) ([]Todo, error) {
 			t.Schedule = scheduleStr.String
 		} else {
 			t.Schedule = ScheduleLater
+		}
+		if recurrenceStr.Valid && recurrenceStr.String != "" {
+			t.Recurrence = recurrenceStr.String
+		} else {
+			t.Recurrence = RecurrenceNone
 		}
 		if completedAt.Valid {
 			t.CompletedAt = &completedAt.Time
@@ -384,14 +489,14 @@ func (s *Store) Count(projectPath *string) (open int, total int, overdue int, er
 func (s *Store) Get(id int) (*Todo, error) {
 	var t Todo
 	var doneInt int
-	var dueStr, tagStr, projPath, scheduleStr sql.NullString
+	var dueStr, tagStr, projPath, scheduleStr, recurrenceStr sql.NullString
 	var completedAt sql.NullTime
 	var createdStr, updatedStr string
 
 	err := s.db.QueryRow(
-		`SELECT id, title, body, priority, done, due_date, tags, project_path, schedule, created_at, updated_at, completed_at FROM todos WHERE id = ?`,
+		`SELECT id, title, body, priority, done, due_date, tags, project_path, schedule, recurrence, created_at, updated_at, completed_at FROM todos WHERE id = ?`,
 		id,
-	).Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &scheduleStr, &createdStr, &updatedStr, &completedAt)
+	).Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &scheduleStr, &recurrenceStr, &createdStr, &updatedStr, &completedAt)
 	if err != nil {
 		return nil, fmt.Errorf("todo #%d not found", id)
 	}
@@ -413,6 +518,11 @@ func (s *Store) Get(id int) (*Todo, error) {
 		t.Schedule = scheduleStr.String
 	} else {
 		t.Schedule = ScheduleLater
+	}
+	if recurrenceStr.Valid && recurrenceStr.String != "" {
+		t.Recurrence = recurrenceStr.String
+	} else {
+		t.Recurrence = RecurrenceNone
 	}
 	if completedAt.Valid {
 		t.CompletedAt = &completedAt.Time
@@ -569,4 +679,77 @@ func (s *Store) GetWithNotes(id int) (*Todo, error) {
 	}
 
 	return t, nil
+}
+
+// ListRecurring returns all open todos that have a recurrence set (i.e. recurrence != 'none').
+func (s *Store) ListRecurring() ([]Todo, error) {
+	rows, err := s.db.Query(
+		`SELECT id, title, body, priority, done, due_date, tags, project_path, schedule, recurrence, created_at, updated_at, completed_at
+		 FROM todos WHERE done = 0 AND recurrence IS NOT NULL AND recurrence != 'none'
+		 ORDER BY created_at ASC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var todos []Todo
+	for rows.Next() {
+		var t Todo
+		var doneInt int
+		var dueStr, tagStr, projPath, scheduleStr, recurrenceStr sql.NullString
+		var completedAt sql.NullTime
+		var createdStr, updatedStr string
+
+		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &scheduleStr, &recurrenceStr, &createdStr, &updatedStr, &completedAt); err != nil {
+			return nil, err
+		}
+
+		t.Done = doneInt == 1
+		if dueStr.Valid && dueStr.String != "" {
+			if parsed, err := time.Parse("2006-01-02", dueStr.String); err == nil {
+				t.DueDate = &parsed
+			}
+		}
+		if tagStr.Valid && tagStr.String != "" {
+			t.Tags = strings.Split(tagStr.String, ",")
+		}
+		if projPath.Valid && projPath.String != "" {
+			p := projPath.String
+			t.ProjectPath = &p
+		}
+		if scheduleStr.Valid && scheduleStr.String != "" {
+			t.Schedule = scheduleStr.String
+		} else {
+			t.Schedule = ScheduleLater
+		}
+		if recurrenceStr.Valid && recurrenceStr.String != "" {
+			t.Recurrence = recurrenceStr.String
+		} else {
+			t.Recurrence = RecurrenceNone
+		}
+		if completedAt.Valid {
+			t.CompletedAt = &completedAt.Time
+		}
+		t.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)
+		t.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedStr)
+
+		todos = append(todos, t)
+	}
+
+	return todos, rows.Err()
+}
+
+// DemoteProject sets project_path = NULL for all open todos that match the given project path.
+// Returns the number of affected rows.
+func (s *Store) DemoteProject(projectPath string) (int, error) {
+	res, err := s.db.Exec(
+		`UPDATE todos SET project_path = NULL, updated_at = CURRENT_TIMESTAMP WHERE project_path = ? AND done = 0`,
+		projectPath,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("demoting project todos: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return int(n), nil
 }

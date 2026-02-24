@@ -10,6 +10,7 @@ import (
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/proj"
 	"github.com/rnwolfe/mine/internal/store"
+	"github.com/rnwolfe/mine/internal/todo"
 	"github.com/rnwolfe/mine/internal/tui"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/spf13/cobra"
@@ -170,8 +171,25 @@ func runProjRm(_ *cobra.Command, args []string) error {
 	defer db.Close()
 
 	ps := proj.NewStore(db.Conn())
+
+	// Look up the project path before removing so we can demote its todos.
+	p, err := ps.Get(name)
+	if err != nil {
+		return err
+	}
+
 	if err := ps.Remove(name); err != nil {
 		return err
+	}
+
+	// Demote orphaned todos to global scope.
+	ts := todo.NewStore(db.Conn())
+	demoted, err := ts.DemoteProject(p.Path)
+	if err != nil {
+		// Non-fatal: project is already removed; warn but don't error.
+		fmt.Println(ui.Warning.Render(fmt.Sprintf("  Warning: could not demote todos for %q: %v", name, err)))
+	} else if demoted > 0 {
+		fmt.Println(ui.Warning.Render(fmt.Sprintf("  %d task(s) from project %q demoted to global scope", demoted, name)))
 	}
 
 	ui.Ok(fmt.Sprintf("Removed project %s", ui.Accent.Render(name)))

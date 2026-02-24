@@ -97,7 +97,7 @@ func TestRecordDigSession_WithTodoID(t *testing.T) {
 		t.Fatalf("store.Open: %v", err)
 	}
 	ts := todo.NewStore(db.Conn())
-	todoID, err := ts.Add("test task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	todoID, err := ts.Add("test task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
 	db.Close()
 	if err != nil {
 		t.Fatalf("Add: %v", err)
@@ -169,7 +169,7 @@ func TestPrintTodoList_ShowsFocusTime(t *testing.T) {
 	defer db.Close()
 
 	ts := todo.NewStore(db.Conn())
-	todoID, err := ts.Add("focused task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	todoID, err := ts.Add("focused task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
 	if err != nil {
 		t.Fatalf("Add: %v", err)
 	}
@@ -206,7 +206,7 @@ func TestPrintTodoList_OmitsFocusTimeWhenZero(t *testing.T) {
 	defer db.Close()
 
 	ts := todo.NewStore(db.Conn())
-	_, err = ts.Add("unfocused task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater)
+	_, err = ts.Add("unfocused task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleLater, todo.RecurrenceNone)
 	if err != nil {
 		t.Fatalf("Add: %v", err)
 	}

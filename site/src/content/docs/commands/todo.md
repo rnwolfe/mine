@@ -277,3 +277,22 @@ mine todo edit 2 "updated task name"
 | `"x" is not a valid todo ID` | Non-numeric ID passed to done/rm/edit/schedule/note/show | Use `mine todo` to see valid IDs |
 | `invalid schedule "x"` | Unknown schedule bucket passed to `--schedule` or `schedule` subcommand | Use: `today` (t), `soon` (s), `later` (l), `someday` (sd) |
 | `todo #N not found` | Note or show command references a non-existent task ID | Use `mine todo` to see valid IDs |
+
+## Focus Time Display
+
+When a task has accumulated focus time from linked `mine dig` sessions, it appears inline in the list output:
+
+```
+    #1   🟡 [today]   Refactor auth module  [1h 25m]
+    #2   🔴 [soon]    Fix login bug
+```
+
+The `[Xh Ym]` annotation is only shown when total focus time is > 0. Tasks with no linked sessions show no annotation.
+
+To link a dig session to a task:
+
+```bash
+mine dig --todo 1   # start a 25-minute session targeting task #1
+```
+
+See the [focus sessions reference](/commands/dig/) for more details.

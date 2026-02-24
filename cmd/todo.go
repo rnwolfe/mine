@@ -286,6 +286,13 @@ func printTodoList(todos []todo.Todo, ts *todo.Store, projectPath *string, showA
 		return nil
 	}
 
+	// Fetch accumulated focus times for all listed todos in one query.
+	ids := make([]int, len(todos))
+	for i, t := range todos {
+		ids[i] = t.ID
+	}
+	focusTimes, _ := ts.FocusTimeMap(ids) // non-critical; missing focus time is fine
+
 	fmt.Println()
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
@@ -328,6 +335,11 @@ func printTodoList(todos []todo.Todo, ts *todo.Store, projectPath *string, showA
 			line += tags
 		}
 
+		// Focus time annotation — only when > 0
+		if ft, ok := focusTimes[t.ID]; ok && ft > 0 {
+			line += " " + ui.Muted.Render(formatFocusTime(ft))
+		}
+
 		// Project annotation when viewing across all projects
 		if showAll && t.ProjectPath != nil {
 			projName := filepath.Base(*t.ProjectPath)
@@ -347,6 +359,16 @@ func printTodoList(todos []todo.Todo, ts *todo.Store, projectPath *string, showA
 	fmt.Println()
 
 	return nil
+}
+
+// formatFocusTime formats a duration as [Xh Ym] or [Ym] for list display.
+func formatFocusTime(d time.Duration) string {
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	if h > 0 {
+		return fmt.Sprintf("[%dh %dm]", h, m)
+	}
+	return fmt.Sprintf("[%dm]", m)
 }
 
 // renderScheduleTag returns a styled schedule indicator for list output.

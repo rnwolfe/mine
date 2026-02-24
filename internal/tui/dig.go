@@ -21,6 +21,7 @@ type DigResult struct {
 type DigModel struct {
 	duration  time.Duration
 	label     string
+	taskLabel string // optional linked task title (empty if untargeted)
 	start     time.Time
 	elapsed   time.Duration
 	width     int
@@ -33,19 +34,21 @@ type DigModel struct {
 type digTickMsg time.Time
 
 // NewDigModel creates a new DigModel.
-func NewDigModel(duration time.Duration, label string) *DigModel {
+func NewDigModel(duration time.Duration, label string, taskLabel string) *DigModel {
 	return &DigModel{
-		duration: duration,
-		label:    label,
-		start:    time.Now(),
-		width:    80,
-		height:   24,
+		duration:  duration,
+		label:     label,
+		taskLabel: taskLabel,
+		start:     time.Now(),
+		width:     80,
+		height:    24,
 	}
 }
 
 // RunDig launches the full-screen dig timer TUI.
-func RunDig(duration time.Duration, label string) (DigResult, error) {
-	m := NewDigModel(duration, label)
+// taskLabel is optional: pass an empty string for an untargeted session.
+func RunDig(duration time.Duration, label string, taskLabel string) (DigResult, error) {
+	m := NewDigModel(duration, label, taskLabel)
 	prog := tea.NewProgram(m, tea.WithAltScreen())
 	result, err := prog.Run()
 	if err != nil {
@@ -109,8 +112,14 @@ func (m *DigModel) View() string {
 	mins := int(remaining.Minutes())
 	secs := int(remaining.Seconds()) % 60
 
+	// Content lines: title(1)+gap(1) + label(1)+gap(1) + timer(1)+gap(1) + bar(1)+gap(1) + info(1)+gap(1) + help(1) = 11
+	// With taskLabel: add task(1)+gap(1) = 13
+	contentLines := 11
+	if m.taskLabel != "" {
+		contentLines += 2
+	}
+
 	// Center content vertically
-	contentLines := 10
 	topPad := (m.height - contentLines) / 2
 	if topPad < 0 {
 		topPad = 0
@@ -138,6 +147,17 @@ func (m *DigModel) View() string {
 		Align(lipgloss.Center).
 		Render(labelText)
 	b.WriteString(labelLine + "\n\n")
+
+	// Task label (if linked)
+	if m.taskLabel != "" {
+		taskText := fmt.Sprintf("Focusing on: %s", m.taskLabel)
+		taskLine := lipgloss.NewStyle().
+			Foreground(ui.Amber).
+			Width(m.width).
+			Align(lipgloss.Center).
+			Render(taskText)
+		b.WriteString(taskLine + "\n\n")
+	}
 
 	// Big timer
 	timerText := fmt.Sprintf("%02d:%02d", mins, secs)

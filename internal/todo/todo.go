@@ -480,6 +480,56 @@ func (s *Store) AddNote(todoID int, body string) error {
 	return tx.Commit()
 }
 
+// FocusTime returns the total accumulated focus time for a given todo from dig_sessions.
+// Returns 0 if there are no sessions or the todo has no linked sessions.
+func (s *Store) FocusTime(todoID int) (time.Duration, error) {
+	var secs int64
+	err := s.db.QueryRow(
+		`SELECT COALESCE(SUM(duration_secs), 0) FROM dig_sessions WHERE todo_id = ?`,
+		todoID,
+	).Scan(&secs)
+	if err != nil {
+		return 0, fmt.Errorf("fetching focus time for todo #%d: %w", todoID, err)
+	}
+	return time.Duration(secs) * time.Second, nil
+}
+
+// FocusTimeMap returns a map of todo ID to total accumulated focus time for all given IDs.
+// Only IDs with at least one dig session are included in the result.
+func (s *Store) FocusTimeMap(todoIDs []int) (map[int]time.Duration, error) {
+	if len(todoIDs) == 0 {
+		return nil, nil
+	}
+	placeholders := make([]string, len(todoIDs))
+	args := make([]any, len(todoIDs))
+	for i, id := range todoIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := fmt.Sprintf(
+		`SELECT todo_id, COALESCE(SUM(duration_secs), 0) FROM dig_sessions WHERE todo_id IN (%s) GROUP BY todo_id`,
+		strings.Join(placeholders, ","),
+	)
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("fetching focus time map: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[int]time.Duration)
+	for rows.Next() {
+		var id int
+		var secs int64
+		if err := rows.Scan(&id, &secs); err != nil {
+			return nil, err
+		}
+		if secs > 0 {
+			result[id] = time.Duration(secs) * time.Second
+		}
+	}
+	return result, rows.Err()
+}
+
 // GetWithNotes returns a todo by ID with all its timestamped notes populated,
 // ordered by created_at ASC. Notes are not populated by Get() or List().
 func (s *Store) GetWithNotes(id int) (*Todo, error) {

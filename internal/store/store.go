@@ -131,6 +131,16 @@ func (db *DB) migrate() error {
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_todo_notes_todo_id ON todo_notes(todo_id)`,
+		// Dig focus sessions — nullable todo_id links sessions to tasks.
+		`CREATE TABLE IF NOT EXISTS dig_sessions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			todo_id INTEGER REFERENCES todos(id) ON DELETE SET NULL,
+			duration_secs INTEGER NOT NULL,
+			completed INTEGER DEFAULT 0,
+			started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			ended_at DATETIME
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_dig_sessions_todo_id ON dig_sessions(todo_id)`,
 	}
 
 	for _, m := range migrations {

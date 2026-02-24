@@ -47,6 +47,18 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 
+	_, err = db.Exec(`CREATE TABLE dig_sessions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		todo_id INTEGER REFERENCES todos(id) ON DELETE SET NULL,
+		duration_secs INTEGER NOT NULL,
+		completed INTEGER DEFAULT 0,
+		started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		ended_at DATETIME
+	)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	return db
 }
 
@@ -614,5 +626,134 @@ func TestDelete_CascadesToNotes(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("expected notes to be cascade-deleted, got %d remaining", count)
+	}
+}
+
+// --- FocusTime tests ---
+
+func insertDigSession(t *testing.T, db *sql.DB, todoID *int, durationSecs int, completed bool) {
+	t.Helper()
+	comp := 0
+	if completed {
+		comp = 1
+	}
+	_, err := db.Exec(
+		`INSERT INTO dig_sessions (todo_id, duration_secs, completed, ended_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+		todoID, durationSecs, comp,
+	)
+	if err != nil {
+		t.Fatalf("insertDigSession: %v", err)
+	}
+}
+
+func TestFocusTime_NoSessions(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id, _ := s.Add("task", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	ft, err := s.FocusTime(id)
+	if err != nil {
+		t.Fatalf("FocusTime failed: %v", err)
+	}
+	if ft != 0 {
+		t.Fatalf("expected 0 focus time, got %v", ft)
+	}
+}
+
+func TestFocusTime_SingleSession(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id, _ := s.Add("task", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	insertDigSession(t, db, &id, 1500, true) // 25 minutes
+
+	ft, err := s.FocusTime(id)
+	if err != nil {
+		t.Fatalf("FocusTime failed: %v", err)
+	}
+	if ft != 25*time.Minute {
+		t.Fatalf("expected 25m, got %v", ft)
+	}
+}
+
+func TestFocusTime_MultipleSessions(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id, _ := s.Add("task", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	insertDigSession(t, db, &id, 1500, true) // 25m
+	insertDigSession(t, db, &id, 900, false) // 15m early-cancel
+
+	ft, err := s.FocusTime(id)
+	if err != nil {
+		t.Fatalf("FocusTime failed: %v", err)
+	}
+	// Both sessions count toward focus time
+	if ft != 40*time.Minute {
+		t.Fatalf("expected 40m, got %v", ft)
+	}
+}
+
+func TestFocusTime_UntargetedSessionNotCounted(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id, _ := s.Add("task", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	// Insert an untargeted session (nil todo_id)
+	insertDigSession(t, db, nil, 1500, true)
+
+	ft, err := s.FocusTime(id)
+	if err != nil {
+		t.Fatalf("FocusTime failed: %v", err)
+	}
+	if ft != 0 {
+		t.Fatalf("expected 0, got %v", ft)
+	}
+}
+
+func TestFocusTimeMap_Empty(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	result, err := s.FocusTimeMap(nil)
+	if err != nil {
+		t.Fatalf("FocusTimeMap failed: %v", err)
+	}
+	if result != nil {
+		t.Fatalf("expected nil map for empty input, got %v", result)
+	}
+}
+
+func TestFocusTimeMap_MultipleIDs(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id1, _ := s.Add("task 1", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	id2, _ := s.Add("task 2", "", PrioMedium, nil, nil, nil, ScheduleLater)
+	id3, _ := s.Add("task 3", "", PrioMedium, nil, nil, nil, ScheduleLater)
+
+	insertDigSession(t, db, &id1, 1500, true) // 25m
+	insertDigSession(t, db, &id1, 900, false) // 15m
+	insertDigSession(t, db, &id2, 3600, true) // 60m
+	// id3 has no sessions
+
+	result, err := s.FocusTimeMap([]int{id1, id2, id3})
+	if err != nil {
+		t.Fatalf("FocusTimeMap failed: %v", err)
+	}
+	if result[id1] != 40*time.Minute {
+		t.Fatalf("id1: expected 40m, got %v", result[id1])
+	}
+	if result[id2] != 60*time.Minute {
+		t.Fatalf("id2: expected 60m, got %v", result[id2])
+	}
+	if _, ok := result[id3]; ok {
+		t.Fatalf("id3 should not be in map (no sessions), got %v", result[id3])
 	}
 }

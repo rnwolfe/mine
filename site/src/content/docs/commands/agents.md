@@ -331,6 +331,91 @@ Symlink-mode links are always up-to-date via the symlink itself.
 | `sync push` | Push store to remote |
 | `sync pull` | Pull from remote and re-distribute copy-mode links |
 
+## Content Management
+
+Create and inventory content in the canonical agents store.
+
+### Add Content
+
+```bash
+mine agents add skill <name>
+mine agents add command <name>
+mine agents add agent <name>
+mine agents add rule <name>
+```
+
+Scaffolds new content in the canonical store. Each subcommand creates the
+appropriate file or directory structure with placeholder content ready to edit.
+
+**`mine agents add skill <name>`** creates:
+
+```
+skills/<name>/
+├── SKILL.md        # YAML frontmatter + instruction placeholder
+├── scripts/        # Executable scripts
+├── references/     # Documentation and references
+└── assets/         # Templates and data files
+```
+
+**`mine agents add command <name>`** creates:
+
+```
+commands/<name>.md
+```
+
+**`mine agents add agent <name>`** creates:
+
+```
+agents/<name>.md
+```
+
+**`mine agents add rule <name>`** creates:
+
+```
+rules/<name>.md
+```
+
+**Name validation:** Names must start with a lowercase letter and contain only
+lowercase letters, digits, and hyphens. Maximum 64 characters. Examples:
+`my-skill`, `code-review`, `deploy`.
+
+**Duplicate detection:** Adding content that already exists returns an error.
+
+### List Content
+
+```bash
+mine agents list
+mine agents list --type skills
+mine agents list --type commands
+```
+
+Shows a categorized inventory of all managed content in the canonical store.
+Skill descriptions are read from the `description` field in `SKILL.md`
+frontmatter. Command descriptions are read from the first non-heading line of
+the markdown file.
+
+**Flags:**
+
+| Flag | Description |
+|------|-------------|
+| `--type <type>` | Filter to a specific type: `skills`, `commands`, `agents`, `rules`, `instructions`, `settings` |
+
+**Example output:**
+
+```
+  ⛏  Agent Configs
+
+  Skills (2):
+    code-review       Reviews code changes and provides feedback
+    test-runner       Runs project tests and reports results
+
+  Commands (1):
+    deploy            Deploy to production
+
+  Instructions (1):
+    AGENTS.md
+```
+
 ## Store Layout
 
 After `mine agents init`, the store contains:

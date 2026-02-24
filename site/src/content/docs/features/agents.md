@@ -120,6 +120,36 @@ The instructions file in the canonical store uses the
 instructions work natively with Claude Code (as `CLAUDE.md`), Codex (as `AGENTS.md`),
 Gemini CLI (as `GEMINI.md`), and any other agent that reads local instruction files.
 
+## Content Management
+
+Create new skills, commands, agents, and rules directly from the command line:
+
+```bash
+# Scaffold a new skill with full directory structure
+mine agents add skill code-review
+
+# Create a new custom command
+mine agents add command deploy
+
+# Create an agent definition or rule
+mine agents add agent reviewer
+mine agents add rule no-console-logs
+```
+
+Then inventory everything you've created:
+
+```bash
+# See all managed configs with descriptions
+mine agents list
+
+# Filter to a specific type
+mine agents list --type skills
+mine agents list --type commands
+```
+
+Skill descriptions are automatically read from `SKILL.md` frontmatter. Command
+descriptions come from the first content line of the markdown file.
+
 ## Project-Level Configs
 
 For project-specific configurations, `mine agents project` scaffolds agent config dirs

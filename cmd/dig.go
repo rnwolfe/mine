@@ -242,12 +242,16 @@ func runDigSimple(duration time.Duration, label string, todoID *int, taskTitle s
 
 // maybeMarkTodoDone prompts the user to mark the linked task complete after a session.
 func maybeMarkTodoDone(todoID int, taskTitle string) {
+	maybeMarkTodoDoneWithReader(bufio.NewReader(os.Stdin), todoID, taskTitle)
+}
+
+// maybeMarkTodoDoneWithReader is the testable entry point for the completion prompt.
+func maybeMarkTodoDoneWithReader(reader *bufio.Reader, todoID int, taskTitle string) {
 	fmt.Printf("\n  Mark %s done? (y/n): ", ui.Accent.Render(fmt.Sprintf("#%d", todoID)))
 	if taskTitle != "" {
 		fmt.Printf("%s\n  > ", ui.Muted.Render(taskTitle))
 	}
 
-	reader := bufio.NewReader(os.Stdin)
 	answer, _ := reader.ReadString('\n')
 	answer = strings.ToLower(strings.TrimSpace(answer))
 
@@ -307,10 +311,13 @@ func recordDigSession(duration time.Duration, todoID *int, completed bool) {
 	}
 
 	// Insert into dig_sessions table.
-	db.Conn().Exec(
+	if _, err := db.Conn().Exec(
 		`INSERT INTO dig_sessions (todo_id, duration_secs, completed, ended_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
 		todoID, secs, comp,
-	)
+	); err != nil {
+		fmt.Printf("  %s Warning: could not record session: %v\n", ui.IconMine, err)
+		return
+	}
 
 	// Update streak
 	var lastDate string

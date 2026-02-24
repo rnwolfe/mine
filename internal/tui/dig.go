@@ -112,8 +112,9 @@ func (m *DigModel) View() string {
 	mins := int(remaining.Minutes())
 	secs := int(remaining.Seconds()) % 60
 
-	// Content lines: title(1) + gap(1) + session label(1) + gap(1) + task label(optional 2) + timer(1) + gap(1) + bar(1) + gap(1) + info(1) + gap(1) + help(1)
-	contentLines := 10
+	// Content lines: title(1)+gap(1) + label(1)+gap(1) + timer(1)+gap(1) + bar(1)+gap(1) + info(1)+gap(1) + help(1) = 11
+	// With taskLabel: add task(1)+gap(1) = 13
+	contentLines := 11
 	if m.taskLabel != "" {
 		contentLines += 2
 	}

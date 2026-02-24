@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,9 +14,10 @@ import (
 
 // TodoAction represents an action taken in the todo TUI.
 type TodoAction struct {
-	Type string // "toggle", "delete", "add", "quit"
-	ID   int
-	Text string
+	Type        string // "toggle", "delete", "add", "quit"
+	ID          int
+	Text        string
+	ProjectPath *string // project context for "add" actions
 }
 
 // TodoModel is a full interactive Bubbletea model for managing todos.
@@ -28,6 +30,9 @@ type TodoModel struct {
 
 	// add mode state
 	addInput string
+
+	// project context for new todos added via TUI
+	projectPath *string
 
 	// terminal dimensions
 	width  int
@@ -59,8 +64,10 @@ func NewTodoModel(todos []todo.Todo) *TodoModel {
 }
 
 // RunTodo launches the interactive todo TUI. Returns actions for the caller to apply.
-func RunTodo(todos []todo.Todo) ([]TodoAction, error) {
+// projectPath is the project context for new todos added via the TUI (may be nil).
+func RunTodo(todos []todo.Todo, projectPath *string) ([]TodoAction, error) {
 	m := NewTodoModel(todos)
+	m.projectPath = projectPath
 	prog := tea.NewProgram(m, tea.WithAltScreen())
 	result, err := prog.Run()
 	if err != nil {
@@ -253,7 +260,7 @@ func (m *TodoModel) handleAddKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		text := strings.TrimSpace(m.addInput)
 		if text != "" {
-			m.Actions = append(m.Actions, TodoAction{Type: "add", Text: text})
+			m.Actions = append(m.Actions, TodoAction{Type: "add", Text: text, ProjectPath: m.projectPath})
 			// Add a temporary entry locally so it shows immediately
 			now := time.Now()
 			m.todos = append(m.todos, todo.Todo{
@@ -436,6 +443,12 @@ func (m *TodoModel) renderTodoItem(t todo.Todo, selected bool, today time.Time) 
 	// Tags
 	if len(t.Tags) > 0 {
 		line += ui.Muted.Render(" [" + strings.Join(t.Tags, ", ") + "]")
+	}
+
+	// Project annotation (shown when browsing across multiple projects)
+	if t.ProjectPath != nil {
+		projName := filepath.Base(*t.ProjectPath)
+		line += ui.Muted.Render(fmt.Sprintf(" @%s", projName))
 	}
 
 	return line

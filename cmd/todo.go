@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rnwolfe/mine/internal/hook"
+	"github.com/rnwolfe/mine/internal/proj"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/todo"
 	"github.com/rnwolfe/mine/internal/tui"
@@ -23,6 +25,9 @@ var todoCmd = &cobra.Command{
 In an interactive terminal, launches a full-screen todo browser.
 Pipe output or use subcommands for scripting.
 
+Tasks are automatically scoped to the current project when run inside a
+registered project directory. Use --all to view tasks across all projects.
+
 Keyboard shortcuts (interactive mode):
   j / k        Move down / up
   x / space    Toggle done/undone
@@ -36,10 +41,12 @@ Keyboard shortcuts (interactive mode):
 }
 
 var (
-	todoPriority string
-	todoDue      string
-	todoTags     string
-	todoShowDone bool
+	todoPriority    string
+	todoDue         string
+	todoTags        string
+	todoShowDone    bool
+	todoShowAll     bool
+	todoProjectName string
 )
 
 func init() {
@@ -49,11 +56,16 @@ func init() {
 	todoCmd.AddCommand(todoRmCmd)
 	todoCmd.AddCommand(todoEditCmd)
 
-	// Flags
-	todoCmd.Flags().BoolVarP(&todoShowDone, "all", "a", false, "Show completed todos too")
+	// Flags on the root todo command
+	todoCmd.Flags().BoolVar(&todoShowDone, "done", false, "Show completed todos too")
+	todoCmd.Flags().BoolVarP(&todoShowAll, "all", "a", false, "Show todos across all projects")
+	todoCmd.Flags().StringVar(&todoProjectName, "project", "", "Scope to a named project")
+
+	// Flags on add subcommand
 	todoAddCmd.Flags().StringVarP(&todoPriority, "priority", "p", "med", "Priority: low, med, high, crit")
 	todoAddCmd.Flags().StringVarP(&todoDue, "due", "d", "", "Due date (YYYY-MM-DD, tomorrow, next-week)")
 	todoAddCmd.Flags().StringVarP(&todoTags, "tags", "t", "", "Comma-separated tags")
+	todoAddCmd.Flags().StringVar(&todoProjectName, "project", "", "Assign to a named project")
 }
 
 var todoAddCmd = &cobra.Command{
@@ -86,6 +98,31 @@ var todoEditCmd = &cobra.Command{
 	RunE:  hook.Wrap("todo.edit", runTodoEdit),
 }
 
+// resolveTodoProject resolves the project path for todo operations.
+// If projectName is set, it looks up that project in the registry.
+// Otherwise, it auto-detects the project from the current working directory.
+// Returns nil if not in any registered project (global context).
+func resolveTodoProject(ps *proj.Store, projectName string) (*string, error) {
+	if projectName != "" {
+		p, err := ps.Get(projectName)
+		if err != nil {
+			return nil, fmt.Errorf("project %q not found in registry — use %s to list projects",
+				projectName, ui.Accent.Render("mine proj list"))
+		}
+		return &p.Path, nil
+	}
+
+	// Auto-detect from cwd.
+	p, err := ps.FindForCWD()
+	if err != nil {
+		return nil, err
+	}
+	if p != nil {
+		return &p.Path, nil
+	}
+	return nil, nil
+}
+
 func runTodoList(_ *cobra.Command, _ []string) error {
 	db, err := store.Open()
 	if err != nil {
@@ -93,22 +130,38 @@ func runTodoList(_ *cobra.Command, _ []string) error {
 	}
 	defer db.Close()
 
+	ps := proj.NewStore(db.Conn())
+
+	opts := todo.ListOptions{
+		ShowDone:    todoShowDone,
+		AllProjects: todoShowAll,
+	}
+
+	var projectPath *string
+	if !todoShowAll {
+		projectPath, err = resolveTodoProject(ps, todoProjectName)
+		if err != nil {
+			return err
+		}
+		opts.ProjectPath = projectPath
+	}
+
 	ts := todo.NewStore(db.Conn())
-	todos, err := ts.List(todoShowDone)
+	todos, err := ts.List(opts)
 	if err != nil {
 		return err
 	}
 
 	// Launch interactive TUI when connected to a terminal.
 	if tui.IsTTY() {
-		return runTodoTUI(ts, todos)
+		return runTodoTUI(ts, todos, projectPath)
 	}
 
-	return printTodoList(todos, ts)
+	return printTodoList(todos, ts, projectPath, todoShowAll)
 }
 
-func runTodoTUI(ts *todo.Store, todos []todo.Todo) error {
-	actions, err := tui.RunTodo(todos)
+func runTodoTUI(ts *todo.Store, todos []todo.Todo, projectPath *string) error {
+	actions, err := tui.RunTodo(todos, projectPath)
 	if err != nil {
 		return err
 	}
@@ -138,7 +191,7 @@ func runTodoTUI(ts *todo.Store, todos []todo.Todo) error {
 			}
 		case "add":
 			if strings.TrimSpace(a.Text) != "" {
-				if _, err := ts.Add(a.Text, todo.PrioMedium, nil, nil); err != nil {
+				if _, err := ts.Add(a.Text, todo.PrioMedium, nil, nil, a.ProjectPath); err != nil {
 					failedActions = append(failedActions, fmt.Sprintf("add %q: %v", a.Text, err))
 				}
 			}
@@ -155,7 +208,7 @@ func runTodoTUI(ts *todo.Store, todos []todo.Todo) error {
 	return nil
 }
 
-func printTodoList(todos []todo.Todo, ts *todo.Store) error {
+func printTodoList(todos []todo.Todo, ts *todo.Store, projectPath *string, showAll bool) error {
 	if len(todos) == 0 {
 		fmt.Println()
 		fmt.Println(ui.Muted.Render("  No todos yet. Life is good?"))
@@ -206,10 +259,16 @@ func printTodoList(todos []todo.Todo, ts *todo.Store) error {
 			line += tags
 		}
 
+		// Project annotation when viewing across all projects
+		if showAll && t.ProjectPath != nil {
+			projName := filepath.Base(*t.ProjectPath)
+			line += ui.Muted.Render(fmt.Sprintf(" @%s", projName))
+		}
+
 		fmt.Println(line)
 	}
 
-	open, _, overdue, _ := ts.Count()
+	open, _, overdue, _ := ts.Count(projectPath)
 	fmt.Println()
 	summary := ui.Muted.Render(fmt.Sprintf("  %d open", open))
 	if overdue > 0 {
@@ -241,8 +300,14 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 	}
 	defer db.Close()
 
+	ps := proj.NewStore(db.Conn())
+	projectPath, err := resolveTodoProject(ps, todoProjectName)
+	if err != nil {
+		return err
+	}
+
 	ts := todo.NewStore(db.Conn())
-	id, err := ts.Add(title, prio, tags, due)
+	id, err := ts.Add(title, prio, tags, due, projectPath)
 	if err != nil {
 		return err
 	}
@@ -250,6 +315,11 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 	icon := todo.PriorityIcon(prio)
 	fmt.Printf("  %s Added %s %s\n", ui.Success.Render("✓"), icon, ui.Accent.Render(fmt.Sprintf("#%d", id)))
 	fmt.Printf("    %s\n", title)
+
+	if projectPath != nil {
+		projName := filepath.Base(*projectPath)
+		fmt.Printf("    Project: %s\n", ui.Muted.Render(projName))
+	}
 
 	if due != nil {
 		fmt.Printf("    Due: %s\n", ui.Muted.Render(due.Format("Mon, Jan 2")))
@@ -262,7 +332,7 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 func runTodoDone(_ *cobra.Command, args []string) error {
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		return fmt.Errorf("%q is not a valid todo ID — use `mine todo` to see IDs", args[0])
+		return fmt.Errorf("%q is not a valid todo ID — use %s to see IDs", args[0], ui.Accent.Render("mine todo"))
 	}
 
 	db, err := store.Open()
@@ -286,7 +356,7 @@ func runTodoDone(_ *cobra.Command, args []string) error {
 	fmt.Printf("  %s Done! %s\n", ui.Success.Render("✓"), ui.Muted.Render(t.Title))
 
 	// Check remaining
-	open, _, _, _ := ts.Count()
+	open, _, _, _ := ts.Count(nil)
 	if open == 0 {
 		fmt.Println(ui.Success.Render("  " + ui.IconParty + " All clear! Nothing left to do."))
 	} else {
@@ -300,7 +370,7 @@ func runTodoDone(_ *cobra.Command, args []string) error {
 func runTodoRm(_ *cobra.Command, args []string) error {
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		return fmt.Errorf("%q is not a valid todo ID — use `mine todo` to see IDs", args[0])
+		return fmt.Errorf("%q is not a valid todo ID — use %s to see IDs", args[0], ui.Accent.Render("mine todo"))
 	}
 
 	db, err := store.Open()
@@ -322,7 +392,7 @@ func runTodoRm(_ *cobra.Command, args []string) error {
 func runTodoEdit(_ *cobra.Command, args []string) error {
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		return fmt.Errorf("%q is not a valid todo ID — use `mine todo` to see IDs", args[0])
+		return fmt.Errorf("%q is not a valid todo ID — use %s to see IDs", args[0], ui.Accent.Render("mine todo"))
 	}
 	newTitle := strings.Join(args[1:], " ")
 

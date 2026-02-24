@@ -24,9 +24,22 @@ type Todo struct {
 	Done        bool
 	DueDate     *time.Time
 	Tags        []string
+	ProjectPath *string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	CompletedAt *time.Time
+}
+
+// ListOptions configures which todos to return from List.
+type ListOptions struct {
+	// ShowDone includes completed todos in the result.
+	ShowDone bool
+	// ProjectPath filters to a specific project plus global todos.
+	// nil means global-only (no project filter).
+	// Set AllProjects = true to ignore this field and return everything.
+	ProjectPath *string
+	// AllProjects returns todos from all projects and global.
+	AllProjects bool
 }
 
 // PriorityLabel returns a human-readable priority string.
@@ -72,7 +85,7 @@ func NewStore(db *sql.DB) *Store {
 }
 
 // Add creates a new todo and returns its ID.
-func (s *Store) Add(title string, priority int, tags []string, due *time.Time) (int, error) {
+func (s *Store) Add(title string, priority int, tags []string, due *time.Time, projectPath *string) (int, error) {
 	tagStr := strings.Join(tags, ",")
 	var dueStr *string
 	if due != nil {
@@ -81,8 +94,8 @@ func (s *Store) Add(title string, priority int, tags []string, due *time.Time) (
 	}
 
 	res, err := s.db.Exec(
-		`INSERT INTO todos (title, priority, tags, due_date) VALUES (?, ?, ?, ?)`,
-		title, priority, tagStr, dueStr,
+		`INSERT INTO todos (title, priority, tags, due_date, project_path) VALUES (?, ?, ?, ?, ?)`,
+		title, priority, tagStr, dueStr, projectPath,
 	)
 	if err != nil {
 		return 0, err
@@ -130,15 +143,34 @@ func (s *Store) Delete(id int) error {
 	return nil
 }
 
-// List returns todos matching the filter.
-func (s *Store) List(showDone bool) ([]Todo, error) {
-	query := `SELECT id, title, body, priority, done, due_date, tags, created_at, updated_at, completed_at FROM todos`
-	if !showDone {
-		query += ` WHERE done = 0`
-	}
-	query += ` ORDER BY priority DESC, created_at ASC`
+// List returns todos matching the given options.
+func (s *Store) List(opts ListOptions) ([]Todo, error) {
+	query := `SELECT id, title, body, priority, done, due_date, tags, project_path, created_at, updated_at, completed_at FROM todos`
 
-	rows, err := s.db.Query(query)
+	var conditions []string
+	var args []any
+
+	if !opts.ShowDone {
+		conditions = append(conditions, "done = 0")
+	}
+
+	if !opts.AllProjects {
+		if opts.ProjectPath != nil {
+			// Show this project's todos plus global (null project_path) todos.
+			conditions = append(conditions, "(project_path = ? OR project_path IS NULL)")
+			args = append(args, *opts.ProjectPath)
+		} else {
+			// Outside any project: show only global todos.
+			conditions = append(conditions, "project_path IS NULL")
+		}
+	}
+
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+	query += " ORDER BY priority DESC, created_at ASC"
+
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -148,11 +180,11 @@ func (s *Store) List(showDone bool) ([]Todo, error) {
 	for rows.Next() {
 		var t Todo
 		var doneInt int
-		var dueStr, tagStr sql.NullString
+		var dueStr, tagStr, projPath sql.NullString
 		var completedAt sql.NullTime
 		var createdStr, updatedStr string
 
-		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &createdStr, &updatedStr, &completedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &createdStr, &updatedStr, &completedAt); err != nil {
 			return nil, err
 		}
 
@@ -165,6 +197,10 @@ func (s *Store) List(showDone bool) ([]Todo, error) {
 		if tagStr.Valid && tagStr.String != "" {
 			t.Tags = strings.Split(tagStr.String, ",")
 		}
+		if projPath.Valid && projPath.String != "" {
+			s := projPath.String
+			t.ProjectPath = &s
+		}
 		if completedAt.Valid {
 			t.CompletedAt = &completedAt.Time
 		}
@@ -176,8 +212,33 @@ func (s *Store) List(showDone bool) ([]Todo, error) {
 	return todos, nil
 }
 
-// Count returns the number of open and total todos.
-func (s *Store) Count() (open int, total int, overdue int, err error) {
+// Count returns the number of open and total todos, optionally scoped to a project.
+// projectPath nil returns counts across all todos (no project filter).
+// projectPath non-nil scopes to that project plus global (null project_path) todos.
+func (s *Store) Count(projectPath *string) (open int, total int, overdue int, err error) {
+	today := time.Now().Format("2006-01-02")
+
+	if projectPath != nil {
+		p := *projectPath
+		err = s.db.QueryRow(
+			`SELECT COUNT(*) FROM todos WHERE done = 0 AND (project_path = ? OR project_path IS NULL)`, p,
+		).Scan(&open)
+		if err != nil {
+			return
+		}
+		err = s.db.QueryRow(
+			`SELECT COUNT(*) FROM todos WHERE project_path = ? OR project_path IS NULL`, p,
+		).Scan(&total)
+		if err != nil {
+			return
+		}
+		err = s.db.QueryRow(
+			`SELECT COUNT(*) FROM todos WHERE done = 0 AND due_date IS NOT NULL AND due_date < ? AND (project_path = ? OR project_path IS NULL)`,
+			today, p,
+		).Scan(&overdue)
+		return
+	}
+
 	err = s.db.QueryRow(`SELECT COUNT(*) FROM todos WHERE done = 0`).Scan(&open)
 	if err != nil {
 		return
@@ -186,7 +247,6 @@ func (s *Store) Count() (open int, total int, overdue int, err error) {
 	if err != nil {
 		return
 	}
-	today := time.Now().Format("2006-01-02")
 	err = s.db.QueryRow(`SELECT COUNT(*) FROM todos WHERE done = 0 AND due_date IS NOT NULL AND due_date < ?`, today).Scan(&overdue)
 	return
 }
@@ -195,14 +255,14 @@ func (s *Store) Count() (open int, total int, overdue int, err error) {
 func (s *Store) Get(id int) (*Todo, error) {
 	var t Todo
 	var doneInt int
-	var dueStr, tagStr sql.NullString
+	var dueStr, tagStr, projPath sql.NullString
 	var completedAt sql.NullTime
 	var createdStr, updatedStr string
 
 	err := s.db.QueryRow(
-		`SELECT id, title, body, priority, done, due_date, tags, created_at, updated_at, completed_at FROM todos WHERE id = ?`,
+		`SELECT id, title, body, priority, done, due_date, tags, project_path, created_at, updated_at, completed_at FROM todos WHERE id = ?`,
 		id,
-	).Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &createdStr, &updatedStr, &completedAt)
+	).Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &createdStr, &updatedStr, &completedAt)
 	if err != nil {
 		return nil, fmt.Errorf("todo #%d not found", id)
 	}
@@ -215,6 +275,10 @@ func (s *Store) Get(id int) (*Todo, error) {
 	}
 	if tagStr.Valid && tagStr.String != "" {
 		t.Tags = strings.Split(tagStr.String, ",")
+	}
+	if projPath.Valid && projPath.String != "" {
+		s := projPath.String
+		t.ProjectPath = &s
 	}
 	if completedAt.Valid {
 		t.CompletedAt = &completedAt.Time

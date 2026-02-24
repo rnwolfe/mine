@@ -78,7 +78,7 @@ func gatherStatus() StatusData {
 	defer db.Close()
 
 	ts := todo.NewStore(db.Conn())
-	open, total, overdue, err := ts.Count()
+	open, total, overdue, err := ts.Count(nil)
 	if err == nil {
 		data.OpenTodos = open
 		data.TotalTodos = total

@@ -249,6 +249,52 @@ func (s *Store) PreviousName() (string, error) {
 	return s.getKV("proj.previous")
 }
 
+// FindForCWD returns the most specific registered project that contains the
+// current working directory. Returns nil (no error) if no project matches.
+// This is a fast path that skips the git-branch lookup used by List.
+func (s *Store) FindForCWD() (*Project, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, nil // non-fatal
+	}
+	return s.FindForPath(cwd)
+}
+
+// FindForPath returns the most specific registered project whose path is a
+// prefix of (or equal to) the given path. Returns nil if none match.
+// This is a fast path that skips the git-branch lookup used by List.
+func (s *Store) FindForPath(path string) (*Project, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, nil
+	}
+
+	rows, err := s.db.Query(`SELECT name, path FROM projects`)
+	if err != nil {
+		return nil, fmt.Errorf("find project for path: %w", err)
+	}
+	defer rows.Close()
+
+	var best *Project
+	bestLen := -1
+	for rows.Next() {
+		var p Project
+		if err := rows.Scan(&p.Name, &p.Path); err != nil {
+			continue
+		}
+		if abs == p.Path || strings.HasPrefix(abs, p.Path+string(filepath.Separator)) {
+			if len(p.Path) > bestLen {
+				bestLen = len(p.Path)
+				best = &Project{Name: p.Name, Path: p.Path}
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("find project for path: %w", err)
+	}
+	return best, nil
+}
+
 func (s *Store) Scan(root string, depth int) ([]Project, error) {
 	if strings.TrimSpace(root) == "" {
 		root = "."

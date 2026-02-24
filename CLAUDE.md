@@ -329,7 +329,7 @@ Phases: `copilot` → `claude` → `done`
 - **Copilot iterations**: Up to 3 fix cycles on Copilot feedback before transitioning to Claude
 - **Claude fix**: 1 final fix cycle after Claude review
 - **Timeouts**: 60 min for implementation, 45 min for review fixes
-- **Max turns**: 100 for implementation, 50 for review fixes (high to allow complex work, prevents infinite loops)
+- **Max turns**: 150 for implementation, 50 for review fixes (high to allow complex work, prevents infinite loops)
 - **Protected files**: Agent cannot modify CLAUDE.md, workflows, or autodev scripts
 - **Trusted users**: Only users in `AUTODEV_TRUSTED_USERS` (config.sh) can trigger autodev via `backlog/ready` label
 - **Implement → review-fix chain**: After PR creation, implement polls for Copilot review (≤10 min) and dispatches review-fix directly. Scheduled 4-hour poll is a safety-net fallback.

@@ -551,7 +551,11 @@ func runTodoNote(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("  %s Note added to %s\n", ui.Success.Render("✓"), ui.Accent.Render(fmt.Sprintf("#%d", id)))
+	preview := text
+	if len(preview) > 60 {
+		preview = preview[:57] + "…"
+	}
+	fmt.Printf("  %s Note added to %s — %q\n", ui.Success.Render("✓"), ui.Accent.Render(fmt.Sprintf("#%d", id)), preview)
 	fmt.Println()
 	return nil
 }
@@ -645,13 +649,22 @@ func todoTimeAgo(t time.Time, now time.Time) string {
 		return "just now"
 	case d < time.Hour:
 		mins := int(d.Minutes())
-		return fmt.Sprintf("%d minute(s) ago", mins)
+		if mins == 1 {
+			return "1 minute ago"
+		}
+		return fmt.Sprintf("%d minutes ago", mins)
 	case d < 24*time.Hour:
 		hours := int(d.Hours())
-		return fmt.Sprintf("%d hour(s) ago", hours)
+		if hours == 1 {
+			return "1 hour ago"
+		}
+		return fmt.Sprintf("%d hours ago", hours)
 	default:
 		days := int(d.Hours() / 24)
-		return fmt.Sprintf("%d day(s) ago", days)
+		if days == 1 {
+			return "1 day ago"
+		}
+		return fmt.Sprintf("%d days ago", days)
 	}
 }
 

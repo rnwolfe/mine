@@ -39,6 +39,16 @@ type Todo struct {
 	CompletedAt *time.Time
 }
 
+// SortMode controls the sort order returned by List.
+type SortMode int
+
+const (
+	// SortUrgency sorts by computed urgency score (default).
+	SortUrgency SortMode = iota
+	// SortLegacy sorts by priority DESC, created_at ASC (original behavior).
+	SortLegacy
+)
+
 // ListOptions configures which todos to return from List.
 type ListOptions struct {
 	// ShowDone includes completed todos in the result.
@@ -51,6 +61,14 @@ type ListOptions struct {
 	ProjectPath *string
 	// AllProjects returns todos from all projects and global.
 	AllProjects bool
+	// Sort controls the sort order. Default (zero value) is SortUrgency.
+	Sort SortMode
+	// CurrentProjectPath is the active project for urgency scoring.
+	// Used only when Sort == SortUrgency.
+	CurrentProjectPath *string
+	// Weights overrides default urgency weights.
+	// Used only when Sort == SortUrgency.
+	Weights UrgencyWeights
 }
 
 // PriorityLabel returns a human-readable priority string.
@@ -238,7 +256,11 @@ func (s *Store) List(opts ListOptions) ([]Todo, error) {
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
-	query += " ORDER BY priority DESC, created_at ASC"
+
+	// Legacy sort happens in SQL; urgency sort happens in Go after fetch.
+	if opts.Sort == SortLegacy {
+		query += " ORDER BY priority DESC, created_at ASC"
+	}
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
@@ -284,6 +306,16 @@ func (s *Store) List(opts ListOptions) ([]Todo, error) {
 
 		todos = append(todos, t)
 	}
+
+	// Apply urgency sort (default) in Go after fetching.
+	if opts.Sort == SortUrgency {
+		w := opts.Weights
+		if w == (UrgencyWeights{}) {
+			w = DefaultUrgencyWeights()
+		}
+		SortByUrgency(todos, time.Now(), opts.CurrentProjectPath, w)
+	}
+
 	return todos, nil
 }
 

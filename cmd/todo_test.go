@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rnwolfe/mine/internal/proj"
 	"github.com/rnwolfe/mine/internal/store"
@@ -712,5 +713,206 @@ func TestRunTodoList_SomedayFlagIncludesSomeday(t *testing.T) {
 	}
 	if !strings.Contains(out, "later task") {
 		t.Error("expected later task in output with --someday flag")
+	}
+}
+
+// --- mine todo next integration tests ---
+
+func TestRunTodoNext_SingleHighestUrgency(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	ts.Add("low later task", todo.PrioLow, nil, nil, nil, todo.ScheduleLater)
+	ts.Add("crit today task", todo.PrioCrit, nil, nil, nil, todo.ScheduleToday)
+	ts.Add("med soon task", todo.PrioMedium, nil, nil, nil, todo.ScheduleSoon)
+	db.Close()
+
+	out := captureStdout(t, func() {
+		runTodoNext(nil, nil) // default n=1
+	})
+
+	// crit today scores highest (50+40=90), should appear
+	if !strings.Contains(out, "crit today task") {
+		t.Errorf("expected highest-urgency task in output, got:\n%s", out)
+	}
+	// low later should NOT appear (only top 1)
+	if strings.Contains(out, "low later task") {
+		t.Errorf("expected only top 1 task, but low later task appeared:\n%s", out)
+	}
+	if strings.Contains(out, "med soon task") {
+		t.Errorf("expected only top 1 task, but med soon task appeared:\n%s", out)
+	}
+}
+
+func TestRunTodoNext_TopN(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	ts.Add("task A", todo.PrioLow, nil, nil, nil, todo.ScheduleLater)
+	ts.Add("task B", todo.PrioCrit, nil, nil, nil, todo.ScheduleToday)
+	ts.Add("task C", todo.PrioHigh, nil, nil, nil, todo.ScheduleSoon)
+	db.Close()
+
+	out := captureStdout(t, func() {
+		runTodoNext(nil, []string{"3"})
+	})
+
+	if !strings.Contains(out, "task A") {
+		t.Error("expected task A in top-3 output")
+	}
+	if !strings.Contains(out, "task B") {
+		t.Error("expected task B in top-3 output")
+	}
+	if !strings.Contains(out, "task C") {
+		t.Error("expected task C in top-3 output")
+	}
+}
+
+func TestRunTodoNext_AllClear_NoTasks(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	out := captureStdout(t, func() {
+		runTodoNext(nil, nil)
+	})
+
+	if !strings.Contains(out, "All clear") {
+		t.Errorf("expected 'All clear' message when no tasks, got:\n%s", out)
+	}
+}
+
+func TestRunTodoNext_InvalidCount_Error(t *testing.T) {
+	todoTestEnv(t)
+
+	err := runTodoNext(nil, []string{"0"})
+	if err == nil {
+		t.Fatal("expected error for count=0")
+	}
+	if !strings.Contains(err.Error(), "is not a valid count") {
+		t.Errorf("expected 'is not a valid count' in error, got: %v", err)
+	}
+
+	err = runTodoNext(nil, []string{"-1"})
+	if err == nil {
+		t.Fatal("expected error for negative count")
+	}
+
+	err = runTodoNext(nil, []string{"notanumber"})
+	if err == nil {
+		t.Fatal("expected error for non-numeric count")
+	}
+}
+
+func TestRunTodoNext_ExcludesSomeday(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	ts.Add("someday idea", todo.PrioCrit, nil, nil, nil, todo.ScheduleSomeday)
+	ts.Add("open task", todo.PrioLow, nil, nil, nil, todo.ScheduleLater)
+	db.Close()
+
+	out := captureStdout(t, func() {
+		runTodoNext(nil, []string{"5"})
+	})
+
+	if strings.Contains(out, "someday idea") {
+		t.Errorf("someday tasks should be excluded from 'next' output:\n%s", out)
+	}
+	if !strings.Contains(out, "open task") {
+		t.Errorf("expected open task in output:\n%s", out)
+	}
+}
+
+func TestRunTodoNext_OverdueRanksFirst(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	past := time.Now().AddDate(0, 0, -1)
+	ts.Add("overdue low", todo.PrioLow, nil, &past, nil, todo.ScheduleLater)
+	ts.Add("crit today no due", todo.PrioCrit, nil, nil, nil, todo.ScheduleToday)
+	db.Close()
+
+	out := captureStdout(t, func() {
+		runTodoNext(nil, nil) // top 1
+	})
+
+	if !strings.Contains(out, "overdue low") {
+		t.Errorf("overdue task should rank first, got:\n%s", out)
+	}
+	if strings.Contains(out, "crit today no due") {
+		t.Errorf("non-overdue task should not appear when overdue exists and n=1:\n%s", out)
+	}
+}
+
+func TestRunTodoNext_DetailCardFields(t *testing.T) {
+	todoTestEnv(t)
+
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	os.Chdir(tmpDir)
+	defer os.Chdir(origDir)
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	past := time.Now().AddDate(0, 0, -2)
+	ts.Add("tagged task", todo.PrioHigh, []string{"docs", "v2"}, &past, nil, todo.ScheduleSoon)
+	db.Close()
+
+	out := captureStdout(t, func() {
+		runTodoNext(nil, nil)
+	})
+
+	if !strings.Contains(out, "tagged task") {
+		t.Errorf("expected title in card output:\n%s", out)
+	}
+	if !strings.Contains(out, "docs") || !strings.Contains(out, "v2") {
+		t.Errorf("expected tags in card output:\n%s", out)
+	}
+	// overdue annotation
+	if !strings.Contains(out, "overdue") {
+		t.Errorf("expected overdue annotation in card output:\n%s", out)
 	}
 }

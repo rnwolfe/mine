@@ -1,0 +1,215 @@
+name: Autodev Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "CHANGELOG.md"
+      - "docs/internal/coverage.json"
+      - "docs/internal/badges.json"
+concurrency:
+  group: autodev-release
+  cancel-in-progress: false
+
+jobs:
+  gate-check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      skip_reason: ${{ steps.check.outputs.skip_reason }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check release gates
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Gate 1: No open release proposal PR
+          OPEN_PROPOSALS=$(gh pr list --repo "${{ github.repository }}" \
+            --label "release/proposal" --state open --json number --jq 'length')
+          if [ "$OPEN_PROPOSALS" -gt 0 ]; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=Release proposal PR already open" >> "$GITHUB_OUTPUT"
+            echo "::notice::autodev-release: skipping — proposal already open"
+            exit 0
+          fi
+
+          # Gate 2: Last tag must exist
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=No tags found" >> "$GITHUB_OUTPUT"
+            echo "::notice::autodev-release: skipping — no tags"
+            exit 0
+          fi
+
+          # Gate 3: 24h rate limit since last release
+          LAST_TAG_DATE=$(git log -1 --format=%aI "$LAST_TAG" 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG_DATE" ]; then
+            LAST_TAG_EPOCH=$(date -d "$LAST_TAG_DATE" +%s 2>/dev/null || echo "0")
+            NOW_EPOCH=$(date +%s)
+            HOURS_SINCE=$(( (NOW_EPOCH - LAST_TAG_EPOCH) / 3600 ))
+            if [ "$HOURS_SINCE" -lt 24 ]; then
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
+              echo "skip_reason=Last release was ${HOURS_SINCE}h ago (< 24h rate limit)" >> "$GITHUB_OUTPUT"
+              echo "::notice::autodev-release: skipping — last release ${HOURS_SINCE}h ago"
+              exit 0
+            fi
+          fi
+
+          # Gate 4: Unreleased feat/fix PRs exist since last tag
+          LAST_TAG_ISO=$(git log -1 --format=%cI "$LAST_TAG" 2>/dev/null || echo "1970-01-01T00:00:00Z")
+          UNRELEASED=$(gh pr list --repo "${{ github.repository }}" \
+            --state merged \
+            --json number,title,mergedAt \
+            --jq "[.[] | select(.mergedAt > \"${LAST_TAG_ISO}\") | select(.title | test(\"^(feat|fix):\"))] | length")
+
+          if [ "$UNRELEASED" -eq 0 ]; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=No unreleased feat/fix PRs since ${LAST_TAG}" >> "$GITHUB_OUTPUT"
+            echo "::notice::autodev-release: skipping — no unreleased feat/fix PRs"
+            exit 0
+          fi
+
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+          echo "skip_reason=" >> "$GITHUB_OUTPUT"
+          echo "::notice::autodev-release: gates passed — ${UNRELEASED} unreleased PRs since ${LAST_TAG}"
+
+  draft-release:
+    needs: gate-check
+    if: needs.gate-check.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AUTODEV_TOKEN }}
+          fetch-depth: 0
+
+      # ============================================================
+      # AGENT EXECUTION — Provider: Claude via claude-code-action@v1
+      # ============================================================
+      - name: Draft release with agent
+        id: agent
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are the automated release manager for the mine CLI tool.
+            Your job: analyze unreleased changes since the last tag and draft a release.
+
+            RULES:
+            - Read CLAUDE.md first for project conventions
+            - Follow the release logic in .claude/skills/release/SKILL.md exactly
+            - The ONLY repo file you may modify is CHANGELOG.md
+            - Do NOT touch CLAUDE.md, .github/workflows/, or scripts/autodev/
+            - Write the proposed version to /tmp/release-version.txt (just "vX.Y.Z", no newline, no extra text)
+            - Write the PR body to /tmp/release-pr-body.md
+
+            STEPS:
+            1. Read CHANGELOG.md and .claude/skills/release/SKILL.md
+            2. Get last tag: `git describe --tags --abbrev=0`
+            3. Get last tag date: `git log -1 --format=%cI <tag>`
+            4. List merged PRs since that date:
+               `gh pr list --repo ${{ github.repository }} --state merged --json number,title,body,mergedAt,labels --limit 50`
+               Filter to PRs with mergedAt > last tag date.
+            5. Categorize by conventional commit type (feat/fix/refactor/docs/chore/ci)
+            6. Propose semver: any feat: = minor bump, fix-only = patch, pre-1.0 breaking = minor
+            7. Update CHANGELOG.md: move [Unreleased] content + new entries into a versioned section
+            8. Write /tmp/release-version.txt with ONLY the version string (e.g. `v0.5.0`)
+            9. Write /tmp/release-pr-body.md with:
+
+            ```markdown
+            ## Release Proposal
+
+            **Current version**: vA.B.C
+            **Proposed version**: vX.Y.Z
+            **Bump**: [patch|minor] — [one sentence reasoning]
+            **PRs in scope**: N (X feat, Y fix)
+
+            ### Changelog Preview
+
+            [paste the new CHANGELOG section verbatim]
+
+            ### Pre-Release Checklist
+
+            - [x/~] No human/blocked PRs: [result]
+            - [x/~] Conventional commit titles: [result]
+            - [x/~] STATUS.md freshness: [advisory assessment]
+
+            ---
+            *Merge this PR to update CHANGELOG.md. The tag workflow will then create the tag and trigger GoReleaser.*
+            ```
+
+            CIRCUIT BREAKERS — write "SKIP" to /tmp/release-version.txt and explain in /tmp/release-pr-body.md if:
+            - Any merged PR title contains `!` suffix or body contains `BREAKING CHANGE` — breaking changes need human release
+            - `go.mod` or `go.sum` were modified since the last tag — dependency changes need human verification
+            - Net lines changed since last tag exceeds 2000 — unusually large release needs human judgment
+          claude_args: "--model claude-sonnet-4-6 --max-turns 30 --dangerously-skip-permissions"
+      # ============================================================
+
+      - name: Create release proposal PR
+        if: steps.agent.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+        run: |
+          if [ ! -f /tmp/release-version.txt ]; then
+            echo "::warning::Agent did not produce /tmp/release-version.txt — skipping"
+            exit 0
+          fi
+
+          VERSION=$(cat /tmp/release-version.txt | tr -d '[:space:]')
+
+          if [ "$VERSION" = "SKIP" ] || [ -z "$VERSION" ]; then
+            echo "::notice::Agent signaled skip — circuit breaker triggered"
+            cat /tmp/release-pr-body.md 2>/dev/null || true
+            exit 0
+          fi
+
+          # Validate version format
+          if ! echo "$VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Invalid version format from agent: '$VERSION'"
+            exit 1
+          fi
+
+          # Commit CHANGELOG changes
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="autodev/release-${VERSION}"
+          git checkout -b "$BRANCH"
+          git add CHANGELOG.md
+
+          if git diff --staged --quiet; then
+            echo "::warning::No CHANGELOG changes staged — agent did not update CHANGELOG.md"
+            exit 0
+          fi
+
+          git commit -m "chore: release ${VERSION}"
+          git push origin "$BRANCH"
+
+          BODY=$(cat /tmp/release-pr-body.md 2>/dev/null || echo "Automated release proposal for ${VERSION}.")
+          gh pr create \
+            --repo "${{ github.repository }}" \
+            --title "chore: release ${VERSION}" \
+            --body "$BODY" \
+            --base main \
+            --head "$BRANCH" \
+            --label "release/proposal"
+
+          echo "::notice::Release proposal PR created for ${VERSION}"
+
+      - name: Handle agent failure
+        if: steps.agent.outcome == 'failure'
+        run: |
+          echo "::warning::Release drafting agent failed — manual release required"
+          echo "::warning::Run /release locally to create the release manually"

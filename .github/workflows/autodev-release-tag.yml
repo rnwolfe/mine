@@ -1,0 +1,65 @@
+name: Release Tagging
+
+# Fires when a release/proposal PR is merged to main.
+# Extracts the version from the PR title, creates the tag, and pushes it.
+# The tag push triggers release.yml → GoReleaser → GitHub Release.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+jobs:
+  tag-release:
+    # Only run when a release/proposal PR was merged (not closed without merge)
+    if: >
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'release/proposal')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AUTODEV_TOKEN }}
+          fetch-depth: 0
+
+      - name: Extract version from PR title
+        id: version
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          TITLE="$PR_TITLE"
+          echo "PR title: $TITLE"
+
+          VERSION=$(echo "$TITLE" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?')
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not extract version from PR title: '$TITLE'"
+            echo "::error::Expected format: 'chore: release vX.Y.Z'"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Extracted version: $VERSION"
+
+      - name: Create and push tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Ensure tag doesn't already exist
+          if git ls-remote --tags origin "refs/tags/${VERSION}" | grep -q "${VERSION}"; then
+            echo "::error::Tag ${VERSION} already exists on origin"
+            exit 1
+          fi
+
+          # Pull latest main (release PR was just merged — need that commit)
+          git pull origin main
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${VERSION}" -m "Release ${VERSION}"
+          git push origin "${VERSION}"
+
+          echo "::notice::Tagged ${VERSION} — GoReleaser will now build and publish the release"
+          echo "::notice::Track progress: https://github.com/${{ github.repository }}/actions?query=workflow%3ARelease"

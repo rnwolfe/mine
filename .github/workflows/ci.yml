@@ -126,6 +126,9 @@ jobs:
   coverage-report:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    concurrency:
+      group: coverage-report-${{ github.ref }}
+      cancel-in-progress: true
     needs: test
     permissions:
       contents: write

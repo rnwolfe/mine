@@ -21,7 +21,7 @@ import (
 
 var aiCmd = &cobra.Command{
 	Use:   "ai",
-	Short: "AI-powered development helpers",
+	Short: "Your AI co-pilot for code review, commits, and questions",
 	Long:  `Configure AI providers and use AI helpers for code review, commit messages, and quick questions.`,
 	RunE:  hook.Wrap("ai", runAIHelp),
 }
@@ -132,7 +132,7 @@ var (
 
 var aiConfigCmd = &cobra.Command{
 	Use:   "config",
-	Short: "Configure AI provider settings",
+	Short: "Set up your AI provider and API key",
 	Long:  `Set up your AI provider (Claude, OpenAI, etc.) and store your API key securely.`,
 	RunE:  hook.Wrap("ai.config", runAIConfig),
 }
@@ -233,7 +233,7 @@ func runAIConfig(_ *cobra.Command, _ []string) error {
 var (
 	aiAskCmd = &cobra.Command{
 		Use:   "ask <question>",
-		Short: "Ask a quick question",
+		Short: "Ask your AI anything",
 		Long:  `Send a question to your configured AI provider and get an answer.`,
 		Args:  cobra.MinimumNArgs(1),
 		RunE:  hook.Wrap("ai.ask", runAIAsk),
@@ -289,7 +289,7 @@ func runAIAsk(cmd *cobra.Command, args []string) error {
 var (
 	aiReviewCmd = &cobra.Command{
 		Use:   "review",
-		Short: "Review staged changes with AI",
+		Short: "Get AI eyes on your staged changes",
 		Long:  `Get an AI-powered code review of your staged git changes.`,
 		RunE:  hook.Wrap("ai.review", runAIReview),
 	}
@@ -384,7 +384,7 @@ Here's the diff%s:
 // ai commit command
 var aiCommitCmd = &cobra.Command{
 	Use:   "commit",
-	Short: "Generate a commit message from diff",
+	Short: "Let AI draft your commit message",
 	Long:  `Analyze your staged changes and generate a clear commit message.`,
 	RunE:  hook.Wrap("ai.commit", runAICommit),
 }
@@ -645,7 +645,7 @@ func aiVaultProviders() ([]string, error) {
 // ai models command
 var aiModelsCmd = &cobra.Command{
 	Use:   "models",
-	Short: "List available AI providers and models",
+	Short: "See what AI providers and models are available",
 	Long:  `Show configured providers, available providers, and suggested models for each.`,
 	RunE:  hook.Wrap("ai.models", runAIModels),
 }

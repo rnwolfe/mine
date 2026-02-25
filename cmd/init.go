@@ -78,7 +78,7 @@ func runReInit(reader *bufio.Reader) error {
 
 	fmt.Println(ui.Title.Render(ui.IconMine + " mine is already set up."))
 	fmt.Println()
-	fmt.Println("  Your current configuration:")
+	fmt.Println(ui.Muted.Render("  Your current configuration:"))
 
 	name := existing.User.Name
 	fmt.Printf("    %-8s %s\n", "Name", ui.Accent.Render(name))

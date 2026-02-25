@@ -16,7 +16,7 @@ import (
 
 var sshCmd = &cobra.Command{
 	Use:   "ssh",
-	Short: "SSH config management and connection helpers",
+	Short: "Jump to any SSH host, manage keys, and set up tunnels",
 	Long:  `Manage SSH hosts, keys, tunnels, and connections.`,
 	RunE:  hook.Wrap("ssh", runSSH),
 }

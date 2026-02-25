@@ -13,20 +13,20 @@ import (
 
 var agentsCommitCmd = &cobra.Command{
 	Use:   "commit",
-	Short: "Snapshot the current state of the canonical store",
+	Short: "Snapshot your agents store to version history",
 	Long:  `Stage and commit all changes in the canonical store. Initializes git versioning on first use.`,
 	RunE:  hook.Wrap("agents.commit", runAgentsCommit),
 }
 
 var agentsLogCmd = &cobra.Command{
 	Use:   "log [file]",
-	Short: "Show version history of the canonical store",
+	Short: "Browse version history of your agents store",
 	RunE:  hook.Wrap("agents.log", runAgentsLog),
 }
 
 var agentsRestoreCmd = &cobra.Command{
 	Use:   "restore <file>",
-	Short: "Restore an agent config file to a previous version",
+	Short: "Restore an agent config file to a previous snapshot",
 	Long: `Restore a file in the canonical store to a previous snapshot.
 
 The file argument must be a path relative to the canonical store, e.g.:

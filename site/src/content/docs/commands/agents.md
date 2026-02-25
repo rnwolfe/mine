@@ -403,7 +403,7 @@ the markdown file.
 **Example output:**
 
 ```
-  ⛏  Agent Configs
+  🔧 Agent Configs
 
   Skills (2):
     code-review       Reviews code changes and provides feedback

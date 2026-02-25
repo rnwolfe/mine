@@ -75,7 +75,7 @@ func runMetaHelp(_ *cobra.Command, _ []string) error {
 	fmt.Println()
 	fmt.Println(ui.Title.Render("  Meta — interact with mine itself"))
 	fmt.Println()
-	fmt.Println("  Available commands:")
+	fmt.Println(ui.Muted.Render("  Available commands:"))
 	fmt.Println()
 	fmt.Printf("    %s    %s\n", ui.Accent.Render("mine meta fr <title>"), ui.Muted.Render("Submit a feature request"))
 	fmt.Printf("    %s   %s\n", ui.Accent.Render("mine meta bug <title>"), ui.Muted.Render("Report a bug"))

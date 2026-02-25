@@ -14,7 +14,7 @@ var agentsListType string
 
 var agentsListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "Show a categorized inventory of managed agent configs",
+	Short: "List all managed agent configs in your store",
 	Long: `Show a categorized inventory of managed agent configs in the canonical store.
 
 Lists skills (with descriptions from SKILL.md frontmatter), commands, agent
@@ -41,7 +41,7 @@ func runAgentsList(_ *cobra.Command, _ []string) error {
 	}
 
 	fmt.Println()
-	fmt.Printf("  %s\n", ui.Title.Render("⛏  Agent Configs"))
+	fmt.Printf("  %s\n", ui.Title.Render(ui.IconTools+" Agent Configs"))
 	fmt.Println()
 
 	total := 0

@@ -63,7 +63,7 @@ func runCraftHelp(_ *cobra.Command, _ []string) error {
 	fmt.Println()
 	fmt.Println(ui.Title.Render("  Craft — build and bootstrap"))
 	fmt.Println()
-	fmt.Println("  Available recipes:")
+	fmt.Println(ui.Muted.Render("  Available recipes:"))
 	fmt.Println()
 	fmt.Printf("    %s   %s\n", ui.Accent.Render("mine craft git"), ui.Muted.Render("Set up git with .gitignore, hooks, etc."))
 

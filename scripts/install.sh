@@ -15,7 +15,7 @@ BINARY="mine"
 INSTALL_DIR="${HOME}/.local/bin"
 
 main() {
-    echo "⛏  Installing mine..."
+    echo "▸  Installing mine..."
     echo ""
 
     # Detect OS and arch

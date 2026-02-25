@@ -12,7 +12,7 @@ import (
 
 var agentsCmd = &cobra.Command{
 	Use:   "agents",
-	Short: "Manage coding agent configurations from a canonical store",
+	Short: "One store for all your coding agent configs — skills, rules, and instructions",
 	Long:  `Manage your coding agent configurations with a single canonical store of instructions, rules, and skills.`,
 	RunE:  hook.Wrap("agents", runAgentsStatus),
 }
@@ -70,19 +70,19 @@ func init() {
 
 var agentsInitCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Create the canonical agents store with a starter directory structure",
+	Short: "Set up your canonical agents store for the first time",
 	RunE:  hook.Wrap("agents.init", runAgentsInit),
 }
 
 var agentsDetectCmd = &cobra.Command{
 	Use:   "detect",
-	Short: "Scan for installed coding agents and persist results to the manifest",
+	Short: "Find installed coding agents on your machine",
 	RunE:  hook.Wrap("agents.detect", runAgentsDetect),
 }
 
 var agentsLinkCmd = &cobra.Command{
 	Use:   "link",
-	Short: "Create symlinks from the canonical store to each detected agent's config locations",
+	Short: "Wire your canonical configs into each detected agent",
 	Long: `Create symlinks from the canonical agents store to each detected agent's
 expected configuration locations. Only config types that exist in the store are linked
 (e.g. skips skills/ if it is empty). Use --copy to create file copies instead of
@@ -92,7 +92,7 @@ symlinks. Use --force to overwrite existing non-symlink files.`,
 
 var agentsUnlinkCmd = &cobra.Command{
 	Use:   "unlink",
-	Short: "Replace symlinks with standalone copies, restoring independent configs",
+	Short: "Restore agents to independent configs — break the canonical link",
 	Long: `Replace agent config symlinks with standalone file copies, restoring each
 agent's configuration to an independent state. After unlinking, changes to the
 canonical store will no longer propagate to the agent configs.`,
@@ -101,7 +101,7 @@ canonical store will no longer propagate to the agent configs.`,
 
 var agentsAdoptCmd = &cobra.Command{
 	Use:   "adopt",
-	Short: "Scan detected agents for existing configs and import them to the canonical store",
+	Short: "Import existing agent configs into your canonical store",
 	Long: `Scan detected agents for existing configs, import them into the canonical
 store, and replace originals with symlinks. This is the zero-friction migration path
 for developers who already have agent configs in place.
@@ -114,13 +114,13 @@ Use --agent to limit adoption to a specific agent.`,
 
 var agentsStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show full health report: store info, detected agents, and link status",
+	Short: "Show store health, detected agents, and link status",
 	RunE:  hook.Wrap("agents.status", runAgentsStatus),
 }
 
 var agentsDiffCmd = &cobra.Command{
 	Use:   "diff",
-	Short: "Show content differences between the canonical store and linked targets",
+	Short: "See what's drifted between your canonical store and agent configs",
 	Long: `Show content differences between the canonical agents store and the linked
 targets. Differences are shown for copy-mode links and paths where a symlink was
 replaced with a regular file or directory.

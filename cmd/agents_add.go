@@ -12,7 +12,7 @@ import (
 
 var agentsAddCmd = &cobra.Command{
 	Use:   "add",
-	Short: "Scaffold new content in the canonical agents store",
+	Short: "Add a skill, command, agent, or rule to your store",
 	Long: `Scaffold new content in the canonical agents store.
 
   mine agents add skill <name>     Scaffold a new Agent Skill directory
@@ -34,7 +34,7 @@ var agentsAddCmd = &cobra.Command{
 
 var agentsAddSkillCmd = &cobra.Command{
 	Use:   "skill <name>",
-	Short: "Scaffold a new Agent Skill with SKILL.md and directory structure",
+	Short: "Scaffold a new skill in your agents store",
 	Long: `Scaffold a new Agent Skill in the canonical agents store.
 
 Creates the following structure:
@@ -52,7 +52,7 @@ Name must be lowercase letters, digits, and hyphens (1-64 chars).`,
 
 var agentsAddCommandCmd = &cobra.Command{
 	Use:   "command <name>",
-	Short: "Create a new custom command markdown file",
+	Short: "Add a new custom command to your agents store",
 	Long: `Create a new custom command file in the canonical agents store.
 
 Creates:
@@ -67,7 +67,7 @@ Name must be lowercase letters, digits, and hyphens (1-64 chars).`,
 
 var agentsAddAgentCmd = &cobra.Command{
 	Use:   "agent <name>",
-	Short: "Create a new custom agent definition file",
+	Short: "Add a new agent definition to your store",
 	Long: `Create a new agent definition file in the canonical agents store.
 
 Creates:
@@ -81,7 +81,7 @@ Name must be lowercase letters, digits, and hyphens (1-64 chars).`,
 
 var agentsAddRuleCmd = &cobra.Command{
 	Use:   "rule <name>",
-	Short: "Create a new rule file",
+	Short: "Add a new rule to your agents store",
 	Long: `Create a new rule file in the canonical agents store.
 
 Creates:

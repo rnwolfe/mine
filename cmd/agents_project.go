@@ -20,7 +20,7 @@ var (
 
 var agentsProjectCmd = &cobra.Command{
 	Use:   "project",
-	Short: "Scaffold and link agent configs for a specific project",
+	Short: "Set up and link agent configs for the current project",
 	Long: `Manage project-level agent configurations.
 
   mine agents project init [path]          Scaffold agent config dirs in a project
@@ -31,7 +31,7 @@ var agentsProjectCmd = &cobra.Command{
 
 var agentsProjectInitCmd = &cobra.Command{
 	Use:   "init [path]",
-	Short: "Scaffold project-level agent config directories",
+	Short: "Create agent config directories in the current project",
 	Long: `Scaffold project-level agent configuration directories for all detected agents.
 
 Creates agent config directories (e.g. .claude/, .agents/, .gemini/, .opencode/)
@@ -48,7 +48,7 @@ safe — existing files and directories are preserved unless --force is given.`,
 
 var agentsProjectLinkCmd = &cobra.Command{
 	Use:   "link [path]",
-	Short: "Link canonical agent configs to project-level directories",
+	Short: "Link canonical skills and configs into this project",
 	Long: `Create symlinks (or copies) from the canonical agents store into the
 project-level agent config directories.
 

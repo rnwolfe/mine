@@ -662,7 +662,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.badge-app-token.outputs.token }}
         run: |
-          COUNT=$(gh pr list --repo "${{ github.repository }}" --state merged --limit 1000 \
+          COUNT=$(gh pr list --repo "${{ github.repository }}" --state merged --paginate \
             --json labels \
             --jq '[.[] | select(.labels | map(.name) | any(startswith("via/")))] | length')
 
@@ -683,14 +683,16 @@ jobs:
               API_ARGS+=(-f sha="$FILE_SHA")
             fi
 
-            if gh api "repos/${{ github.repository }}/contents/docs/internal/badge-autodev.json" \
-              "${API_ARGS[@]}" > /dev/null 2>&1; then
+            # Capture stderr so failures surface the actual error in logs
+            if LAST_ERROR=$(gh api "repos/${{ github.repository }}/contents/docs/internal/badge-autodev.json" \
+              "${API_ARGS[@]}" 2>&1 >/dev/null); then
               echo "Autodev badge updated: ${COUNT} merged"
               break
             elif [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-              echo "Badge update failed on attempt ${attempt} (possible 409 conflict), retrying in $((attempt * 2))s..."
-              sleep $((attempt * 2))
+              DELAY=$(( 2 ** attempt ))
+              echo "Badge update failed on attempt ${attempt} (retrying in ${DELAY}s): ${LAST_ERROR}"
+              sleep "$DELAY"
             else
-              echo "::warning::Autodev badge update failed after ${MAX_ATTEMPTS} attempts — will update on next pipeline completion"
+              echo "::warning::Autodev badge update failed after ${MAX_ATTEMPTS} attempts — will update on next pipeline completion. Last error: ${LAST_ERROR}"
             fi
           done

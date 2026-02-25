@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-24
+
+### Added
+
+- **Agents management** (`mine agents`) — Manage AI agent configurations as versioned,
+  project-linked artifacts. Add, list, view status, diff changes, sync to projects,
+  restore previous versions, and scaffold project-level agent directories with
+  `mine agents add/list/status/diff/sync/restore/init/link`.
+- **Project-scoped todos** (`mine todo --project`) — Filter and add todos scoped to a
+  specific project directory; cwd-resolution makes it automatic when inside a registered
+  project.
+- **Todo scheduling buckets** — Triage todos into `today / soon / later / someday`
+  buckets so daily priorities are always clear.
+- **Todo urgency sort and next command** (`mine todo next`) — Surfaces the single most
+  urgent todo based on priority, due date, and bucket — no more staring at a long list.
+- **Todo notes** (`mine todo note`) — Attach timestamped annotations and running notes
+  to any todo; perfect for capturing context mid-task.
+- **Dig focus integration** (`mine dig --todo`) — Start a Pomodoro focus session tied
+  directly to a specific todo; completion is tracked together.
+- **Todo completion stats** (`mine todo stats`) — Velocity metrics: completions per day,
+  current streak, and historical output at a glance.
+- **Recurring todos** (`mine todo --every`) — Create todos that auto-respawn on a
+  schedule (e.g. `--every week`) when completed; ideal for habits and recurring tasks.
+- **Smart init with environment discovery** (`mine init`) — Detects installed tools
+  (git, tmux, AI provider), shows a dynamic capability table on first run, and
+  auto-registers the current git repo as a mine project.
+- **Shell integration setup during init** — `mine init` now offers to write
+  `eval "$(mine shell init)"` to your shell RC file, unlocking `p`, `pp`, and `menv`
+  without any manual steps.
+
+### Fixed
+
+- **`mine init` re-run safety** — Running `mine init` on an existing install now shows
+  current settings and prompts to update individual fields. Use `--reset` to
+  intentionally start fresh.
+- **TUI todo delete** — Pressing `d` in the interactive todo list now correctly removes
+  locally-added todos that haven't been persisted yet.
+
+### Changed
+
+- CLI output personality refined — warmer messages, consistent styling helpers,
+  celebrations on key milestones, and improved command descriptions across all commands.
+
 ## [0.3.0-alpha.1] - 2026-02-22
 
 ### Added

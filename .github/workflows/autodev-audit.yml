@@ -19,7 +19,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,12 +36,15 @@ jobs:
           allowed_bots: "github-actions[bot]"
           prompt: |
             You are auditing the autodev pipeline for the mine CLI tool.
-            Your job is to analyze recent autodev activity and produce a structured health report.
+            Your job: analyze recent autodev activity, compute a health score, detect problems,
+            and produce a structured report WITH actionable follow-up issues.
 
             IMPORTANT RULES:
             - Read CLAUDE.md first for project conventions
-            - Do NOT modify any files in the repository
+            - Do NOT modify any repository files
             - Write your final report to /tmp/audit-report.md
+            - Use `gh issue create --repo ${{ github.repository }}` to file actionable issues
+            - Use `gh issue edit --repo ${{ github.repository }}` to clean up stale state
 
             ## Step 1: Gather Pipeline Data
 
@@ -60,19 +63,19 @@ jobs:
             - Whether `human/blocked` label was applied
             - Time from creation to merge (if merged)
 
-            Also check for stale issues:
+            Check for stale agent/implementing issues:
 
             ```bash
             gh issue list --repo ${{ github.repository }} --label "agent/implementing" --state open \
               --json number,title,createdAt,labels
             ```
 
-            Cross-reference with open PRs — an `agent/implementing` issue with no corresponding
-            open autodev PR indicates stale state.
+            Cross-reference with open autodev PRs. An `agent/implementing` issue with no
+            corresponding open `via/*` PR is stale state.
 
-            ## Step 2: Compute Pipeline Metrics
+            ## Step 2: Compute Pipeline Metrics and Health Score
 
-            Calculate and include in your report:
+            Calculate metrics:
 
             | Metric | Value |
             |--------|-------|
@@ -80,11 +83,37 @@ jobs:
             | Merged | N (%) |
             | Closed without merge | N (%) |
             | Still open | N (%) |
-            | Needed human intervention | N (%) |
+            | Needed human intervention (human/blocked) | N (%) |
             | Avg copilot iterations | N |
             | Avg time to merge | N hours |
             | Reached claude phase | N (%) |
             | Stale in-progress issues | N |
+
+            **Pipeline Health Score (0–100)**:
+
+            Start at 100, deduct points for problems:
+            - Each human/blocked PR: -8 points
+            - Merge rate < 80%: -10 points
+            - Avg copilot iterations > 2: -5 points
+            - Avg time to merge > 4 hours: -5 points
+            - Each stale in-progress issue: -5 points
+            - No PRs merged in the period: -20 points
+
+            Add points for quality signals:
+            - 100% merge rate: +5 points
+            - Avg copilot iterations < 1: +5 points
+            - Avg time to merge < 1 hour: +5 points
+
+            Cap at 0–100. Include score and breakdown in report.
+
+            **Trend comparison**: Fetch the most recent `report/pipeline-audit` issue to
+            compare this period's score against the previous score:
+            ```bash
+            gh issue list --repo ${{ github.repository }} \
+              --label "report/pipeline-audit" --state open --limit 2 \
+              --json number,title,body,createdAt | jq '.[1]'
+            ```
+            Extract the previous health score from the issue body (if available).
 
             ## Step 3: Code Quality Spot-Check
 
@@ -112,12 +141,57 @@ jobs:
             Group into themes: testing gaps, style/formatting, architecture, documentation,
             error handling, performance. Show which themes appear most frequently.
 
-            ## Step 5: Write Report
+            ## Step 5: Clean Up Stale State
 
-            Write the complete report to `/tmp/audit-report.md` with this structure:
+            For each stale `agent/implementing` issue (found in Step 1):
+            1. Post a comment explaining why the label is being removed
+            2. Remove `agent/implementing` label and re-apply `backlog/ready`:
+
+            ```bash
+            gh issue comment <N> --repo ${{ github.repository }} \
+              --body "**Autodev audit**: This issue has \`agent/implementing\` label but no corresponding open autodev PR, indicating the implementation workflow failed or was interrupted. Removing stale label and re-queuing as \`backlog/ready\`."
+            gh issue edit <N> --repo ${{ github.repository }} \
+              --remove-label "agent/implementing" --add-label "backlog/ready"
+            ```
+
+            ## Step 6: File Actionable Issues for Recommendations
+
+            After writing your recommendations, for each **concrete and actionable** recommendation
+            (not vague suggestions), create a GitHub issue:
+
+            ```bash
+            gh issue create \
+              --repo ${{ github.repository }} \
+              --title "[brief action title]" \
+              --body "## Summary
+
+            [Recommendation from pipeline audit — explain what and why]
+
+            **Source**: Autodev Pipeline Audit — $(date -u +%Y-%m-%d)
+            **Category**: [pipeline|code-quality|testing|documentation]
+
+            ## Acceptance Criteria
+            - [ ] [specific criterion]" \
+              --label "infrastructure,backlog/needs-refinement"
+            ```
+
+            File issues ONLY for specific, actionable improvements. Do not file issues for:
+            - Vague suggestions ("improve code quality")
+            - Things already covered by the weekly sweep workflows
+            - Problems that need human architectural decisions
+
+            ## Step 7: Write Report
+
+            Write the complete report to `/tmp/audit-report.md`:
 
             ```markdown
-            ## Pipeline Health
+            # Autodev Pipeline Audit — YYYY-MM-DD
+
+            ## Health Score: N/100 (↑/↓ N from previous)
+
+            [brief one-line health summary]
+
+            ## Pipeline Metrics
 
             <metrics table from Step 2>
 
@@ -132,18 +206,21 @@ jobs:
 
             <ranked list from Step 4, or "Insufficient data" if < 3 PRs with reviews>
 
-            ## Stale State
+            ## Stale State Cleaned
 
-            <in-progress issues without PRs, or "No stale state detected">
+            <list of issues cleaned, or "No stale state detected">
 
             ## Recommendations
 
-            <1-3 concrete, actionable improvements based on findings>
+            <1-3 concrete improvements — include issue links for filed issues>
+
+            ## Filed Issues
+
+            <links to issues created in Step 6, or "None — pipeline is healthy">
             ```
 
-            Keep the report concise — aim for a GitHub issue that's scannable in under 2 minutes.
-            Do NOT create any GitHub issues yourself. Just write the report file.
-          claude_args: "--model claude-sonnet-4-6 --max-turns 30 --dangerously-skip-permissions"
+            Keep the report concise — aim for a GitHub issue scannable in 2 minutes.
+          claude_args: "--model claude-sonnet-4-6 --max-turns 40 --dangerously-skip-permissions"
       # ============================================================
 
       - name: Create audit issue

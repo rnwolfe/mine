@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - "docs/internal/coverage.json"
+      - "docs/internal/badge-coverage.json"
       - "docs/internal/badges.json"
   pull_request:
     branches: [main]
@@ -126,6 +127,7 @@ jobs:
   coverage-report:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    continue-on-error: true  # Don't fail the CI badge if coverage reporting has issues
     concurrency:
       group: coverage-report-${{ github.ref }}
       cancel-in-progress: true
@@ -134,9 +136,16 @@ jobs:
       contents: write
       issues: write
     steps:
+      - name: Generate App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.AUTODEV_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           fetch-depth: 0
 
       - name: Download coverage artifact
@@ -147,14 +156,12 @@ jobs:
           name: coverage-data
           path: /tmp
 
-      - name: Update coverage.json and check regression
+      - name: Update coverage.json and badge, check regression
         if: steps.download.outcome == 'success'
         id: coverage
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python3 - "${{ github.sha }}" <<'PYEOF'
-          import json, sys
+          python3 <<'PYEOF'
+          import json
           from pathlib import Path
 
           new_data = json.loads(Path("/tmp/coverage-data.json").read_text())
@@ -174,11 +181,17 @@ jobs:
 
           coverage_path.parent.mkdir(parents=True, exist_ok=True)
           coverage_path.write_text(json.dumps(new_data, indent=2) + "\n")
-          print(f"Coverage: {new_data['total_pct']}% ({len(new_data['packages'])} packages)")
+
+          # Update badge-coverage.json with color-coded value
+          pct = new_data["total_pct"]
+          color = "brightgreen" if pct >= 80 else "yellowgreen" if pct >= 60 else "yellow" if pct >= 40 else "orange" if pct >= 20 else "red"
+          badge = {"schemaVersion": 1, "label": "coverage", "message": f"{pct}%", "color": color}
+          Path("docs/internal/badge-coverage.json").write_text(json.dumps(badge, indent=2) + "\n")
+          print(f"Coverage: {pct}% ({len(new_data['packages'])} packages) — badge: {color}")
 
           # Write outputs for subsequent steps
           with open("/tmp/coverage-outputs.env", "w") as f:
-              f.write(f"total={new_data['total_pct']}\n")
+              f.write(f"total={pct}\n")
               f.write(f"regression={'true' if regression else 'false'}\n")
               f.write(f"drop={drop:.1f}\n")
           PYEOF
@@ -188,16 +201,16 @@ jobs:
             echo "$line" >> "$GITHUB_OUTPUT"
           done < /tmp/coverage-outputs.env
 
-      - name: Commit coverage.json
+      - name: Commit coverage data
         if: steps.download.outcome == 'success'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/internal/coverage.json
+          git config user.name "mine-autodev[bot]"
+          git config user.email "mine-autodev[bot]@users.noreply.github.com"
+          git add docs/internal/coverage.json docs/internal/badge-coverage.json
           if git diff --staged --quiet; then
             echo "No coverage changes to commit."
           else
-            git commit -m "chore: update coverage report [skip ci]"
+            git commit -m "chore: update coverage data [skip ci]"
             git pull --rebase origin main
             git push origin main
           fi

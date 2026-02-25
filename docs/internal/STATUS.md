@@ -69,7 +69,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 ### Architecture
 
 ```
-818 .go files across 26 packages
+184 .go files across 26 packages
 ├── cmd/            59 files — command layer (thin)
 ├── internal/
 │   ├── agents/     24 files — unified coding agent configuration manager

@@ -1,8 +1,8 @@
 # mine — Project Status
 
-## v0.3.0-alpha.1 — Phase 2: Growth (Current)
+## v0.3.0-alpha.1 — Phase 2: Growth (Complete)
 
-Phase 1 (Foundation) is complete. Phase 2 is well advanced, with most planned
+Phase 1 (Foundation) is complete. Phase 2 is now fully complete — all planned
 features shipped. Two Phase 3 features (vault, plugin system) shipped early due
 to synergy needs (vault for AI key storage, plugins for extensibility).
 
@@ -19,7 +19,7 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - [x] **Version** (`mine version`) — Build-time version injection via ldflags
 - [x] **Install script** — curl | bash installer for releases
 
-### Phase 2: Growth — Largely Complete
+### Phase 2: Growth — Complete
 
 - [x] **Craft** (`mine craft`) — Project scaffolding with embedded recipe engine (Go/Node/Python/Git)
 - [x] **Dig** (`mine dig`) — Pomodoro focus timer with streaks and stats
@@ -39,8 +39,8 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - [x] **Status** (`mine status`) — Mine status for shell prompt integration (JSON, compact prompt segment)
 - [x] **Contrib** (`mine contrib`) — Community contribution helpers
 - [x] **Agents** (`mine agents`) — Unified coding agent configuration manager (status, diff, sync, restore, project init/link, git versioning, adopt, add, list)
-- [x] **Todo evolution** — Project-scoped todos (`--project`, cwd resolution), scheduling buckets (today/soon/later/someday), urgency sort (`mine todo next`), timestamped notes (`mine todo note`), dig focus integration (`mine dig --todo`), completion stats (`mine todo stats`)
-- [ ] **Recurring tasks** — Auto-respawn on completion with `--every` flag (#222)
+- [x] **Todo evolution** — Project-scoped todos (`--project`, cwd resolution), scheduling buckets (today/soon/later/someday), urgency sort (`mine todo next`), timestamped notes (`mine todo note`), dig focus integration (`mine dig --todo`), completion stats (`mine todo stats`), recurring todos (`--every` flag, auto-spawn on completion)
+- [x] **Recurring tasks** — Auto-respawn on completion with `--every` flag
 
 ### Phase 3: Polish — Partially Started
 
@@ -64,12 +64,12 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 - **Deps**: 0 runtime (single static binary)
 - **Build time**: ~3 seconds
 - **Languages**: 100% Go
-- **Tests**: 939 passing across 25 packages
+- **Tests**: 967 passing across 26 packages
 
 ### Architecture
 
 ```
-306 .go files across 25 packages
+818 .go files across 26 packages
 ├── cmd/            59 files — command layer (thin)
 ├── internal/
 │   ├── agents/     24 files — unified coding agent configuration manager
@@ -102,10 +102,6 @@ to synergy needs (vault for AI key storage, plugins for extensibility).
 ```
 
 ## Remaining Roadmap
-
-### Phase 2 Tail
-
-- [ ] Recurring tasks — Auto-respawn on completion with `--every` flag (#222)
 
 ### Phase 3 — Not Started
 

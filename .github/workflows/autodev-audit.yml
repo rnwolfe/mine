@@ -11,7 +11,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
   issues: write
   pull-requests: read
   id-token: write
@@ -21,18 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Generate App token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          fetch-depth: 0
 
       # ============================================================
       # AGENT EXECUTION — Provider: Claude via claude-code-action@v1
@@ -252,8 +242,18 @@ jobs:
             --body "$BODY" \
             --label "report/pipeline-audit"
 
+      - name: Generate App token (badge update)
+        id: badge-token
+        if: steps.agent.outcome == 'success'
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Update pipeline health badge
         if: steps.agent.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.badge-token.outputs.token }}
         run: |
           SCORE=$(grep -oP '(?<=Health Score: )\d+(?=/100)' /tmp/audit-report.md 2>/dev/null | head -1)
           if [ -z "$SCORE" ]; then
@@ -268,20 +268,35 @@ jobs:
           else COLOR="red"
           fi
 
-          printf '{\n  "schemaVersion": 1,\n  "label": "pipeline health",\n  "message": "%s/100",\n  "color": "%s"\n}\n' \
-            "$SCORE" "$COLOR" > docs/internal/badge-pipeline-health.json
+          CONTENT=$(printf '{\n  "schemaVersion": 1,\n  "label": "pipeline health",\n  "message": "%s/100",\n  "color": "%s"\n}\n' \
+            "$SCORE" "$COLOR" | base64 -w0)
 
-          git config user.name "mine-autodev[bot]"
-          git config user.email "mine-autodev[bot]@users.noreply.github.com"
-          git add docs/internal/badge-pipeline-health.json
-          if git diff --staged --quiet; then
-            echo "Badge unchanged — no commit needed."
-          else
-            git commit -m "chore: update pipeline health badge [skip ci]"
-            git pull --rebase origin main
-            git push origin main
-            echo "Pipeline health badge updated: ${SCORE}/100 (${COLOR})"
-          fi
+          MAX_ATTEMPTS=5
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            FILE_SHA=$(gh api "repos/${{ github.repository }}/contents/docs/internal/badge-pipeline-health.json" \
+              --jq '.sha' 2>/dev/null || echo "")
+
+            API_ARGS=(-X PUT
+              -f message="chore: update pipeline health badge [skip ci]"
+              -f content="$CONTENT"
+              -f "committer[name]=mine-autodev[bot]"
+              -f "committer[email]=mine-autodev[bot]@users.noreply.github.com")
+            if [ -n "$FILE_SHA" ]; then
+              API_ARGS+=(-f sha="$FILE_SHA")
+            fi
+
+            if LAST_ERROR=$(gh api "repos/${{ github.repository }}/contents/docs/internal/badge-pipeline-health.json" \
+              "${API_ARGS[@]}" 2>&1 >/dev/null); then
+              echo "Pipeline health badge updated: ${SCORE}/100 (${COLOR})"
+              break
+            elif [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              DELAY=$(( 2 ** attempt ))
+              echo "Badge update failed on attempt ${attempt} (retrying in ${DELAY}s): ${LAST_ERROR}"
+              sleep "$DELAY"
+            else
+              echo "::warning::Failed to update pipeline health badge after ${MAX_ATTEMPTS} attempts. Last error: ${LAST_ERROR}"
+            fi
+          done
 
       - name: Handle agent failure
         if: steps.agent.outcome == 'failure'

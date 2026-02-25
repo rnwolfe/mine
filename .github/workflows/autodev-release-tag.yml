@@ -27,8 +27,10 @@ jobs:
 
       - name: Extract version from PR title
         id: version
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          TITLE="${{ github.event.pull_request.title }}"
+          TITLE="$PR_TITLE"
           echo "PR title: $TITLE"
 
           VERSION=$(echo "$TITLE" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?')

@@ -271,24 +271,32 @@ jobs:
           CONTENT=$(printf '{\n  "schemaVersion": 1,\n  "label": "pipeline health",\n  "message": "%s/100",\n  "color": "%s"\n}\n' \
             "$SCORE" "$COLOR" | base64 -w0)
 
-          FILE_SHA=$(gh api "repos/${{ github.repository }}/contents/docs/internal/badge-pipeline-health.json" \
-            --jq '.sha' 2>/dev/null || echo "")
+          MAX_ATTEMPTS=5
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            FILE_SHA=$(gh api "repos/${{ github.repository }}/contents/docs/internal/badge-pipeline-health.json" \
+              --jq '.sha' 2>/dev/null || echo "")
 
-          API_ARGS=(-X PUT
-            -f message="chore: update pipeline health badge [skip ci]"
-            -f content="$CONTENT"
-            -f "committer[name]=mine-autodev[bot]"
-            -f "committer[email]=mine-autodev[bot]@users.noreply.github.com")
-          if [ -n "$FILE_SHA" ]; then
-            API_ARGS+=(-f sha="$FILE_SHA")
-          fi
+            API_ARGS=(-X PUT
+              -f message="chore: update pipeline health badge [skip ci]"
+              -f content="$CONTENT"
+              -f "committer[name]=mine-autodev[bot]"
+              -f "committer[email]=mine-autodev[bot]@users.noreply.github.com")
+            if [ -n "$FILE_SHA" ]; then
+              API_ARGS+=(-f sha="$FILE_SHA")
+            fi
 
-          if gh api "repos/${{ github.repository }}/contents/docs/internal/badge-pipeline-health.json" \
-            "${API_ARGS[@]}" > /dev/null; then
-            echo "Pipeline health badge updated: ${SCORE}/100 (${COLOR})"
-          else
-            echo "::warning::Failed to update pipeline health badge"
-          fi
+            if LAST_ERROR=$(gh api "repos/${{ github.repository }}/contents/docs/internal/badge-pipeline-health.json" \
+              "${API_ARGS[@]}" 2>&1 >/dev/null); then
+              echo "Pipeline health badge updated: ${SCORE}/100 (${COLOR})"
+              break
+            elif [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              DELAY=$(( 2 ** attempt ))
+              echo "Badge update failed on attempt ${attempt} (retrying in ${DELAY}s): ${LAST_ERROR}"
+              sleep "$DELAY"
+            else
+              echo "::warning::Failed to update pipeline health badge after ${MAX_ATTEMPTS} attempts. Last error: ${LAST_ERROR}"
+            fi
+          done
 
       - name: Handle agent failure
         if: steps.agent.outcome == 'failure'

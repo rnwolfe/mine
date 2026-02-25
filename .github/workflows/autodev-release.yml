@@ -6,8 +6,6 @@ on:
     paths-ignore:
       - "docs/internal/coverage.json"
       - "docs/internal/badges.json"
-      - "CHANGELOG.md"
-
 concurrency:
   group: autodev-release
   cancel-in-progress: false

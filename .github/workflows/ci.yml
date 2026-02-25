@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - "docs/internal/coverage.json"
+      - "docs/internal/badge-coverage.json"
       - "docs/internal/badges.json"
   pull_request:
     branches: [main]
@@ -126,6 +127,7 @@ jobs:
   coverage-report:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    continue-on-error: true  # Coverage reporting failures must not fail the CI badge
     concurrency:
       group: coverage-report-${{ github.ref }}
       cancel-in-progress: true
@@ -133,6 +135,7 @@ jobs:
     permissions:
       contents: write
       issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -147,14 +150,12 @@ jobs:
           name: coverage-data
           path: /tmp
 
-      - name: Update coverage.json and check regression
+      - name: Update coverage.json and badge, check regression
         if: steps.download.outcome == 'success'
         id: coverage
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python3 - "${{ github.sha }}" <<'PYEOF'
-          import json, sys
+          python3 <<'PYEOF'
+          import json
           from pathlib import Path
 
           new_data = json.loads(Path("/tmp/coverage-data.json").read_text())
@@ -176,9 +177,24 @@ jobs:
           coverage_path.write_text(json.dumps(new_data, indent=2) + "\n")
           print(f"Coverage: {new_data['total_pct']}% ({len(new_data['packages'])} packages)")
 
+          # Update badge-coverage.json
+          pct = new_data["total_pct"]
+          if pct >= 80:
+              color = "brightgreen"
+          elif pct >= 60:
+              color = "yellowgreen"
+          elif pct >= 40:
+              color = "yellow"
+          elif pct >= 20:
+              color = "orange"
+          else:
+              color = "red"
+          badge = {"schemaVersion": 1, "label": "coverage", "message": f"{pct}%", "color": color}
+          Path("docs/internal/badge-coverage.json").write_text(json.dumps(badge, indent=2) + "\n")
+
           # Write outputs for subsequent steps
           with open("/tmp/coverage-outputs.env", "w") as f:
-              f.write(f"total={new_data['total_pct']}\n")
+              f.write(f"total={pct}\n")
               f.write(f"regression={'true' if regression else 'false'}\n")
               f.write(f"drop={drop:.1f}\n")
           PYEOF
@@ -188,18 +204,29 @@ jobs:
             echo "$line" >> "$GITHUB_OUTPUT"
           done < /tmp/coverage-outputs.env
 
-      - name: Commit coverage.json
+      - name: Open coverage update PR
         if: steps.download.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/internal/coverage.json
+          git add docs/internal/coverage.json docs/internal/badge-coverage.json
           if git diff --staged --quiet; then
-            echo "No coverage changes to commit."
-          else
-            git commit -m "chore: update coverage report [skip ci]"
-            git push origin main
+            echo "No coverage changes — skipping PR."
+            exit 0
           fi
+          BRANCH="auto/coverage-$(date +%Y%m%d%H%M%S)"
+          git checkout -b "$BRANCH"
+          git commit -m "chore: update coverage data [skip ci]"
+          git push origin "$BRANCH"
+          PR_URL=$(gh pr create \
+            --title "chore: update coverage data" \
+            --body "Automated coverage data update for [\`${{ github.sha }}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})." \
+            --label "infrastructure" \
+            --base main)
+          gh pr merge "$PR_URL" --auto --squash
+          echo "Coverage PR created and set to auto-merge: $PR_URL"
 
       - name: File regression issue
         if: steps.download.outcome == 'success' && steps.coverage.outputs.regression == 'true'
@@ -213,7 +240,7 @@ jobs:
 
           Coverage dropped **${{ steps.coverage.outputs.drop }}%** on commit [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }}).
 
-          This exceeds the 2% regression threshold. Please review the changes in this commit and add tests where coverage was lost.
+          This exceeds the 2% regression threshold. Please review the changes in this commit and add tests where coverage were lost.
 
           **New total**: ${{ steps.coverage.outputs.total }}%
 

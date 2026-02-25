@@ -198,6 +198,7 @@ jobs:
             echo "No coverage changes to commit."
           else
             git commit -m "chore: update coverage report [skip ci]"
+            git pull --rebase origin main
             git push origin main
           fi
 

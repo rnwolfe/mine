@@ -6,9 +6,17 @@ on:
     paths-ignore:
       - "docs/internal/coverage.json"
       - "docs/internal/badge-coverage.json"
+      - "docs/internal/badge-pipeline-health.json"
+      - "docs/internal/badge-autodev.json"
       - "docs/internal/badges.json"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/internal/coverage.json"
+      - "docs/internal/badge-coverage.json"
+      - "docs/internal/badge-pipeline-health.json"
+      - "docs/internal/badge-autodev.json"
+      - "docs/internal/badges.json"
   workflow_dispatch:
 
 jobs:

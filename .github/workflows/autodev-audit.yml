@@ -11,7 +11,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
   issues: write
   pull-requests: read
   id-token: write
@@ -21,8 +21,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: Generate App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
 
       # ============================================================
       # AGENT EXECUTION — Provider: Claude via claude-code-action@v1
@@ -241,6 +251,37 @@ jobs:
             --title "Autodev Pipeline Audit — $DATE" \
             --body "$BODY" \
             --label "report/pipeline-audit"
+
+      - name: Update pipeline health badge
+        if: steps.agent.outcome == 'success'
+        run: |
+          SCORE=$(grep -oP '(?<=Health Score: )\d+' /tmp/audit-report.md 2>/dev/null | head -1)
+          if [ -z "$SCORE" ]; then
+            echo "Could not parse health score from report — skipping badge update."
+            exit 0
+          fi
+
+          if [ "$SCORE" -ge 90 ]; then COLOR="brightgreen"
+          elif [ "$SCORE" -ge 70 ]; then COLOR="green"
+          elif [ "$SCORE" -ge 50 ]; then COLOR="yellow"
+          elif [ "$SCORE" -ge 30 ]; then COLOR="orange"
+          else COLOR="red"
+          fi
+
+          printf '{\n  "schemaVersion": 1,\n  "label": "pipeline health",\n  "message": "%s/100",\n  "color": "%s"\n}\n' \
+            "$SCORE" "$COLOR" > docs/internal/badge-pipeline-health.json
+
+          git config user.name "mine-autodev[bot]"
+          git config user.email "mine-autodev[bot]@users.noreply.github.com"
+          git add docs/internal/badge-pipeline-health.json
+          if git diff --staged --quiet; then
+            echo "Badge unchanged — no commit needed."
+          else
+            git commit -m "chore: update pipeline health badge [skip ci]"
+            git pull --rebase origin main
+            git push origin main
+            echo "Pipeline health badge updated: ${SCORE}/100 (${COLOR})"
+          fi
 
       - name: Handle agent failure
         if: steps.agent.outcome == 'failure'

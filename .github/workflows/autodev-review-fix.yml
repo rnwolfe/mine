@@ -648,3 +648,36 @@ jobs:
           gh pr comment "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
             --body "Autodev review pipeline complete. Copilot and Claude reviews have been addressed. ${MERGE_NOTE}"
+
+      - name: Generate App token (badge)
+        id: badge-app-token
+        if: steps.route.outputs.action == 'claude-fix' && (steps.claude-feedback.outputs.no_feedback == 'true' || steps.claude-agent.outcome == 'success')
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Update autodev PR count badge
+        if: steps.route.outputs.action == 'claude-fix' && (steps.claude-feedback.outputs.no_feedback == 'true' || steps.claude-agent.outcome == 'success')
+        env:
+          GH_TOKEN: ${{ steps.badge-app-token.outputs.token }}
+        run: |
+          COUNT=$(gh pr list --repo "${{ github.repository }}" --state merged --limit 500 \
+            --json labels \
+            --jq '[.[] | select(.labels | map(.name) | any(startswith("via/")))] | length')
+
+          FILE_SHA=$(gh api "repos/${{ github.repository }}/contents/docs/internal/badge-autodev.json" \
+            --jq '.sha')
+
+          CONTENT=$(printf '{\n  "schemaVersion": 1,\n  "label": "autodev PRs",\n  "message": "%s merged",\n  "color": "blueviolet"\n}\n' "$COUNT" | base64 -w0)
+
+          gh api "repos/${{ github.repository }}/contents/docs/internal/badge-autodev.json" \
+            -X PUT \
+            -f message="chore: update autodev badge [skip ci]" \
+            -f content="$CONTENT" \
+            -f sha="$FILE_SHA" \
+            -f "committer[name]=mine-autodev[bot]" \
+            -f "committer[email]=mine-autodev[bot]@users.noreply.github.com" \
+            > /dev/null
+
+          echo "Autodev badge updated: ${COUNT} merged"

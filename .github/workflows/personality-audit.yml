@@ -1,0 +1,170 @@
+name: Personality Audit
+
+on:
+  schedule:
+    - cron: "0 9 * * 4" # Thursday 9 AM UTC (day after doc-sweep)
+  workflow_run:
+    workflows: ["Doc Sweep"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Scope to audit (cli, docs, site, or leave empty for full)"
+        required: false
+        default: ""
+        type: string
+
+concurrency:
+  group: personality-audit
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  audit:
+    # When triggered by doc-sweep workflow_run, only run if doc-sweep succeeded
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AUTODEV_TOKEN }}
+          fetch-depth: 0
+
+      # ============================================================
+      # AGENT EXECUTION — Provider: Claude via claude-code-action@v1
+      # ============================================================
+      - name: Run personality audit agent
+        id: agent
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are running an automated personality and tone audit for the mine CLI tool.
+            Scope: "${{ inputs.scope || 'full' }}"
+
+            RULES:
+            - Read CLAUDE.md (Personality Guide section) and .claude/skills/personality-audit/SKILL.md first
+            - Follow the personality audit skill process exactly
+            - Only change string literals and print calls — NEVER change logic
+            - Do NOT modify: CLAUDE.md, .github/workflows/, scripts/autodev/
+            - Fixes should be minimal and targeted (replace raw fmt, warm up flat Short/Long, add missing celebrations)
+            - Write your findings report to /tmp/personality-audit-report.md
+            - If you make no changes, write "NO_CHANGES" as the first line of /tmp/personality-audit-report.md
+
+            ## Scope: ${{ inputs.scope || 'full (cli + docs + site)' }}
+
+            Work through each sub-scope:
+
+            ### CLI scope
+            - Read all cmd/*.go files — check Short, Long, Example fields on Cobra commands
+            - Find raw fmt.Print* calls in cmd/ and internal/ that should use ui.* helpers
+            - Check for hardcoded emoji that should use theme.go icon constants
+            - Apply fixes directly for: raw fmt calls, hardcoded emoji (if matching constant exists)
+            - Flag as report-only: flat Short/Long descriptions that could be warmer
+
+            ### Docs scope
+            - Read docs/*.md and README.md
+            - Check for brand violations (no mining metaphors — no pickaxe, gem, ore, mining)
+            - Check for robotic/cold language in user-facing docs
+            - Apply fixes for: obvious brand violations
+
+            ### Site scope
+            - Read site/src/content/docs/ markdown files
+            - Check for voice consistency with the CLI personality
+            - Note: DO NOT modify site/src/components/*.tsx — those are in doc-sweep scope
+
+            Focus on what's actionable and clear. Don't flag everything as flat — the project
+            already has a personality. Check for regressions and raw fmt calls primarily.
+          claude_args: "--model claude-sonnet-4-6 --max-turns 40 --dangerously-skip-permissions"
+      # ============================================================
+
+      - name: Check for changes
+        id: changes
+        if: steps.agent.outcome == 'success'
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -f /tmp/personality-audit-report.md ] && head -1 /tmp/personality-audit-report.md | grep -q "^NO_CHANGES"; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open fix PR
+        if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="autodev/personality-audit-${DATE}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+
+          # Safety: never commit workflow or protected files
+          git diff --staged --name-only | \
+            grep -E '^(\.github/|scripts/autodev/|CLAUDE\.md)' | \
+            xargs -r git restore --staged -- 2>/dev/null || true
+
+          if git diff --staged --quiet; then
+            echo "::notice::No eligible changes after safety filter"
+            exit 0
+          fi
+
+          git commit -m "docs: weekly personality audit fixes — ${DATE}
+
+          Automated tone and voice consistency fixes.
+          Scope: ${{ inputs.scope || 'full' }}"
+          git push origin "$BRANCH"
+
+          REPORT=$(cat /tmp/personality-audit-report.md 2>/dev/null | head -80 || echo "Report unavailable.")
+          gh pr create \
+            --repo "${{ github.repository }}" \
+            --title "docs: weekly personality audit — ${DATE}" \
+            --body "## Personality Audit — ${DATE}
+
+          Automated tone and voice consistency fixes. Requires human review before merge
+          (personality is subjective — approve changes that match the project voice).
+
+          ### Scope
+          ${{ inputs.scope || 'Full audit (cli + docs + site)' }}
+
+          ### Findings and Fixes
+
+          \`\`\`
+          ${REPORT}
+          \`\`\`
+
+          ---
+          *Generated by the [personality-audit workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*" \
+            --base main \
+            --head "$BRANCH" \
+            --label "documentation"
+
+      - name: Report findings with no fixes
+        if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'false'
+        run: |
+          echo "::notice::Personality audit complete — no automated fixes applied"
+          if [ -f /tmp/personality-audit-report.md ]; then
+            grep -E "Flat|Missing|Regression" /tmp/personality-audit-report.md | head -20 || true
+          fi
+
+      - name: Handle agent failure
+        if: steps.agent.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          echo "::warning::Personality audit agent failed — ${DATE}"

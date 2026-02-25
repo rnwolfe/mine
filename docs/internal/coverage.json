@@ -1,0 +1,29 @@
+{
+  "date": "2026-02-20",
+  "commit": "bootstrap",
+  "total_pct": 37.5,
+  "packages": {
+    "cmd": 9.0,
+    "internal/ai": 16.0,
+    "internal/analytics": 91.5,
+    "internal/config": 90.9,
+    "internal/contrib": 54.6,
+    "internal/craft": 80.2,
+    "internal/env": 75.6,
+    "internal/git": 71.5,
+    "internal/hook": 50.8,
+    "internal/meta": 79.6,
+    "internal/plugin": 66.5,
+    "internal/proj": 70.5,
+    "internal/shell": 100.0,
+    "internal/ssh": 70.7,
+    "internal/stash": 61.8,
+    "internal/store": 69.6,
+    "internal/tmux": 65.9,
+    "internal/todo": 77.5,
+    "internal/tui": 86.3,
+    "internal/ui": 42.3,
+    "internal/vault": 77.4,
+    "internal/version": 100.0
+  }
+}

@@ -662,22 +662,35 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.badge-app-token.outputs.token }}
         run: |
-          COUNT=$(gh pr list --repo "${{ github.repository }}" --state merged --limit 500 \
+          COUNT=$(gh pr list --repo "${{ github.repository }}" --state merged --limit 1000 \
             --json labels \
             --jq '[.[] | select(.labels | map(.name) | any(startswith("via/")))] | length')
 
-          FILE_SHA=$(gh api "repos/${{ github.repository }}/contents/docs/internal/badge-autodev.json" \
-            --jq '.sha')
-
           CONTENT=$(printf '{\n  "schemaVersion": 1,\n  "label": "autodev PRs",\n  "message": "%s merged",\n  "color": "blueviolet"\n}\n' "$COUNT" | base64 -w0)
 
-          gh api "repos/${{ github.repository }}/contents/docs/internal/badge-autodev.json" \
-            -X PUT \
-            -f message="chore: update autodev badge [skip ci]" \
-            -f content="$CONTENT" \
-            -f sha="$FILE_SHA" \
-            -f "committer[name]=mine-autodev[bot]" \
-            -f "committer[email]=mine-autodev[bot]@users.noreply.github.com" \
-            > /dev/null
+          MAX_ATTEMPTS=5
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            # Re-fetch SHA each attempt so we always have a fresh value
+            FILE_SHA=$(gh api "repos/${{ github.repository }}/contents/docs/internal/badge-autodev.json" \
+              --jq '.sha' 2>/dev/null || echo "")
 
-          echo "Autodev badge updated: ${COUNT} merged"
+            API_ARGS=(-X PUT
+              -f message="chore: update autodev badge [skip ci]"
+              -f content="$CONTENT"
+              -f "committer[name]=mine-autodev[bot]"
+              -f "committer[email]=mine-autodev[bot]@users.noreply.github.com")
+            if [ -n "$FILE_SHA" ]; then
+              API_ARGS+=(-f sha="$FILE_SHA")
+            fi
+
+            if gh api "repos/${{ github.repository }}/contents/docs/internal/badge-autodev.json" \
+              "${API_ARGS[@]}" > /dev/null 2>&1; then
+              echo "Autodev badge updated: ${COUNT} merged"
+              break
+            elif [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              echo "Badge update failed on attempt ${attempt} (possible 409 conflict), retrying in $((attempt * 2))s..."
+              sleep $((attempt * 2))
+            else
+              echo "::warning::Autodev badge update failed after ${MAX_ATTEMPTS} attempts — will update on next pipeline completion"
+            fi
+          done

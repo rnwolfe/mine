@@ -3,6 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/internal/coverage.json"
+      - "docs/internal/badges.json"
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -57,6 +60,49 @@ jobs:
             exit 1
           fi
 
+      - name: Parse coverage to JSON
+        if: steps.changes.outputs.has_code == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          python3 - "${{ github.sha }}" <<'PYEOF'
+          import json, subprocess, sys
+          from pathlib import Path
+
+          result = subprocess.run(
+              ["go", "tool", "cover", "-func=coverage.out"],
+              capture_output=True, text=True,
+          )
+          packages = {}
+          total_pct = 0.0
+          for line in result.stdout.splitlines():
+              if line.startswith("total:"):
+                  total_pct = float(line.split()[-1].rstrip("%"))
+              else:
+                  parts = line.split()
+                  if len(parts) >= 3:
+                      filepath = parts[0].split(":")[0]
+                      pkg = filepath.replace("github.com/rnwolfe/mine/", "", 1).rsplit("/", 1)[0] if "github.com/rnwolfe/mine/" in filepath else filepath.rsplit("/", 1)[0]
+                      pct = float(parts[-1].rstrip("%"))
+                      packages.setdefault(pkg, []).append(pct)
+
+          pkg_avg = {k: round(sum(v)/len(v), 1) for k, v in sorted(packages.items())}
+          data = {
+              "date": __import__("datetime").date.today().isoformat(),
+              "commit": sys.argv[1] if len(sys.argv) > 1 else "unknown",
+              "total_pct": round(total_pct, 1),
+              "packages": pkg_avg,
+          }
+          Path("/tmp/coverage-data.json").write_text(json.dumps(data, indent=2) + "\n")
+          print(f"Parsed: {total_pct:.1f}% total across {len(pkg_avg)} packages")
+          PYEOF
+
+      - name: Upload coverage artifact
+        if: steps.changes.outputs.has_code == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data
+          path: /tmp/coverage-data.json
+          retention-days: 1
+
       - name: Build
         if: steps.changes.outputs.has_code == 'true'
         run: go build -o bin/mine .
@@ -76,6 +122,103 @@ jobs:
           if [ "$SIZE" -gt 20971520 ]; then
             echo "::warning::Binary size ${SIZE_MB}MB exceeds 20MB target"
           fi
+
+  coverage-report:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: coverage-report-${{ github.ref }}
+      cancel-in-progress: true
+    needs: test
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AUTODEV_TOKEN }}
+          fetch-depth: 0
+
+      - name: Download coverage artifact
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-data
+          path: /tmp
+
+      - name: Update coverage.json and check regression
+        if: steps.download.outcome == 'success'
+        id: coverage
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - "${{ github.sha }}" <<'PYEOF'
+          import json, sys
+          from pathlib import Path
+
+          new_data = json.loads(Path("/tmp/coverage-data.json").read_text())
+          coverage_path = Path("docs/internal/coverage.json")
+
+          # Check regression against previous
+          regression = False
+          drop = 0.0
+          if coverage_path.exists():
+              prev = json.loads(coverage_path.read_text())
+              prev_total = prev.get("total_pct", 0)
+              new_total = new_data["total_pct"]
+              drop = prev_total - new_total
+              if drop > 2.0:
+                  regression = True
+                  print(f"::warning::Coverage dropped {drop:.1f}% ({prev_total}% → {new_total}%)")
+
+          coverage_path.parent.mkdir(parents=True, exist_ok=True)
+          coverage_path.write_text(json.dumps(new_data, indent=2) + "\n")
+          print(f"Coverage: {new_data['total_pct']}% ({len(new_data['packages'])} packages)")
+
+          # Write outputs for subsequent steps
+          with open("/tmp/coverage-outputs.env", "w") as f:
+              f.write(f"total={new_data['total_pct']}\n")
+              f.write(f"regression={'true' if regression else 'false'}\n")
+              f.write(f"drop={drop:.1f}\n")
+          PYEOF
+
+          # Export outputs
+          while IFS= read -r line; do
+            echo "$line" >> "$GITHUB_OUTPUT"
+          done < /tmp/coverage-outputs.env
+
+      - name: Commit coverage.json
+        if: steps.download.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/internal/coverage.json
+          if git diff --staged --quiet; then
+            echo "No coverage changes to commit."
+          else
+            git commit -m "chore: update coverage report [skip ci]"
+            git push origin main
+          fi
+
+      - name: File regression issue
+        if: steps.download.outcome == 'success' && steps.coverage.outputs.regression == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "Coverage regression: dropped ${{ steps.coverage.outputs.drop }}% in latest merge to main" \
+            --body "## Coverage Regression Detected
+
+          Coverage dropped **${{ steps.coverage.outputs.drop }}%** on commit [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }}).
+
+          This exceeds the 2% regression threshold. Please review the changes in this commit and add tests where coverage was lost.
+
+          **New total**: ${{ steps.coverage.outputs.total }}%
+
+          See \`docs/internal/coverage.json\` for per-package breakdown." \
+            --label "infrastructure"
 
   site-health:
     if: github.ref == 'refs/heads/main'

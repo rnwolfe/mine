@@ -80,7 +80,7 @@ jobs:
                   parts = line.split()
                   if len(parts) >= 3:
                       filepath = parts[0].split(":")[0]
-                      pkg = filepath.replace("github.com/rnwolfe/mine/", "").rsplit("/", 1)[0]
+                      pkg = filepath.replace("github.com/rnwolfe/mine/", "", 1).rsplit("/", 1)[0] if "github.com/rnwolfe/mine/" in filepath else filepath.rsplit("/", 1)[0]
                       pct = float(parts[-1].rstrip("%"))
                       packages.setdefault(pkg, []).append(pct)
 

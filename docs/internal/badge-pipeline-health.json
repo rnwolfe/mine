@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "label": "pipeline health",
+  "message": "pending",
+  "color": "lightgrey"
+}

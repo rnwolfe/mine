@@ -2,6 +2,12 @@
 
 > Your personal developer supercharger.
 
+[![CI](https://github.com/rnwolfe/mine/actions/workflows/ci.yml/badge.svg)](https://github.com/rnwolfe/mine/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/rnwolfe/mine/main/docs/internal/badge-coverage.json)](https://github.com/rnwolfe/mine/blob/main/docs/internal/coverage.json)
+[![Release](https://img.shields.io/github/v/release/rnwolfe/mine)](https://github.com/rnwolfe/mine/releases/latest)
+[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![License](https://img.shields.io/github/license/rnwolfe/mine)](LICENSE)
+
 A single CLI tool that turbocharges dev velocity, tames environment chaos, and brings a little joy to the terminal. One binary. No runtime dependencies. Some features integrate with tools you already have (git, tmux, ssh).
 
 ## Install
@@ -134,6 +140,15 @@ make dev ARGS="todo"  # quick dev cycle
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full development workflow.
+
+## Autonomous Development
+
+mine is built by an AI-powered development pipeline. When an issue is labeled `backlog/ready`, it's automatically picked up, implemented, reviewed (Copilot + Claude), and merged — no human required until it ships to users.
+
+[![Pipeline Health](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/rnwolfe/mine/main/docs/internal/badge-pipeline-health.json)](https://github.com/rnwolfe/mine/issues?q=label%3Areport%2Fpipeline-audit)
+[![Autodev PRs](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/rnwolfe/mine/main/docs/internal/badge-autodev.json)](https://github.com/rnwolfe/mine/pulls?q=label%3Avia%2Factions+is%3Amerged)
+
+The pipeline implements issues, runs weekly quality sweeps (docs, code health, backlog, personality), and automatically proposes releases when enough features accumulate. See [docs/internal/autodev-pipeline.md](docs/internal/autodev-pipeline.md) for the full architecture.
 
 ## License
 

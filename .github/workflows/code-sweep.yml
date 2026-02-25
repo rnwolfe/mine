@@ -1,0 +1,166 @@
+name: Code Sweep
+
+on:
+  schedule:
+    - cron: "0 9 * * 5" # Friday 9 AM UTC
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Scope (patterns, complexity, dead-code, tests, or empty for full)"
+        required: false
+        default: ""
+        type: string
+
+concurrency:
+  group: code-sweep
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AUTODEV_TOKEN }}
+          fetch-depth: 0
+
+      # ============================================================
+      # AGENT EXECUTION — Provider: Claude via claude-code-action@v1
+      # ============================================================
+      - name: Run code sweep agent
+        id: agent
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are running an automated code health sweep for the mine CLI tool.
+            Scope: "${{ inputs.scope || 'full' }}"
+
+            RULES:
+            - Read CLAUDE.md and .claude/skills/code-sweep/SKILL.md first
+            - Follow the code-sweep skill process exactly for the requested scope
+            - Apply Fix-severity items directly (string literals, print calls — never logic changes)
+            - For Refactor and Investigate items: use `gh issue create` to file issues
+            - For Test Gap items: use `gh issue create` with label "enhancement,backlog/ready"
+            - Do NOT modify: CLAUDE.md, .github/workflows/, scripts/autodev/
+            - Write your findings report to /tmp/code-sweep-report.md
+            - Write filed issue URLs (one per line) to /tmp/code-sweep-issues.txt
+            - If you make no changes and file no issues, write "NO_FINDINGS" to /tmp/code-sweep-report.md
+
+            ## Scope: ${{ inputs.scope || 'full (patterns + complexity + dead-code + tests)' }}
+
+            Work through each sub-scope systematically. For each finding:
+            1. Read the actual file to confirm the finding (don't assume)
+            2. Classify as Fix, Refactor, Investigate, or Test Gap
+            3. Fix-severity items: apply the change immediately
+            4. Other items: file a GitHub issue with the template from the skill file
+
+            When filing issues, use the --repo flag:
+            `gh issue create --repo ${{ github.repository }} ...`
+
+            Check docs/internal/coverage.json for package coverage data to prioritize test gap findings.
+          claude_args: "--model claude-sonnet-4-6 --max-turns 60 --dangerously-skip-permissions"
+      # ============================================================
+
+      - name: Check for code changes
+        id: changes
+        if: steps.agent.outcome == 'success'
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -f /tmp/code-sweep-report.md ] && head -1 /tmp/code-sweep-report.md | grep -q "^NO_FINDINGS"; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open fix PR
+        if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="autodev/code-sweep-${DATE}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+
+          # Safety: only commit Go files and internal doc files — never workflow or script changes
+          git diff --staged --name-only | \
+            grep -v -E '^(\.github/|scripts/autodev/|CLAUDE\.md)' | \
+            xargs -r git add -- 2>/dev/null || true
+          git diff --staged --name-only | \
+            grep -E '^(\.github/|scripts/autodev/|CLAUDE\.md)' | \
+            xargs -r git restore --staged -- 2>/dev/null || true
+
+          if git diff --staged --quiet; then
+            echo "::notice::No eligible changes to commit after safety filter"
+            exit 0
+          fi
+
+          CHANGED_FILES=$(git diff --staged --name-only | wc -l)
+          git commit -m "refactor: weekly code sweep fixes — ${DATE}
+
+          Automated pattern violation fixes from code-sweep workflow.
+          ${CHANGED_FILES} files updated."
+          git push origin "$BRANCH"
+
+          REPORT=$(cat /tmp/code-sweep-report.md 2>/dev/null | head -80 || echo "Report unavailable.")
+          ISSUES=$(cat /tmp/code-sweep-issues.txt 2>/dev/null || echo "None")
+          gh pr create \
+            --repo "${{ github.repository }}" \
+            --title "refactor: weekly code sweep fixes — ${DATE}" \
+            --body "## Code Sweep — ${DATE}
+
+          Automated code health fixes. Requires human review before merge.
+
+          ### Scope
+          ${{ inputs.scope || 'Full sweep (patterns + complexity + dead-code + tests)' }}
+
+          ### Findings Report
+
+          \`\`\`
+          ${REPORT}
+          \`\`\`
+
+          ### Filed Issues
+          ${ISSUES}
+
+          ---
+          *Generated by the [code-sweep workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*" \
+            --base main \
+            --head "$BRANCH" \
+            --label "enhancement"
+
+      - name: Report filed issues only (no code fixes)
+        if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'false'
+        run: |
+          if [ -f /tmp/code-sweep-issues.txt ] && [ -s /tmp/code-sweep-issues.txt ]; then
+            echo "::notice::Code sweep filed issues (no direct fixes):"
+            cat /tmp/code-sweep-issues.txt
+          else
+            echo "::notice::Code sweep complete — no findings"
+          fi
+
+      - name: Handle agent failure
+        if: steps.agent.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "Code sweep failed — ${DATE}" \
+            --body "The code-sweep workflow agent failed. Check the [workflow logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
+            --label "infrastructure"

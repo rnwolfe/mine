@@ -1,0 +1,176 @@
+name: Doc Sweep
+
+on:
+  schedule:
+    - cron: "0 9 * * 3" # Wednesday 9 AM UTC
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Scope to sweep (commands, site, features, repo, or leave empty for full)"
+        required: false
+        default: ""
+        type: string
+
+concurrency:
+  group: doc-sweep
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AUTODEV_TOKEN }}
+          fetch-depth: 0
+
+      # ============================================================
+      # AGENT EXECUTION — Provider: Claude via claude-code-action@v1
+      # ============================================================
+      - name: Run doc sweep agent
+        id: agent
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are running an automated documentation accuracy sweep for the mine CLI tool.
+            Scope: "${{ inputs.scope || 'full' }}"
+
+            RULES:
+            - Read CLAUDE.md and .claude/skills/doc-sweep/SKILL.md first
+            - Follow the doc-sweep skill process exactly for the requested scope
+            - Apply Error and Stale fixes directly to doc files
+            - Do NOT modify: CLAUDE.md, .github/workflows/, scripts/autodev/, any *.go files
+            - For Missing items: use `gh issue create` to file issues (don't create doc pages inline)
+            - Write your findings report to /tmp/doc-sweep-report.md
+            - Write a list of filed issue URLs (one per line) to /tmp/doc-sweep-issues.txt (empty if none)
+            - If you make no changes, write "NO_CHANGES" as the first line of /tmp/doc-sweep-report.md
+
+            ## Scope: ${{ inputs.scope || 'full (commands + site + features + repo)' }}
+
+            Work through each sub-scope:
+
+            ### commands scope
+            For each file in cmd/*.go:
+            1. Extract the command name, flags, and subcommands
+            2. Read the corresponding site/src/content/docs/commands/<cmd>.md
+            3. Find discrepancies: missing flags, removed flags still documented, wrong defaults, invalid examples
+            4. Fix Error and Stale items directly in the doc files
+
+            ### site scope
+            Check site/src/components/FeatureTabs.tsx and TerminalDemo.tsx:
+            1. Verify every command example uses real flags and subcommands
+            2. Check site/src/content/docs/getting-started/quick-start.md examples
+            3. Fix stale command syntax, flag names, or examples
+
+            ### features scope
+            1. Cross-reference docs/internal/STATUS.md Done list against site/src/content/docs/features/
+            2. For each shipped feature with no doc page: file a GitHub issue with label "documentation,backlog/ready"
+            3. Check site/src/content/docs/contributors/ against internal/plugin/ implementation
+
+            ### repo scope
+            Check README.md, CONTRIBUTING.md, docs/internal/LIFECYCLE.md, docs/internal/autodev-pipeline.md:
+            1. Verify Makefile targets mentioned in docs exist
+            2. Verify Go version matches go.mod
+            3. Check circuit breaker values in autodev-pipeline.md against workflow YAML files
+            4. Note CLAUDE.md drift as advisory (DO NOT modify CLAUDE.md)
+          claude_args: "--model claude-sonnet-4-6 --max-turns 50 --dangerously-skip-permissions"
+      # ============================================================
+
+      - name: Check for changes
+        id: changes
+        if: steps.agent.outcome == 'success'
+        run: |
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Check if agent signaled no changes
+          if [ -f /tmp/doc-sweep-report.md ] && head -1 /tmp/doc-sweep-report.md | grep -q "^NO_CHANGES"; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open fix PR
+        if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="autodev/doc-sweep-${DATE}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+          git diff --staged --name-only | head -20
+
+          # Only commit doc files — revert any accidental code changes
+          git diff --staged --name-only | grep -v -E '\.(md|mdx|tsx|ts)$' | xargs -r git restore --staged
+
+          if git diff --staged --quiet; then
+            echo "::notice::Only non-doc changes detected — nothing to commit"
+            exit 0
+          fi
+
+          git commit -m "docs: weekly documentation sweep — ${DATE}
+
+          Automated accuracy fixes from doc-sweep workflow.
+          See PR description for details."
+          git push origin "$BRANCH"
+
+          REPORT=$(cat /tmp/doc-sweep-report.md 2>/dev/null | head -100 || echo "Report unavailable.")
+          gh pr create \
+            --repo "${{ github.repository }}" \
+            --title "docs: weekly documentation sweep — ${DATE}" \
+            --body "## Documentation Sweep — ${DATE}
+
+          Automated documentation accuracy fixes. Requires human review before merge.
+
+          ### Scope
+          ${{ inputs.scope || 'Full sweep (commands + site + features + repo)' }}
+
+          ### Findings and Fixes
+
+          \`\`\`
+          ${REPORT}
+          \`\`\`
+
+          ### What was changed
+          $(git diff origin/main...HEAD --name-only | sed 's/^/- /')
+
+          ---
+          *Generated by the [doc-sweep workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*" \
+            --base main \
+            --head "$BRANCH" \
+            --label "documentation"
+
+      - name: Annotate advisory findings
+        if: steps.agent.outcome == 'success' && steps.changes.outputs.has_changes == 'false'
+        run: |
+          if [ -f /tmp/doc-sweep-report.md ]; then
+            echo "::notice::Doc sweep complete — no fixes needed. Advisory findings:"
+            grep "Advisory\|advisory" /tmp/doc-sweep-report.md | head -20 || true
+          else
+            echo "::notice::Doc sweep complete — no report generated"
+          fi
+
+      - name: Handle agent failure
+        if: steps.agent.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "Doc sweep failed — ${DATE}" \
+            --body "The doc-sweep workflow agent failed. Check the [workflow logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details." \
+            --label "infrastructure"

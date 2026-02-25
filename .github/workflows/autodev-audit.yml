@@ -255,9 +255,9 @@ jobs:
       - name: Update pipeline health badge
         if: steps.agent.outcome == 'success'
         run: |
-          SCORE=$(grep -oP '(?<=Health Score: )\d+' /tmp/audit-report.md 2>/dev/null | head -1)
+          SCORE=$(grep -oP '(?<=Health Score: )\d+(?=/100)' /tmp/audit-report.md 2>/dev/null | head -1)
           if [ -z "$SCORE" ]; then
-            echo "Could not parse health score from report — skipping badge update."
+            echo "::warning::Could not parse health score from report — skipping badge update. Expected format: 'Health Score: N/100'. Report format may have changed."
             exit 0
           fi
 

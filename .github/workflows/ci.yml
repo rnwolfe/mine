@@ -205,7 +205,7 @@ jobs:
         run: |
           gh issue create \
             --repo "${{ github.repository }}" \
-            --title "Coverage regression: dropped ${{ steps.coverage.outputs.drop }}% on ${{ github.sha }}" \
+            --title "Coverage regression: dropped ${{ steps.coverage.outputs.drop }}% in latest merge to main" \
             --body "## Coverage Regression Detected
 
           Coverage dropped **${{ steps.coverage.outputs.drop }}%** on commit [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }}).

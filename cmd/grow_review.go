@@ -86,7 +86,7 @@ func runGrowDashboard(_ *cobra.Command, _ []string) error {
 
 	// Tips
 	if len(goals) == 0 {
-		ui.Tip("`mine grow goal add \"Learn Rust\" --target 50 --unit hrs` to set a goal.")
+		ui.Tip("`mine grow goal add \"Learn Rust\" --target 3000 --unit mins` to set a goal.")
 	} else if streak.Current == 0 {
 		ui.Tip("`mine grow log --minutes 30` to log today's activity and start a streak.")
 	}

@@ -30,7 +30,7 @@ mine grow
 Add a learning or career goal.
 
 ```bash
-mine grow goal add "Learn Rust" --deadline 2026-06-01 --target 50 --unit hrs
+mine grow goal add "Learn Rust" --deadline 2026-06-01 --target 3000 --unit mins
 ```
 
 **Flags:**
@@ -38,8 +38,8 @@ mine grow goal add "Learn Rust" --deadline 2026-06-01 --target 50 --unit hrs
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--deadline` | — | Target completion date (`YYYY-MM-DD`) |
-| `--target N` | `0` | Numeric target (e.g. `50` for 50 hrs) |
-| `--unit <str>` | `hrs` | Unit label (e.g. `hrs`, `sessions`) |
+| `--target N` | `0` | Numeric target — must match the unit you log (e.g. `3000` for 3000 mins ≈ 50 hrs) |
+| `--unit <str>` | `hrs` | Display label for the target (e.g. `mins`, `sessions`). Goal progress is always tracked in logged minutes, so set `--unit mins` and `--target` in minutes for accurate progress. |
 
 ---
 

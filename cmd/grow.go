@@ -180,7 +180,7 @@ func runGrowGoalList(_ *cobra.Command, _ []string) error {
 		fmt.Println()
 		fmt.Println(ui.Muted.Render("  No active goals yet."))
 		fmt.Printf("  Add one: %s\n",
-			ui.Accent.Render(`mine grow goal add "Learn Rust" --target 50 --unit hrs`))
+			ui.Accent.Render(`mine grow goal add "Learn Rust" --target 3000 --unit mins`))
 		fmt.Println()
 		return nil
 	}
@@ -307,9 +307,13 @@ func runGrowLog(_ *cobra.Command, args []string) error {
 		fmt.Printf("    Skill: %s\n", ui.Muted.Render(growLogSkill))
 	}
 	if goalID != nil {
+		// Display-only after a successful write; ignore fetch error.
 		g, _ := gs.GetGoal(*goalID)
 		if g != nil && g.TargetValue > 0 {
 			pct := g.CurrentValue / g.TargetValue * 100
+			if pct > 100 {
+				pct = 100
+			}
 			fmt.Printf("    Goal %s: %.0f/%.0f %s (%.0f%%)\n",
 				ui.Accent.Render(fmt.Sprintf("#%d", g.ID)),
 				g.CurrentValue, g.TargetValue, g.Unit, pct)

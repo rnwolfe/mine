@@ -385,3 +385,78 @@ func TestSkillLevelDots(t *testing.T) {
 		}
 	}
 }
+
+func TestRunGrowGoalDone_InvalidID(t *testing.T) {
+	growTestEnv(t)
+
+	err := runGrowGoalDone(nil, []string{"not-a-number"})
+	if err == nil {
+		t.Fatal("expected error for non-integer ID, got nil")
+	}
+}
+
+func TestRunGrowGoalDone_NotFound(t *testing.T) {
+	growTestEnv(t)
+
+	err := runGrowGoalDone(nil, []string{"9999"})
+	if err == nil {
+		t.Fatal("expected error for non-existent goal ID, got nil")
+	}
+}
+
+func TestRunGrowReview_WithData(t *testing.T) {
+	growTestEnv(t)
+
+	// Seed a goal
+	growGoalDeadline = ""
+	growGoalTarget = 3000
+	growGoalUnit = "mins"
+	if err := runGrowGoalAdd(nil, []string{"Learn Go"}); err != nil {
+		t.Fatalf("add goal: %v", err)
+	}
+
+	// Seed activities
+	growLogMinutes = 45
+	growLogGoal = 0
+	growLogSkill = "Go"
+	if err := runGrowLog(nil, []string{"Go tutorial"}); err != nil {
+		t.Fatalf("log activity: %v", err)
+	}
+	if err := runGrowLog(nil, []string{"Go patterns"}); err != nil {
+		t.Fatalf("log activity: %v", err)
+	}
+
+	if err := runGrowReview(nil, nil); err != nil {
+		t.Fatalf("runGrowReview: %v", err)
+	}
+}
+
+func TestRunGrowDashboard_WithData(t *testing.T) {
+	growTestEnv(t)
+
+	// Seed a goal
+	growGoalDeadline = ""
+	growGoalTarget = 3000
+	growGoalUnit = "mins"
+	if err := runGrowGoalAdd(nil, []string{"Learn Rust"}); err != nil {
+		t.Fatalf("add goal: %v", err)
+	}
+
+	// Seed a skill
+	growSkillCategory = "programming"
+	if err := runGrowSkillsSet(nil, []string{"Rust", "2"}); err != nil {
+		t.Fatalf("set skill: %v", err)
+	}
+
+	// Seed an activity
+	growLogMinutes = 30
+	growLogGoal = 0
+	growLogSkill = "Rust"
+	if err := runGrowLog(nil, []string{"Rust book"}); err != nil {
+		t.Fatalf("log activity: %v", err)
+	}
+
+	if err := runGrowDashboard(nil, nil); err != nil {
+		t.Fatalf("runGrowDashboard: %v", err)
+	}
+}

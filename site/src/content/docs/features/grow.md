@@ -20,8 +20,8 @@ all yours.
 ## Quick Example
 
 ```bash
-# Add a learning goal
-mine grow goal add "Learn Rust" --deadline 2026-06-01 --target 50 --unit hrs
+# Add a learning goal (target in minutes, since log --minutes is always minutes)
+mine grow goal add "Learn Rust" --deadline 2026-06-01 --target 3000 --unit mins
 
 # Log a learning session
 mine grow log "Read The Rust Book ch. 3" --minutes 45 --goal 1 --skill Rust
@@ -40,7 +40,11 @@ mine grow review
 
 ### Goals
 
-Goals have an optional target value (e.g. 50 hrs) and unit (e.g. `hrs`, `sessions`).
+Goals have an optional target value and unit (e.g. `mins`, `sessions`). The `--unit`
+flag is a display label — **`--target` must be expressed in the same unit you log**.
+Since `mine grow log --minutes` always tracks minutes, use `--unit mins` and set your
+target in minutes (e.g. `--target 3000` for ~50 hours). For session-based goals, use
+`--unit sessions` and set `--target` to the number of sessions.
 Progress is tracked automatically: every `mine grow log` that references a goal
 accumulates its minutes toward `current_value`. You can mark goals complete with
 `mine grow goal done <id>`.

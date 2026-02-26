@@ -244,6 +244,15 @@ jobs:
           echo "Unknown phase: $PHASE. Skipping."
           echo "action=skip" >> "$GITHUB_OUTPUT"
 
+      # ── Generate app token (shared by all non-skip paths) ─────────
+      - name: Generate app token
+        id: app-token
+        if: steps.route.outputs.action != 'skip'
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       # ── Checkout (shared by all fix paths) ────────────────────────
       - name: Checkout PR branch
         if: steps.route.outputs.action != 'skip'
@@ -251,7 +260,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request_review' && github.event.pull_request.head.ref || '' }}
           fetch-depth: 0
-          token: ${{ secrets.AUTODEV_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Resolve PR branch for non-review events
         if: steps.route.outputs.action != 'skip' && github.event_name != 'pull_request_review'
@@ -356,7 +365,7 @@ jobs:
       - name: Handle agent failure (copilot fix)
         if: steps.route.outputs.action == 'copilot-fix' && steps.copilot-feedback.outputs.override_action != 'trigger-claude' && steps.copilot-agent.outcome == 'failure'
         env:
-          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           echo "::error::Copilot fix agent failed (outcome: ${{ steps.copilot-agent.outcome }}). No changes were committed."
           echo "::error::See logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -389,7 +398,7 @@ jobs:
       - name: Commit and push (copilot fix)
         if: steps.route.outputs.action == 'copilot-fix' && steps.copilot-feedback.outputs.override_action != 'trigger-claude' && steps.copilot-agent.outcome == 'success' && steps.copilot-changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           NEXT_ITER=$(( ${{ steps.route.outputs.copilot_iterations }} + 1 ))
           git config user.name "github-actions[bot]"
@@ -432,7 +441,7 @@ jobs:
           || steps.copilot-feedback.outputs.override_action == 'trigger-claude'
           || (steps.route.outputs.action == 'copilot-fix' && steps.copilot-feedback.outputs.override_action != 'trigger-claude' && steps.copilot-agent.outcome == 'success')
         env:
-          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           # Update phase in PR body
           PR_BODY=$(gh pr view "${{ steps.route.outputs.pr_number }}" \
@@ -546,7 +555,7 @@ jobs:
       - name: Handle agent failure (claude fix)
         if: steps.route.outputs.action == 'claude-fix' && steps.claude-feedback.outputs.no_feedback != 'true' && steps.claude-agent.outcome == 'failure'
         env:
-          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           echo "::error::Claude fix agent failed (outcome: ${{ steps.claude-agent.outcome }}). No changes were committed."
           echo "::error::See logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -579,7 +588,7 @@ jobs:
       - name: Commit and push (claude fix)
         if: steps.route.outputs.action == 'claude-fix' && steps.claude-feedback.outputs.no_feedback != 'true' && steps.claude-agent.outcome == 'success' && steps.claude-changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -591,7 +600,7 @@ jobs:
       - name: Dismiss CHANGES_REQUESTED reviews (claude fix)
         if: steps.route.outputs.action == 'claude-fix' && (steps.claude-feedback.outputs.no_feedback == 'true' || steps.claude-agent.outcome == 'success')
         env:
-          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           PR_NUMBER="${{ steps.route.outputs.pr_number }}"
           # Dismiss any outstanding CHANGES_REQUESTED reviews from claude[bot].
@@ -610,7 +619,7 @@ jobs:
       - name: Finalize — mark phase done
         if: steps.route.outputs.action == 'claude-fix' && (steps.claude-feedback.outputs.no_feedback == 'true' || steps.claude-agent.outcome == 'success')
         env:
-          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           PR_NUMBER="${{ steps.route.outputs.pr_number }}"
 

@@ -1,0 +1,15 @@
+# Acknowledged file size violations.
+# Each entry should have a corresponding GitHub issue tracking the refactor.
+# Prefer opening a tracking issue before adding new entries.
+#
+# To check current violations: make filelen
+cmd/ai.go
+cmd/agents.go
+cmd/env.go
+cmd/todo.go
+cmd/tmux.go
+internal/proj/proj.go
+internal/shell/functions.go
+internal/stash/stash.go
+internal/todo/todo.go
+internal/tui/todo.go

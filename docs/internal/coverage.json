@@ -1,9 +1,9 @@
 {
   "date": "2026-02-26",
-  "commit": "4a388ccfbb4636d957fb6ea38e8adf779e1ca279",
+  "commit": "9f50d3cdf92bf1d7cec5f67442e194c43347966b",
   "total_pct": 51.7,
   "packages": {
-    "cmd": 42.1,
+    "cmd": 42.0,
     "internal/agents": 72.8,
     "internal/ai": 38.8,
     "internal/analytics": 94.7,
@@ -24,7 +24,7 @@
     "internal/store": 84.4,
     "internal/tips": 100.0,
     "internal/tmux": 68.3,
-    "internal/todo": 82.5,
+    "internal/todo": 82.6,
     "internal/tui": 67.9,
     "internal/ui": 29.4,
     "internal/vault": 67.3,

@@ -64,6 +64,7 @@ func init() {
 	rootCmd.AddCommand(aboutCmd)
 	rootCmd.AddCommand(tipsCmd)
 	rootCmd.AddCommand(doctorCmd)
+	rootCmd.AddCommand(growCmd)
 }
 
 // fireAnalytics sends an anonymous analytics ping synchronously.

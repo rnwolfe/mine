@@ -141,6 +141,35 @@ func (db *DB) migrate() error {
 			ended_at DATETIME
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_dig_sessions_todo_id ON dig_sessions(todo_id)`,
+		// Career growth tracking
+		`CREATE TABLE IF NOT EXISTS grow_goals (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			title TEXT NOT NULL,
+			deadline TEXT,
+			target_value REAL DEFAULT 0,
+			current_value REAL DEFAULT 0,
+			unit TEXT DEFAULT '',
+			done INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS grow_activities (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			goal_id INTEGER REFERENCES grow_goals(id) ON DELETE SET NULL,
+			skill TEXT DEFAULT '',
+			note TEXT DEFAULT '',
+			minutes INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_grow_activities_goal_id ON grow_activities(goal_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_grow_activities_created_at ON grow_activities(created_at)`,
+		`CREATE TABLE IF NOT EXISTS grow_skills (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			category TEXT DEFAULT 'general',
+			level INTEGER DEFAULT 1 CHECK(level BETWEEN 1 AND 5),
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
 	}
 
 	for _, m := range migrations {

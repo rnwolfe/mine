@@ -14,6 +14,13 @@ type Config struct {
 	AI        AIConfig        `toml:"ai"`
 	Analytics AnalyticsConfig `toml:"analytics"`
 	Todo      TodoConfig      `toml:"todo"`
+	Grow      GrowConfig      `toml:"grow"`
+}
+
+// GrowConfig holds career growth tracking configuration.
+type GrowConfig struct {
+	// DefaultMinutes is the default activity duration when --minutes is not set.
+	DefaultMinutes int `toml:"default_minutes,omitempty"`
 }
 
 // TodoConfig holds todo-related configuration.

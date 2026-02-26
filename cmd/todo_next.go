@@ -92,19 +92,25 @@ func runTodoNext(_ *cobra.Command, args []string) error {
 	return nil
 }
 
+// cardMetaIndent is the number of spaces to indent metadata lines in a todo card,
+// computed to align under the title text:
+//   - "  " (2) + rank "%2d." (3) + " " (1) + prio emoji (2) + " " (1) + sched (2) + " " (1) = 12
+const cardMetaIndent = "            "
+
 // printTodoCard prints a detailed card for a single todo.
 func printTodoCard(t todo.Todo, rank int, now time.Time, currentProjectPath *string) {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
-	rankStr := ui.Muted.Render(fmt.Sprintf("%d.", rank))
+	rankStr := ui.Muted.Render(fmt.Sprintf("%2d.", rank))
 	prio := todo.PriorityIcon(t.Priority)
-	schedTag := renderScheduleTag(t.Schedule)
+	schedTag := todo.FormatScheduleTag(t.Schedule)
 	title := ui.Accent.Render(t.Title)
 
 	fmt.Printf("  %s %s %s %s\n", rankStr, prio, schedTag, title)
 
-	// ID and priority label
-	fmt.Printf("     %s  %s\n",
+	// ID and priority label — indented to align under the title.
+	fmt.Printf("%s%s  %s\n",
+		cardMetaIndent,
 		ui.Muted.Render(fmt.Sprintf("#%d", t.ID)),
 		ui.Muted.Render(todo.PriorityLabel(t.Priority)+" priority"),
 	)
@@ -124,18 +130,18 @@ func printTodoCard(t todo.Todo, rank int, now time.Time, currentProjectPath *str
 		default:
 			dueStr = ui.Muted.Render("due " + due.Format("Mon, Jan 2"))
 		}
-		fmt.Printf("     %s\n", dueStr)
+		fmt.Printf("%s%s\n", cardMetaIndent, dueStr)
 	}
 
 	// Project: show only when the task belongs to a project other than the current one.
 	if t.ProjectPath != nil && (currentProjectPath == nil || *t.ProjectPath != *currentProjectPath) {
 		projName := filepath.Base(*t.ProjectPath)
-		fmt.Printf("     %s\n", ui.Muted.Render("@"+projName))
+		fmt.Printf("%s%s\n", cardMetaIndent, ui.Muted.Render("@"+projName))
 	}
 
 	// Tags
 	if len(t.Tags) > 0 {
-		fmt.Printf("     %s\n", ui.Muted.Render("["+strings.Join(t.Tags, ", ")+"]"))
+		fmt.Printf("%s%s\n", cardMetaIndent, ui.Muted.Render("["+strings.Join(t.Tags, ", ")+"]"))
 	}
 
 	// Age
@@ -143,7 +149,7 @@ func printTodoCard(t todo.Todo, rank int, now time.Time, currentProjectPath *str
 		time.Date(t.CreatedAt.Year(), t.CreatedAt.Month(), t.CreatedAt.Day(), 0, 0, 0, 0, now.Location()),
 	).Hours() / 24)
 	if age > 0 {
-		fmt.Printf("     %s\n", ui.Muted.Render(fmt.Sprintf("%d day(s) old", age)))
+		fmt.Printf("%s%s\n", cardMetaIndent, ui.Muted.Render(fmt.Sprintf("%d day(s) old", age)))
 	}
 
 	fmt.Println()

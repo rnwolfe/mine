@@ -252,13 +252,27 @@ func (p *Picker) renderItem(item Item, selected bool) string {
 		titleStyle = lipgloss.NewStyle().Foreground(ui.Gold).Bold(true)
 	}
 
-	title := titleStyle.Render(item.Title())
-	desc := item.Description()
-	if desc != "" {
-		desc = "  " + descStyle.Render(desc)
+	// Truncate title to prevent overflow: termWidth minus 6 chars for prefix + margin.
+	rawTitle := item.Title()
+	maxWidth := p.termWidth - 6
+	if maxWidth < 10 {
+		maxWidth = 10
 	}
+	if lipgloss.Width(rawTitle) > maxWidth {
+		runes := []rune(rawTitle)
+		for len(runes) > 0 && lipgloss.Width(string(runes)+"…") > maxWidth {
+			runes = runes[:len(runes)-1]
+		}
+		rawTitle = string(runes) + "…"
+	}
+	title := titleStyle.Render(rawTitle)
 
-	return "  " + pointer + title + desc
+	// Description rendered on a second line, indented to align under the title.
+	d := item.Description()
+	if d == "" {
+		return "  " + pointer + title
+	}
+	return "  " + pointer + title + "\n    " + descStyle.Render(d)
 }
 
 func blinkCursor() string {

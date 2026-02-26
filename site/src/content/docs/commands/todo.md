@@ -372,8 +372,8 @@ When no completions exist, an encouraging "no completions yet" message is shown 
 When a task has accumulated focus time from linked `mine dig` sessions, it appears inline in the list output:
 
 ```
-    #1   🟡 [today]   Refactor auth module  [1h 25m]
-    #2   🔴 [soon]    Fix login bug
+    #1   🟡 ▸T  Refactor auth module  [1h 25m]
+    #2   🔴 ▸S  Fix login bug
 ```
 
 The `[Xh Ym]` annotation is only shown when total focus time is > 0. Tasks with no linked sessions show no annotation.

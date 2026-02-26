@@ -437,12 +437,15 @@ func (m *TodoModel) renderTodoItem(t todo.Todo, selected bool, today time.Time) 
 		marker = ui.Success.Render("✓")
 	}
 
-	id := ui.Muted.Render(fmt.Sprintf("#%-3d", t.ID))
+	var idStr string
 	if t.ID < 0 {
-		id = ui.Muted.Render("new ")
+		idStr = "new"
+	} else {
+		idStr = fmt.Sprintf("#%d", t.ID)
 	}
+	id := lipgloss.NewStyle().Width(todo.ColWidthID).Render(ui.Muted.Render(idStr))
 	prio := todo.PriorityIcon(t.Priority)
-	schedTag := tuiScheduleTag(t.Schedule)
+	schedTag := todo.FormatScheduleTag(t.Schedule)
 	title := t.Title
 	if t.Done {
 		title = ui.Muted.Render(title)
@@ -484,20 +487,6 @@ func (m *TodoModel) renderTodoItem(t todo.Todo, selected bool, today time.Time) 
 	}
 
 	return line
-}
-
-// tuiScheduleTag returns a compact styled schedule indicator for the TUI.
-func tuiScheduleTag(schedule string) string {
-	switch schedule {
-	case todo.ScheduleToday:
-		return ui.ScheduleTodayStyle.Render("▸T")
-	case todo.ScheduleSoon:
-		return ui.ScheduleSoonStyle.Render("▸S")
-	case todo.ScheduleSomeday:
-		return ui.Muted.Render("▸?")
-	default: // later
-		return ui.Muted.Render("▸·")
-	}
 }
 
 // nextSchedule cycles to the next schedule bucket: today → soon → later → someday → today.

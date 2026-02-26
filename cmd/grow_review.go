@@ -118,7 +118,7 @@ func runGrowReview(_ *cobra.Command, _ []string) error {
 	ui.Kv("Streak", streakStr)
 
 	// Activities this week
-	weekStart := growStartOfWeek(now)
+	weekStart := growStartOfWeek(now.UTC())
 	weekActivities, err := gs.ListActivities(weekStart)
 	if err != nil {
 		return fmt.Errorf("listing weekly activities: %w", err)
@@ -127,7 +127,8 @@ func runGrowReview(_ *cobra.Command, _ []string) error {
 	ui.Kv("This week", fmt.Sprintf("%d activities, %s", len(weekActivities), formatMins(weekMins)))
 
 	// Activities this month
-	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	nowUTC := now.UTC()
+	monthStart := time.Date(nowUTC.Year(), nowUTC.Month(), 1, 0, 0, 0, 0, time.UTC)
 	monthActivities, err := gs.ListActivities(monthStart)
 	if err != nil {
 		return fmt.Errorf("listing monthly activities: %w", err)

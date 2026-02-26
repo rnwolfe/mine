@@ -172,8 +172,9 @@ func (s *Store) refreshGoalProgress(goalID int) error {
 }
 
 // ListActivities returns activities created on or after since (by date), ordered DESC.
+// since must be in UTC to match the UTC dates stored by SQLite's CURRENT_TIMESTAMP.
 func (s *Store) ListActivities(since time.Time) ([]Activity, error) {
-	sinceStr := since.UTC().Format("2006-01-02")
+	sinceStr := since.Format("2006-01-02")
 	rows, err := s.db.Query(
 		`SELECT id, goal_id, skill, note, minutes, created_at
 		 FROM grow_activities WHERE DATE(created_at) >= ? ORDER BY created_at DESC`,

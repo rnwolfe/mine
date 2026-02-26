@@ -344,6 +344,58 @@ func (s *Store) Delete(id int) error {
 	return nil
 }
 
+// rowScanner is satisfied by both *sql.Row and *sql.Rows, allowing a single
+// scan helper to work with both QueryRow and Query result sets.
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+// scanTodoRow reads one Todo from a rowScanner (*sql.Row or *sql.Rows).
+// It handles due date parsing, tag splitting, project path deref,
+// schedule/recurrence defaults, and timestamp parsing.
+func scanTodoRow(sc rowScanner) (Todo, error) {
+	var t Todo
+	var doneInt int
+	var dueStr, tagStr, projPath, scheduleStr, recurrenceStr sql.NullString
+	var completedAt sql.NullTime
+	var createdStr, updatedStr string
+
+	if err := sc.Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &scheduleStr, &recurrenceStr, &createdStr, &updatedStr, &completedAt); err != nil {
+		return Todo{}, err
+	}
+
+	t.Done = doneInt == 1
+	if dueStr.Valid && dueStr.String != "" {
+		if parsed, err := time.Parse("2006-01-02", dueStr.String); err == nil {
+			t.DueDate = &parsed
+		}
+	}
+	if tagStr.Valid && tagStr.String != "" {
+		t.Tags = strings.Split(tagStr.String, ",")
+	}
+	if projPath.Valid && projPath.String != "" {
+		p := projPath.String
+		t.ProjectPath = &p
+	}
+	if scheduleStr.Valid && scheduleStr.String != "" {
+		t.Schedule = scheduleStr.String
+	} else {
+		t.Schedule = ScheduleLater
+	}
+	if recurrenceStr.Valid && recurrenceStr.String != "" {
+		t.Recurrence = recurrenceStr.String
+	} else {
+		t.Recurrence = RecurrenceNone
+	}
+	if completedAt.Valid {
+		t.CompletedAt = &completedAt.Time
+	}
+	t.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)
+	t.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedStr)
+
+	return t, nil
+}
+
 // List returns todos matching the given options.
 func (s *Store) List(opts ListOptions) ([]Todo, error) {
 	query := `SELECT id, title, body, priority, done, due_date, tags, project_path, schedule, recurrence, created_at, updated_at, completed_at FROM todos`
@@ -387,45 +439,10 @@ func (s *Store) List(opts ListOptions) ([]Todo, error) {
 
 	var todos []Todo
 	for rows.Next() {
-		var t Todo
-		var doneInt int
-		var dueStr, tagStr, projPath, scheduleStr, recurrenceStr sql.NullString
-		var completedAt sql.NullTime
-		var createdStr, updatedStr string
-
-		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &scheduleStr, &recurrenceStr, &createdStr, &updatedStr, &completedAt); err != nil {
+		t, err := scanTodoRow(rows)
+		if err != nil {
 			return nil, err
 		}
-
-		t.Done = doneInt == 1
-		if dueStr.Valid && dueStr.String != "" {
-			if parsed, err := time.Parse("2006-01-02", dueStr.String); err == nil {
-				t.DueDate = &parsed
-			}
-		}
-		if tagStr.Valid && tagStr.String != "" {
-			t.Tags = strings.Split(tagStr.String, ",")
-		}
-		if projPath.Valid && projPath.String != "" {
-			s := projPath.String
-			t.ProjectPath = &s
-		}
-		if scheduleStr.Valid && scheduleStr.String != "" {
-			t.Schedule = scheduleStr.String
-		} else {
-			t.Schedule = ScheduleLater
-		}
-		if recurrenceStr.Valid && recurrenceStr.String != "" {
-			t.Recurrence = recurrenceStr.String
-		} else {
-			t.Recurrence = RecurrenceNone
-		}
-		if completedAt.Valid {
-			t.CompletedAt = &completedAt.Time
-		}
-		t.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)
-		t.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedStr)
-
 		todos = append(todos, t)
 	}
 
@@ -487,49 +504,14 @@ func (s *Store) Count(projectPath *string) (open int, total int, overdue int, er
 
 // Get returns a single todo by ID.
 func (s *Store) Get(id int) (*Todo, error) {
-	var t Todo
-	var doneInt int
-	var dueStr, tagStr, projPath, scheduleStr, recurrenceStr sql.NullString
-	var completedAt sql.NullTime
-	var createdStr, updatedStr string
-
-	err := s.db.QueryRow(
+	row := s.db.QueryRow(
 		`SELECT id, title, body, priority, done, due_date, tags, project_path, schedule, recurrence, created_at, updated_at, completed_at FROM todos WHERE id = ?`,
 		id,
-	).Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &scheduleStr, &recurrenceStr, &createdStr, &updatedStr, &completedAt)
+	)
+	t, err := scanTodoRow(row)
 	if err != nil {
 		return nil, fmt.Errorf("todo #%d not found", id)
 	}
-
-	t.Done = doneInt == 1
-	if dueStr.Valid && dueStr.String != "" {
-		if parsed, err := time.Parse("2006-01-02", dueStr.String); err == nil {
-			t.DueDate = &parsed
-		}
-	}
-	if tagStr.Valid && tagStr.String != "" {
-		t.Tags = strings.Split(tagStr.String, ",")
-	}
-	if projPath.Valid && projPath.String != "" {
-		s := projPath.String
-		t.ProjectPath = &s
-	}
-	if scheduleStr.Valid && scheduleStr.String != "" {
-		t.Schedule = scheduleStr.String
-	} else {
-		t.Schedule = ScheduleLater
-	}
-	if recurrenceStr.Valid && recurrenceStr.String != "" {
-		t.Recurrence = recurrenceStr.String
-	} else {
-		t.Recurrence = RecurrenceNone
-	}
-	if completedAt.Valid {
-		t.CompletedAt = &completedAt.Time
-	}
-	t.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)
-	t.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedStr)
-
 	return &t, nil
 }
 
@@ -695,45 +677,10 @@ func (s *Store) ListRecurring() ([]Todo, error) {
 
 	var todos []Todo
 	for rows.Next() {
-		var t Todo
-		var doneInt int
-		var dueStr, tagStr, projPath, scheduleStr, recurrenceStr sql.NullString
-		var completedAt sql.NullTime
-		var createdStr, updatedStr string
-
-		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Priority, &doneInt, &dueStr, &tagStr, &projPath, &scheduleStr, &recurrenceStr, &createdStr, &updatedStr, &completedAt); err != nil {
+		t, err := scanTodoRow(rows)
+		if err != nil {
 			return nil, err
 		}
-
-		t.Done = doneInt == 1
-		if dueStr.Valid && dueStr.String != "" {
-			if parsed, err := time.Parse("2006-01-02", dueStr.String); err == nil {
-				t.DueDate = &parsed
-			}
-		}
-		if tagStr.Valid && tagStr.String != "" {
-			t.Tags = strings.Split(tagStr.String, ",")
-		}
-		if projPath.Valid && projPath.String != "" {
-			p := projPath.String
-			t.ProjectPath = &p
-		}
-		if scheduleStr.Valid && scheduleStr.String != "" {
-			t.Schedule = scheduleStr.String
-		} else {
-			t.Schedule = ScheduleLater
-		}
-		if recurrenceStr.Valid && recurrenceStr.String != "" {
-			t.Recurrence = recurrenceStr.String
-		} else {
-			t.Recurrence = RecurrenceNone
-		}
-		if completedAt.Valid {
-			t.CompletedAt = &completedAt.Time
-		}
-		t.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)
-		t.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedStr)
-
 		todos = append(todos, t)
 	}
 

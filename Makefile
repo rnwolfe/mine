@@ -37,7 +37,7 @@ filelen:
 	  lines=$$(wc -l < "$$f"); \
 	  if [ "$$lines" -gt 500 ]; then \
 	    if ! grep -qxF "$$f" .github/filelen-exceptions.txt 2>/dev/null; then \
-	      echo "$$f: $$lines lines (limit: 500)"; \
+	      echo "::error::$$f: $$lines lines (limit: 500)"; \
 	      EXIT=1; \
 	    fi; \
 	  fi; \

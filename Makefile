@@ -8,7 +8,7 @@ LDFLAGS := -s -w \
 	-X github.com/rnwolfe/mine/internal/version.Commit=$(COMMIT) \
 	-X github.com/rnwolfe/mine/internal/version.Date=$(DATE)
 
-.PHONY: build install clean test lint run
+.PHONY: build install clean test lint filelen run
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) .
@@ -30,6 +30,19 @@ cover:
 
 lint:
 	go vet ./...
+
+filelen:
+	@EXIT=0; \
+	for f in $$(find cmd/ internal/ -name "*.go" -not -name "*_test.go" | sort); do \
+	  lines=$$(wc -l < "$$f"); \
+	  if [ "$$lines" -gt 500 ]; then \
+	    if ! grep -qxF "$$f" .github/filelen-exceptions.txt 2>/dev/null; then \
+	      echo "$$f: $$lines lines (limit: 500)"; \
+	      EXIT=1; \
+	    fi; \
+	  fi; \
+	done; \
+	[ $$EXIT -eq 0 ] || { echo "Add to .github/filelen-exceptions.txt to acknowledge existing violations (with a tracking issue)."; exit 1; }
 
 run: build
 	./bin/$(BINARY)

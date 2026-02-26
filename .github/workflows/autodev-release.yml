@@ -90,9 +90,16 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.AUTODEV_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           fetch-depth: 0
 
       # ============================================================
@@ -161,7 +168,7 @@ jobs:
       - name: Create release proposal PR
         if: steps.agent.outcome == 'success'
         env:
-          GH_TOKEN: ${{ secrets.AUTODEV_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           if [ ! -f /tmp/release-version.txt ]; then
             echo "::warning::Agent did not produce /tmp/release-version.txt — skipping"

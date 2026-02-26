@@ -339,6 +339,71 @@ func TestList_ShowDone_WithProject(t *testing.T) {
 	}
 }
 
+// --- parseTimestamp tests ---
+
+func TestParseTimestamp_RFC3339(t *testing.T) {
+	s := "2026-02-25T10:30:00Z"
+	got := parseTimestamp(s)
+	if got.IsZero() {
+		t.Fatalf("parseTimestamp(%q) returned zero time", s)
+	}
+	if got.Year() != 2026 || got.Month() != 2 || got.Day() != 25 {
+		t.Fatalf("parseTimestamp(%q) = %v, want 2026-02-25", s, got)
+	}
+}
+
+func TestParseTimestamp_SQLiteNative(t *testing.T) {
+	s := "2026-02-25 10:30:00"
+	got := parseTimestamp(s)
+	if got.IsZero() {
+		t.Fatalf("parseTimestamp(%q) returned zero time", s)
+	}
+	if got.Year() != 2026 || got.Month() != 2 || got.Day() != 25 {
+		t.Fatalf("parseTimestamp(%q) = %v, want 2026-02-25", s, got)
+	}
+}
+
+func TestParseTimestamp_Invalid_ReturnsZero(t *testing.T) {
+	s := "not-a-timestamp"
+	got := parseTimestamp(s)
+	if !got.IsZero() {
+		t.Fatalf("parseTimestamp(%q) should return zero time, got %v", s, got)
+	}
+}
+
+func TestParseTimestamp_Empty_ReturnsZero(t *testing.T) {
+	got := parseTimestamp("")
+	if !got.IsZero() {
+		t.Fatalf("parseTimestamp(%q) should return zero time, got %v", "", got)
+	}
+}
+
+func TestCreatedAt_ParsedCorrectly(t *testing.T) {
+	// Regression test: verify that CreatedAt is non-zero after Add+Get,
+	// since the modernc.org/sqlite driver returns DATETIME as RFC3339.
+	db := setupTestDB(t)
+	defer db.Close()
+	s := NewStore(db)
+
+	id, err := s.Add("timestamp test", "", PrioMedium, nil, nil, nil, ScheduleLater, RecurrenceNone)
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	got, err := s.Get(id)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if got.CreatedAt.IsZero() {
+		t.Fatal("CreatedAt should not be zero after Add+Get")
+	}
+	// Age should be 0 for a freshly created todo (not 106751).
+	age := int(time.Since(got.CreatedAt).Hours() / 24)
+	if age < 0 || age > 1 {
+		t.Fatalf("age should be 0 or 1 day for a new todo, got %d", age)
+	}
+}
+
 // --- Schedule tests ---
 
 func TestParseSchedule(t *testing.T) {

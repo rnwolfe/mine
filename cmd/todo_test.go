@@ -918,6 +918,34 @@ func TestRunTodoNext_DetailCardFields(t *testing.T) {
 	}
 }
 
+func TestRunTodoNext_NewTodo_ShowsNoAge(t *testing.T) {
+	// Regression test for: new todo is 106751 days old (timestamp parse failure).
+	// A todo created in the same session should NOT show any "day(s) old" line.
+	todoTestEnv(t)
+
+	t.Chdir(t.TempDir())
+
+	db, err := store.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := todo.NewStore(db.Conn())
+	ts.Add("brand new task", "", todo.PrioMedium, nil, nil, nil, todo.ScheduleToday, todo.RecurrenceNone)
+	db.Close()
+
+	out := captureStdout(t, func() {
+		runTodoNext(nil, nil)
+	})
+
+	// A freshly created todo has age 0 — the card should NOT print "day(s) old".
+	if strings.Contains(out, "day(s) old") {
+		t.Errorf("new todo should show no age line, got:\n%s", out)
+	}
+	if !strings.Contains(out, "brand new task") {
+		t.Errorf("expected todo title in output:\n%s", out)
+	}
+}
+
 // --- urgencyWeightsFromConfig tests ---
 
 func TestUrgencyWeightsFromConfig_AllNilUsesDefaults(t *testing.T) {

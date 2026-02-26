@@ -144,12 +144,14 @@ func printTodoCard(t todo.Todo, rank int, now time.Time, currentProjectPath *str
 		fmt.Printf("%s%s\n", cardMetaIndent, ui.Muted.Render("["+strings.Join(t.Tags, ", ")+"]"))
 	}
 
-	// Age
-	age := int(today.Sub(
-		time.Date(t.CreatedAt.Year(), t.CreatedAt.Month(), t.CreatedAt.Day(), 0, 0, 0, 0, now.Location()),
-	).Hours() / 24)
-	if age > 0 {
-		fmt.Printf("%s%s\n", cardMetaIndent, ui.Muted.Render(fmt.Sprintf("%d day(s) old", age)))
+	// Age — only show if CreatedAt parsed successfully (non-zero) and todo is at least 1 day old.
+	if !t.CreatedAt.IsZero() {
+		age := int(today.Sub(
+			time.Date(t.CreatedAt.Year(), t.CreatedAt.Month(), t.CreatedAt.Day(), 0, 0, 0, 0, now.Location()),
+		).Hours() / 24)
+		if age > 0 {
+			fmt.Printf("%s%s\n", cardMetaIndent, ui.Muted.Render(fmt.Sprintf("%d day(s) old", age)))
+		}
 	}
 
 	fmt.Println()

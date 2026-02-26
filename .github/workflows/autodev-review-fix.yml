@@ -439,7 +439,7 @@ jobs:
             --repo "${{ github.repository }}" \
             --json body --jq '.body')
 
-          COPILOT_ITER="${{ steps.route.outputs.copilot_iterations }}"
+          COPILOT_ITER=$(echo "$PR_BODY" | grep -oP '(?<=<!-- autodev-state: ).*?(?= -->)' | jq -r '.copilot_iterations // 0')
           UPDATED_BODY=$(echo "$PR_BODY" | sed \
             "s/<!-- autodev-state: [^>]* -->/<!-- autodev-state: {\"phase\": \"claude\", \"copilot_iterations\": $COPILOT_ITER} -->/")
 
@@ -630,7 +630,7 @@ jobs:
             --repo "${{ github.repository }}" \
             --json body --jq '.body')
 
-          COPILOT_ITER="${{ steps.route.outputs.copilot_iterations }}"
+          COPILOT_ITER=$(echo "$PR_BODY" | grep -oP '(?<=<!-- autodev-state: ).*?(?= -->)' | jq -r '.copilot_iterations // 0')
           UPDATED_BODY=$(echo "$PR_BODY" | sed \
             "s/<!-- autodev-state: [^>]* -->/<!-- autodev-state: {\"phase\": \"done\", \"copilot_iterations\": $COPILOT_ITER} -->/")
 

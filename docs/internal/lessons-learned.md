@@ -272,8 +272,8 @@ them via `PUT /pulls/{pr}/reviews/{review_id}/dismissals`. Requires a token with
 ### L-032: Stash domain performance baselines (amd64, Intel Xeon Platinum 8370C @ 2.80GHz)
 
 Measured via `go test -bench=. -benchmem ./internal/stash/...`. These are warm-run numbers.
-Git subprocess overhead dominates all `Commit` benchmarks; `ReadManifest` and
-`RestoreToSource` are pure Go + OS I/O.
+Git subprocess overhead dominates all `Commit` and `RestoreToSource` benchmarks;
+`ReadManifest` is pure Go + OS I/O (no git subprocesses).
 
 | Benchmark | ns/op | B/op | allocs/op | Notes |
 |-----------|------:|-----:|----------:|-------|

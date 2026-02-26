@@ -42,7 +42,12 @@ filelen:
 	    fi; \
 	  fi; \
 	done; \
-	[ $$EXIT -eq 0 ] || { echo "Add to .github/filelen-exceptions.txt to acknowledge existing violations (with a tracking issue)."; exit 1; }
+	if [ $$EXIT -eq 0 ]; then \
+	  echo "filelen: all files within 500-line limit"; \
+	else \
+	  echo "Add to .github/filelen-exceptions.txt to acknowledge existing violations (with a tracking issue)."; \
+	  exit 1; \
+	fi
 
 run: build
 	./bin/$(BINARY)

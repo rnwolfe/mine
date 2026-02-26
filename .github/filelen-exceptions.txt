@@ -1,6 +1,6 @@
 # Acknowledged file size violations.
-# Each entry must have a corresponding GitHub issue tracking the refactor.
-# Do not add new entries without opening a tracking issue first.
+# Each entry should have a corresponding GitHub issue tracking the refactor.
+# Prefer opening a tracking issue before adding new entries.
 #
 # To check current violations: make filelen
 cmd/ai.go

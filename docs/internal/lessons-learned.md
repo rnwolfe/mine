@@ -268,3 +268,21 @@ resolved. Fix: add a "Dismiss CHANGES_REQUESTED reviews" step after the claude-f
 that queries all reviews from `claude[bot]` with state `CHANGES_REQUESTED` and dismisses
 them via `PUT /pulls/{pr}/reviews/{review_id}/dismissals`. Requires a token with
 `pull-requests: write` permission (`AUTODEV_TOKEN`).
+
+### L-032: Stash domain performance baselines (amd64, Intel Xeon Platinum 8370C @ 2.80GHz)
+
+Measured via `go test -bench=. -benchmem ./internal/stash/...`. These are warm-run numbers.
+Git subprocess overhead dominates all `Commit` and `RestoreToSource` benchmarks;
+`ReadManifest` is pure Go + OS I/O (no git subprocesses).
+
+| Benchmark | ns/op | B/op | allocs/op | Notes |
+|-----------|------:|-----:|----------:|-------|
+| `BenchmarkCommit_SmallFile` | 7,248,729 (~7.2ms) | 228,838 | 619 | single ~1 KB file; git subprocess cost |
+| `BenchmarkCommit_LargeFile` | 181,766,221 (~182ms) | 10,721,626 | 619 | single ~10 MB file; I/O + git blob hash |
+| `BenchmarkCommit_ManyFiles` | 11,824,062 (~11.8ms) | 346,952 | 1,263 | 50 × ~1 KB files; ~1.6× SmallFile — well under 50× hotspot threshold |
+| `BenchmarkReadManifest_ManyEntries` | 21,135 (~21µs) | 37,104 | 230 | 100-entry manifest; O(n) scan is fine at this scale |
+| `BenchmarkRestoreToSource_LargeFile` | 40,765,459 (~41ms) | 54,595,558 | 261 | ~10 MB restore; warm OS page cache |
+
+No hotspots detected. `ManyFiles` / `SmallFile` ratio is ~1.6× (threshold: 50×).
+`ReadManifest` shows linear O(n) scaling — no indexing needed at current scale.
+See `internal/stash/stash_bench_test.go` for benchmark implementations and hotspot thresholds.

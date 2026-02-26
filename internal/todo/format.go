@@ -16,6 +16,13 @@ const (
 	ColWidthSched = 2
 )
 
+// FormatPriorityIcon returns a fixed-width (ColWidthPrio) priority icon, ANSI-safe.
+// Wraps PriorityIcon with lipgloss width to match the rendering approach used by
+// the ID and schedule columns in list output.
+func FormatPriorityIcon(p int) string {
+	return lipgloss.NewStyle().Width(ColWidthPrio).Render(PriorityIcon(p))
+}
+
 // FormatScheduleTag returns a fixed-width (ColWidthSched) styled schedule indicator.
 // The compact form is always exactly 2 display columns wide and suitable for both
 // CLI list output and TUI renderers. This consolidates renderScheduleTag (cmd/todo.go)

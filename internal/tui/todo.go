@@ -444,7 +444,7 @@ func (m *TodoModel) renderTodoItem(t todo.Todo, selected bool, today time.Time) 
 		idStr = fmt.Sprintf("#%d", t.ID)
 	}
 	id := lipgloss.NewStyle().Width(todo.ColWidthID).Render(ui.Muted.Render(idStr))
-	prio := todo.PriorityIcon(t.Priority)
+	prio := todo.FormatPriorityIcon(t.Priority)
 	schedTag := todo.FormatScheduleTag(t.Schedule)
 	title := t.Title
 	if t.Done {

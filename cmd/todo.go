@@ -350,7 +350,7 @@ func printTodoList(todos []todo.Todo, ts *todo.Store, projectPath *string, showA
 		}
 
 		id := lipgloss.NewStyle().Width(todo.ColWidthID).Render(ui.Muted.Render(fmt.Sprintf("#%d", t.ID)))
-		prio := todo.PriorityIcon(t.Priority)
+		prio := todo.FormatPriorityIcon(t.Priority)
 		title := t.Title
 		if t.Done {
 			title = ui.Muted.Render(title)
@@ -877,7 +877,7 @@ func runTodoRecurring(_ *cobra.Command, _ []string) error {
 	fmt.Println()
 	for _, t := range todos {
 		id := ui.Muted.Render(fmt.Sprintf("#%-3d", t.ID))
-		prio := todo.PriorityIcon(t.Priority)
+		prio := todo.FormatPriorityIcon(t.Priority)
 		freq := ui.Muted.Render("↻ " + todo.RecurrenceLabel(t.Recurrence))
 
 		line := fmt.Sprintf("  %s %s %s  %s", id, prio, freq, t.Title)

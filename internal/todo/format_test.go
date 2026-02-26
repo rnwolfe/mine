@@ -28,3 +28,17 @@ func TestFormatScheduleTag_UnknownSchedule(t *testing.T) {
 		t.Errorf("FormatScheduleTag(\"bogus\") has display width %d, want %d", got, ColWidthSched)
 	}
 }
+
+func TestFormatPriorityIcon_EqualWidth(t *testing.T) {
+	priorities := []int{PrioCrit, PrioHigh, PrioMedium, PrioLow}
+
+	// All four priority values must produce an icon with the same display width.
+	wantWidth := ColWidthPrio
+	for _, p := range priorities {
+		icon := FormatPriorityIcon(p)
+		got := lipgloss.Width(icon)
+		if got != wantWidth {
+			t.Errorf("FormatPriorityIcon(%d) has display width %d, want %d", p, got, wantWidth)
+		}
+	}
+}

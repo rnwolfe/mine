@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rnwolfe/mine/internal/hook"
@@ -89,19 +90,32 @@ func openTodoFromDash(db *store.DB) error {
 		return fmt.Errorf("todo tui: %w", err)
 	}
 
+	var failedActions []string
 	for _, a := range actions {
 		switch a.Type {
 		case "toggle":
-			ts.Complete(a.ID) //nolint:errcheck
+			if _, _, err := ts.Complete(a.ID); err != nil {
+				failedActions = append(failedActions, fmt.Sprintf("toggle #%d: %v", a.ID, err))
+			}
 		case "delete":
-			ts.Delete(a.ID) //nolint:errcheck
+			if err := ts.Delete(a.ID); err != nil {
+				failedActions = append(failedActions, fmt.Sprintf("delete #%d: %v", a.ID, err))
+			}
 		case "add":
 			if a.Text != "" {
-				ts.Add(a.Text, "", todo.PrioMedium, nil, nil, a.ProjectPath, todo.ScheduleLater, todo.RecurrenceNone) //nolint:errcheck
+				if _, err := ts.Add(a.Text, "", todo.PrioMedium, nil, nil, a.ProjectPath, todo.ScheduleLater, todo.RecurrenceNone); err != nil {
+					failedActions = append(failedActions, fmt.Sprintf("add %q: %v", a.Text, err))
+				}
 			}
 		case "schedule":
-			ts.SetSchedule(a.ID, a.Schedule) //nolint:errcheck
+			if err := ts.SetSchedule(a.ID, a.Schedule); err != nil {
+				failedActions = append(failedActions, fmt.Sprintf("schedule #%d: %v", a.ID, err))
+			}
 		}
+	}
+
+	if len(failedActions) > 0 {
+		return fmt.Errorf("some todo actions failed: %s", strings.Join(failedActions, "; "))
 	}
 
 	return nil

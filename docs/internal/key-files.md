@@ -27,6 +27,7 @@
 | `internal/plugin/search.go` | GitHub search for mine plugins |
 | `cmd/stash.go` | Stash CLI commands (track, commit, log, restore, sync) |
 | `internal/stash/stash.go` | Stash domain logic — git-backed versioning, manifest, sync |
+| `internal/stash/stash_bench_test.go` | Stash benchmarks (5 scenarios); baselines recorded in lessons-learned.md L-032 |
 | `cmd/agents.go` | Agents CLI commands (init, sync remote/push/pull) |
 | `internal/agents/agents.go` | Agents domain — canonical store, manifest types, Init, ReadManifest, WriteManifest |
 | `internal/agents/git.go` | Agents git operations — InitGitRepo, Commit, Log |

@@ -344,6 +344,20 @@ func (s *Store) Delete(id int) error {
 	return nil
 }
 
+// parseTimestamp parses a timestamp string from SQLite, handling both the
+// RFC3339 format returned by modernc.org/sqlite ("2006-01-02T15:04:05Z") and
+// the SQLite-native format ("2006-01-02 15:04:05"). Returns the zero time if
+// both formats fail.
+func parseTimestamp(s string) time.Time {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t
+	}
+	if t, err := time.Parse("2006-01-02 15:04:05", s); err == nil {
+		return t
+	}
+	return time.Time{}
+}
+
 // rowScanner is satisfied by both *sql.Row and *sql.Rows, allowing a single
 // scan helper to work with both QueryRow and Query result sets.
 type rowScanner interface {
@@ -390,8 +404,8 @@ func scanTodoRow(sc rowScanner) (Todo, error) {
 	if completedAt.Valid {
 		t.CompletedAt = &completedAt.Time
 	}
-	t.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdStr)
-	t.UpdatedAt, _ = time.Parse("2006-01-02 15:04:05", updatedStr)
+	t.CreatedAt = parseTimestamp(createdStr)
+	t.UpdatedAt = parseTimestamp(updatedStr)
 
 	return t, nil
 }

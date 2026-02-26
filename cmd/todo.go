@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/proj"
@@ -348,14 +349,14 @@ func printTodoList(todos []todo.Todo, ts *todo.Store, projectPath *string, showA
 			marker = ui.Success.Render("✓")
 		}
 
-		id := ui.Muted.Render(fmt.Sprintf("#%-3d", t.ID))
-		prio := todo.PriorityIcon(t.Priority)
+		id := lipgloss.NewStyle().Width(todo.ColWidthID).Render(ui.Muted.Render(fmt.Sprintf("#%d", t.ID)))
+		prio := todo.FormatPriorityIcon(t.Priority)
 		title := t.Title
 		if t.Done {
 			title = ui.Muted.Render(title)
 		}
 
-		schedTag := renderScheduleTag(t.Schedule)
+		schedTag := todo.FormatScheduleTag(t.Schedule)
 		recurTag := ""
 		if t.Recurrence != "" && t.Recurrence != todo.RecurrenceNone {
 			recurTag = " " + ui.Muted.Render("↻")
@@ -420,18 +421,6 @@ func formatFocusTime(d time.Duration) string {
 	return fmt.Sprintf("[%dm]", m)
 }
 
-// renderScheduleTag returns a styled schedule indicator for list output.
-func renderScheduleTag(schedule string) string {
-	label := "[" + todo.ScheduleLabel(schedule) + "]"
-	switch schedule {
-	case todo.ScheduleToday:
-		return ui.ScheduleTodayStyle.Render(label)
-	case todo.ScheduleSoon:
-		return ui.ScheduleSoonStyle.Render(label)
-	default: // later, someday — muted
-		return ui.Muted.Render(label)
-	}
-}
 
 func runTodoAdd(_ *cobra.Command, args []string) error {
 	title := strings.Join(args, " ")
@@ -488,7 +477,7 @@ func runTodoAdd(_ *cobra.Command, args []string) error {
 	}
 
 	if schedule != todo.ScheduleLater {
-		fmt.Printf("    Schedule: %s\n", renderScheduleTag(schedule))
+		fmt.Printf("    Schedule: %s\n", todo.FormatScheduleTag(schedule))
 	}
 
 	if due != nil {
@@ -624,7 +613,7 @@ func runTodoSchedule(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("scheduling todo #%d: %w", id, err)
 	}
 
-	schedLabel := renderScheduleTag(schedule)
+	schedLabel := todo.FormatScheduleTag(schedule)
 	fmt.Printf("  %s Scheduled #%d → %s\n", ui.Success.Render("✓"), id, schedLabel)
 	fmt.Println()
 	return nil
@@ -688,7 +677,7 @@ func printTodoDetail(t todo.Todo) {
 	// Header: ID, priority icon, title
 	idStr := ui.Muted.Render(fmt.Sprintf("#%d", t.ID))
 	prio := todo.PriorityIcon(t.Priority)
-	fmt.Printf("  %s %s  %s\n", idStr, prio, ui.Accent.Render(t.Title))
+	fmt.Printf("  %s %s %s\n", idStr, prio, ui.Accent.Render(t.Title))
 
 	// Details row: schedule, priority label, due date
 	details := fmt.Sprintf("  Schedule: %s  Priority: %s",
@@ -887,8 +876,8 @@ func runTodoRecurring(_ *cobra.Command, _ []string) error {
 
 	fmt.Println()
 	for _, t := range todos {
-		id := ui.Muted.Render(fmt.Sprintf("#%-3d", t.ID))
-		prio := todo.PriorityIcon(t.Priority)
+		id := lipgloss.NewStyle().Width(todo.ColWidthID).Render(ui.Muted.Render(fmt.Sprintf("#%d", t.ID)))
+		prio := todo.FormatPriorityIcon(t.Priority)
 		freq := ui.Muted.Render("↻ " + todo.RecurrenceLabel(t.Recurrence))
 
 		line := fmt.Sprintf("  %s %s %s  %s", id, prio, freq, t.Title)

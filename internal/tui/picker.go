@@ -220,7 +220,25 @@ func (p *Picker) visibleHeight() int {
 	if h < 3 {
 		h = 3
 	}
+	// When any visible item has a description, renderItem returns 2 terminal lines.
+	// Halve the item budget so the picker does not overflow the terminal.
+	if p.hasDescriptions() {
+		h = h / 2
+		if h < 2 {
+			h = 2
+		}
+	}
 	return h
+}
+
+// hasDescriptions returns true if any currently-filtered item has a non-empty description.
+func (p *Picker) hasDescriptions() bool {
+	for _, s := range p.filtered {
+		if s.item.Description() != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Picker) applyFilter() {
@@ -252,13 +270,27 @@ func (p *Picker) renderItem(item Item, selected bool) string {
 		titleStyle = lipgloss.NewStyle().Foreground(ui.Gold).Bold(true)
 	}
 
-	title := titleStyle.Render(item.Title())
-	desc := item.Description()
-	if desc != "" {
-		desc = "  " + descStyle.Render(desc)
+	// Truncate title to prevent overflow: termWidth minus 6 chars for prefix + margin.
+	rawTitle := item.Title()
+	maxWidth := p.termWidth - 6
+	if maxWidth < 10 {
+		maxWidth = 10
 	}
+	if lipgloss.Width(rawTitle) > maxWidth {
+		runes := []rune(rawTitle)
+		for len(runes) > 0 && lipgloss.Width(string(runes)+"…") > maxWidth {
+			runes = runes[:len(runes)-1]
+		}
+		rawTitle = string(runes) + "…"
+	}
+	title := titleStyle.Render(rawTitle)
 
-	return "  " + pointer + title + desc
+	// Description rendered on a second line, indented to align under the title.
+	d := item.Description()
+	if d == "" {
+		return "  " + pointer + title
+	}
+	return "  " + pointer + title + "\n    " + descStyle.Render(d)
 }
 
 func blinkCursor() string {

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rnwolfe/mine/internal/config"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/proj"
 	"github.com/rnwolfe/mine/internal/store"
@@ -65,14 +66,19 @@ func runDashTUI() error {
 }
 
 // runDash is the Cobra handler for `mine dash`.
+// It prefers the TUI when stdout is a terminal and config is initialized,
+// falling back to the static plain-text dashboard otherwise (e.g. piped output).
 func runDash(_ *cobra.Command, _ []string) error {
-	return runDashTUI()
+	if tui.IsOutputTTY() && config.Initialized() {
+		return runDashTUI()
+	}
+	return runDashboard(nil, nil)
 }
 
 // openTodoFromDash launches the full todo TUI and applies the resulting actions.
 func openTodoFromDash(db *store.DB) error {
 	ps := proj.NewStore(db.Conn())
-	p, _ := ps.FindForCWD()
+	p, _ := ps.FindForCWD() // error means not in a registered project; proceed with nil
 
 	var projPath *string
 	if p != nil {
@@ -94,8 +100,17 @@ func openTodoFromDash(db *store.DB) error {
 	for _, a := range actions {
 		switch a.Type {
 		case "toggle":
-			if _, _, err := ts.Complete(a.ID); err != nil {
+			t, err := ts.Get(a.ID)
+			if err != nil {
 				failedActions = append(failedActions, fmt.Sprintf("toggle #%d: %v", a.ID, err))
+			} else if t.Done {
+				if err := ts.Uncomplete(a.ID); err != nil {
+					failedActions = append(failedActions, fmt.Sprintf("uncomplete #%d: %v", a.ID, err))
+				}
+			} else {
+				if _, _, err := ts.Complete(a.ID); err != nil {
+					failedActions = append(failedActions, fmt.Sprintf("complete #%d: %v", a.ID, err))
+				}
 			}
 		case "delete":
 			if err := ts.Delete(a.ID); err != nil {

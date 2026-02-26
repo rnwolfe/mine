@@ -193,7 +193,7 @@ func (m *DashModel) renderMinimal() string {
 	if m.data.Project != nil {
 		b.WriteString(fmt.Sprintf("  %s %s\n", ui.IconProject, m.data.Project.Name))
 	}
-	b.WriteString("\n  " + ui.Muted.Render("q quit · t todos · r refresh") + "\n")
+	b.WriteString("\n  " + ui.Muted.Render("q quit · t todos · d dig · r refresh") + "\n")
 	return b.String()
 }
 
@@ -238,7 +238,9 @@ func renderDashTodoItem(t todo.Todo, today time.Time, width int) string {
 	prio := todo.FormatPriorityIcon(t.Priority)
 	sched := todo.FormatScheduleTag(t.Schedule)
 
-	maxTitle := width - 18
+	// Compute available title width from total width minus fixed columns and spacing.
+	// Format: "  %s %s %s %s" — 2 leading spaces + 3 separating spaces between columns.
+	maxTitle := width - (2 + 3 + todo.ColWidthID + todo.ColWidthPrio + todo.ColWidthSched)
 	if maxTitle < 10 {
 		maxTitle = 10
 	}
@@ -271,7 +273,8 @@ func renderDashTodoItem(t todo.Todo, today time.Time, width int) string {
 }
 
 // renderFocusPanel renders the focus stats panel.
-func renderFocusPanel(data DashData, width int) string {
+// The width parameter is reserved for future responsive layout; currently unused.
+func renderFocusPanel(data DashData, _ int) string {
 	var b strings.Builder
 
 	b.WriteString("  " + ui.Title.Render(ui.IconDig+" Focus") + "\n\n")
@@ -290,12 +293,12 @@ func renderFocusPanel(data DashData, width int) string {
 		b.WriteString(fmt.Sprintf("  %s Total focus: %dh %dm\n", ui.IconGold, h, m))
 	}
 
-	_ = width
 	return b.String()
 }
 
 // renderProjectPanel renders the current project context panel.
-func renderProjectPanel(p *proj.Project, openTodos, width int) string {
+// The width parameter is reserved for future responsive layout; currently unused.
+func renderProjectPanel(p *proj.Project, openTodos, _ int) string {
 	var b strings.Builder
 
 	b.WriteString("  " + ui.Title.Render(ui.IconProject+" Project") + "\n\n")
@@ -311,7 +314,6 @@ func renderProjectPanel(p *proj.Project, openTodos, width int) string {
 	}
 	b.WriteString(fmt.Sprintf("  %s %d open todos\n", ui.Muted.Render("·"), openTodos))
 
-	_ = width
 	return b.String()
 }
 
@@ -325,6 +327,7 @@ func renderHelpBar() string {
 func (m *DashModel) loadData() tea.Cmd {
 	return func() tea.Msg {
 		data := DashData{}
+		now := time.Now()
 
 		p, _ := m.ps.FindForCWD()
 		// Enrich with branch info (FindForCWD skips git lookup for speed).
@@ -348,14 +351,24 @@ func (m *DashModel) loadData() tea.Cmd {
 		data.TodoOpen = open
 		data.TodoOverdue = overdue
 
-		todos, err := ts.List(todo.ListOptions{ProjectPath: projPath})
+		// When projPath is nil (not inside a project), use AllProjects so the
+		// list and count both cover all todos — Count(nil) already counts globally.
+		listOpts := todo.ListOptions{
+			ProjectPath:   projPath,
+			AllProjects:   projPath == nil,
+			ReferenceTime: now,
+		}
+		todos, err := ts.List(listOpts)
 		if err != nil {
 			return dashErrMsg{err}
 		}
 		data.Todos = todos
 
-		stats, err := todo.GetStats(m.db, projPath, time.Now())
-		if err == nil && stats != nil {
+		stats, err := todo.GetStats(m.db, projPath, now)
+		if err != nil {
+			return dashErrMsg{err}
+		}
+		if stats != nil {
 			data.Streak = stats.Streak
 			data.WeekDone = stats.CompletedWeek
 			data.TotalFocus = stats.TotalFocus

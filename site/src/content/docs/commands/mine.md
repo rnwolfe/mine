@@ -30,9 +30,9 @@ mine dash    # always opens the TUI (falls back to static if not a TTY)
 
 | Condition | Result |
 |-----------|--------|
-| TTY + `mine init` run | Full TUI dashboard |
+| stdout is a TTY + `mine init` run | Full TUI dashboard |
 | `--plain` set | Static text summary (original behavior) |
-| Piped output | Static text summary (TTY check fails automatically) |
+| stdout is piped / redirected | Static text summary (stdout TTY check fails) |
 | `mine init` not yet run | Welcome screen with setup instructions |
 
 ## TUI Keyboard Shortcuts

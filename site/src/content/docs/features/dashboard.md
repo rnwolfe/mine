@@ -68,9 +68,9 @@ Shows the current project (detected from your working directory), active git bra
 
 ## How It Works
 
-1. `mine` detects whether stdout is a TTY
+1. `mine` checks whether **stdout** is connected to a terminal (not stdin, so `mine | cat` correctly detects the pipe)
 2. If yes and `mine init` has been run: launches the Bubbletea TUI dashboard
-3. If piped, `--plain` flag is set, or `mine init` hasn't run: falls back to the original static text output
+3. If stdout is piped/redirected, `--plain` flag is set, or `mine init` hasn't run: falls back to the original static text output
 4. The `t` key pauses the dashboard and opens the full todo TUI; returning from it re-shows the dashboard
 5. The `d` key runs a 25-minute focus session; the dashboard re-opens when the session ends
 6. Data is fetched once on startup; `r` re-fetches without restarting

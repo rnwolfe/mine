@@ -107,6 +107,14 @@ func IsTTY() bool {
 	return isatty.IsTerminal(os.Stdin.Fd()) || isatty.IsCygwinTerminal(os.Stdin.Fd())
 }
 
+// IsOutputTTY returns true when stdout is connected to a terminal.
+// Use this to guard TUI output — piped commands (e.g. mine | cat) have a TTY
+// stdin but non-TTY stdout, so checking stdout is the correct signal for
+// whether ANSI / full-screen output is appropriate.
+func IsOutputTTY() bool {
+	return isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+}
+
 // --- Bubbletea model implementation ---
 
 func (p *Picker) Init() tea.Cmd {

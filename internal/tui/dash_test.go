@@ -173,7 +173,8 @@ func TestDashModel_Defaults(t *testing.T) {
 
 func TestDashModel_WindowSizeMsg(t *testing.T) {
 	m := newLoadedModel(makeDashData(), 80, 24)
-	m.Update(tea.WindowSizeMsg{Width: 160, Height: 50})
+	result, _ := m.Update(tea.WindowSizeMsg{Width: 160, Height: 50})
+	m = result.(*DashModel)
 	if m.width != 160 {
 		t.Fatalf("width should be 160 after WindowSizeMsg, got %d", m.width)
 	}
@@ -300,6 +301,9 @@ func TestDashModel_ViewMinimal(t *testing.T) {
 	}
 	if !strings.Contains(view, "q quit") {
 		t.Fatal("minimal view should contain quit hint")
+	}
+	if !strings.Contains(view, "d dig") {
+		t.Fatal("minimal view should contain dig hint")
 	}
 }
 

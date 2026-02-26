@@ -923,10 +923,7 @@ func TestRunTodoNext_NewTodo_ShowsNoAge(t *testing.T) {
 	// A todo created in the same session should NOT show any "day(s) old" line.
 	todoTestEnv(t)
 
-	origDir, _ := os.Getwd()
-	tmpDir := t.TempDir()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	t.Chdir(t.TempDir())
 
 	db, err := store.Open()
 	if err != nil {

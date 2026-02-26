@@ -344,12 +344,14 @@ func (s *Store) Delete(id int) error {
 	return nil
 }
 
-// parseTimestamp parses a timestamp string from SQLite, handling both the
-// RFC3339 format returned by modernc.org/sqlite ("2006-01-02T15:04:05Z") and
-// the SQLite-native format ("2006-01-02 15:04:05"). Returns the zero time if
-// both formats fail.
+// parseTimestamp parses a timestamp string from SQLite, handling RFC3339,
+// RFC3339Nano (for fractional-second variants), and the SQLite-native
+// "2006-01-02 15:04:05" format. Returns the zero time if all formats fail.
 func parseTimestamp(s string) time.Time {
 	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t
+	}
+	if t, err := time.Parse(time.RFC3339Nano, s); err == nil {
 		return t
 	}
 	if t, err := time.Parse("2006-01-02 15:04:05", s); err == nil {

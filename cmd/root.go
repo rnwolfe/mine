@@ -15,10 +15,13 @@ import (
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/tips"
 	"github.com/rnwolfe/mine/internal/todo"
+	"github.com/rnwolfe/mine/internal/tui"
 	"github.com/rnwolfe/mine/internal/ui"
 	"github.com/rnwolfe/mine/internal/version"
 	"github.com/spf13/cobra"
 )
+
+var dashPlain bool
 
 var rootCmd = &cobra.Command{
 	Use:   "mine",
@@ -65,6 +68,7 @@ func init() {
 	rootCmd.AddCommand(tipsCmd)
 	rootCmd.AddCommand(doctorCmd)
 	rootCmd.AddCommand(growCmd)
+	rootCmd.Flags().BoolVar(&dashPlain, "plain", false, "Print static text dashboard instead of launching the TUI")
 }
 
 // fireAnalytics sends an anonymous analytics ping synchronously.
@@ -127,7 +131,13 @@ func topLevelCommand(cmd *cobra.Command) string {
 }
 
 // runDashboard shows the at-a-glance status when you just type `mine`.
+// In a TTY with config initialized and without --plain, it launches the TUI dashboard.
 func runDashboard(_ *cobra.Command, _ []string) error {
+	// Launch TUI when: connected to a terminal, config is initialized, --plain not set.
+	if tui.IsTTY() && !dashPlain && config.Initialized() {
+		return runDashTUI()
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)

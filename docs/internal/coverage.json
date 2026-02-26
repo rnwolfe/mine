@@ -1,6 +1,6 @@
 {
   "date": "2026-02-26",
-  "commit": "44d1efbc8620fd5165bba7c8335ed1f306d3eec9",
+  "commit": "3a632728d95aeff4526573c3e4f97c6ad43c001d",
   "total_pct": 51.7,
   "packages": {
     "cmd": 42.1,
@@ -24,7 +24,7 @@
     "internal/store": 84.4,
     "internal/tips": 100.0,
     "internal/tmux": 68.3,
-    "internal/todo": 81.5,
+    "internal/todo": 82.5,
     "internal/tui": 67.9,
     "internal/ui": 29.4,
     "internal/vault": 67.3,

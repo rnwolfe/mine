@@ -292,7 +292,8 @@ Phases: `copilot` → `claude` → `done`
 | `agent/review-copilot` | Agent is addressing Copilot review feedback |
 | `agent/review-claude` | Agent is addressing Claude review feedback |
 | `human/blocked` | Agent hit a limit and needs human intervention |
-| `human/review-merge` | All automated reviews done, needs human merge |
+| `agent/auto-merge` | All reviews done, auto-merge enabled — merges when CI passes |
+| `human/review-merge` | All reviews done, auto-merge unavailable — needs human merge |
 
 **Origin labels** (persistent, one per PR):
 
@@ -315,6 +316,7 @@ Phases: `copilot` → `claude` → `done`
 | Label | Meaning |
 |-------|---------|
 | `report/pipeline-audit` | Weekly pipeline health report issue |
+| `regression/autodev` | Bug introduced by an autodev-generated PR — query with `gh issue list --label regression/autodev` to surface in audits |
 
 ### Secrets required
 

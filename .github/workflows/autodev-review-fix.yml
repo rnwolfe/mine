@@ -339,6 +339,14 @@ jobs:
             Your reply should briefly explain what you changed to address the comment.
             If you chose not to change something, explain why.
 
+            IMPORTANT: Do NOT use `gh pr review` to post new reviews on this PR. Only use
+            the inline comment reply API above. The review pipeline manages review state.
+
+            Also: before replying to any comment, check whether you have already replied
+            to it in a previous iteration. The feedback below has been pre-filtered to
+            exclude already-handled comments, but if you see a comment you know you've
+            already addressed, skip it rather than reply again.
+
             ## Review Feedback to Address
 
             ${{ env.REVIEW_FEEDBACK }}
@@ -521,6 +529,14 @@ jobs:
             If you chose not to change something, explain why.
             If you created a follow-up issue instead, include the issue link in your reply.
 
+            IMPORTANT: Do NOT use `gh pr review` to post new reviews on this PR. Only use
+            the inline comment reply API above. The review pipeline manages review state.
+
+            Also: before replying to any comment, check whether you have already replied
+            to it in a previous iteration. The feedback below has been pre-filtered to
+            exclude already-handled comments, but if you see a comment you know you've
+            already addressed, skip it rather than reply again.
+
             ## Review Feedback to Address
 
             ${{ env.REVIEW_FEEDBACK }}
@@ -604,8 +620,8 @@ jobs:
           CURRENT_LABELS=$(gh pr view "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
             --json labels --jq '[.labels[].name]')
-          if echo "$CURRENT_LABELS" | jq -e 'index("human/review-merge")' >/dev/null 2>&1; then
-            echo "PR #$PR_NUMBER already finalized (human/review-merge label present). Skipping duplicate."
+          if echo "$CURRENT_LABELS" | jq -e 'index("human/review-merge") or index("agent/auto-merge")' >/dev/null 2>&1; then
+            echo "PR #$PR_NUMBER already finalized (merge label present). Skipping duplicate."
             exit 0
           fi
 
@@ -622,26 +638,29 @@ jobs:
             --repo "${{ github.repository }}" \
             --body "$UPDATED_BODY"
 
-          # Remove review label and add merge-ready label
-          if ! gh pr edit "$PR_NUMBER" \
-            --repo "${{ github.repository }}" \
-            --remove-label "agent/review-claude" \
-            --add-label "human/review-merge"; then
-            echo "::warning::Failed to update labels on PR #$PR_NUMBER. There may be permission/API issues."
-          fi
-
           # Enable auto-merge — squash-merges as soon as all required CI checks pass.
           # Falls back gracefully if auto-merge is disabled on the repo or the token
           # lacks merge permissions (human can still merge manually).
+          # Label reflects the actual outcome: agent/auto-merge vs human/review-merge.
           if gh pr merge "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
             --squash --auto \
             --delete-branch 2>/dev/null; then
             echo "Auto-merge enabled on PR #$PR_NUMBER — will squash-merge when CI passes."
+            MERGE_LABEL="agent/auto-merge"
             MERGE_NOTE="Auto-merge enabled — will squash-merge once all CI checks pass."
           else
             echo "::warning::Auto-merge could not be enabled on PR #$PR_NUMBER. Human merge required."
+            MERGE_LABEL="human/review-merge"
             MERGE_NOTE="Auto-merge not available — labeled \`human/review-merge\` for manual merge."
+          fi
+
+          # Remove review label and add appropriate merge-state label
+          if ! gh pr edit "$PR_NUMBER" \
+            --repo "${{ github.repository }}" \
+            --remove-label "agent/review-claude" \
+            --add-label "$MERGE_LABEL"; then
+            echo "::warning::Failed to update labels on PR #$PR_NUMBER. There may be permission/API issues."
           fi
 
           # Post completion comment

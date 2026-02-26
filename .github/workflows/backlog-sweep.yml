@@ -17,6 +17,7 @@ concurrency:
 
 permissions:
   issues: write
+  id-token: write
 
 jobs:
   sweep:

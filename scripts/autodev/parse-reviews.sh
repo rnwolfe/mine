@@ -47,10 +47,22 @@ fi
 
 # ── Line-level review comments ─────────────────────────────────────
 
-COMMENTS=$(gh api --paginate \
-    "repos/$AUTODEV_REPO/pulls/$PR_NUMBER/comments" \
-    | jq --arg exclude "$EXCLUDE_LOGIN" '[.[] | select(
-        .user.login != $exclude
+# Fetch all inline comments in one pass. We use this both to identify which
+# comments the claude fix agent has already replied to (so we don't hand them
+# to the agent again) and to build the actionable feedback list.
+ALL_INLINE_RAW=$(gh api --paginate "repos/$AUTODEV_REPO/pulls/$PR_NUMBER/comments")
+
+# Collect IDs of comments that claude has already replied to. Any comment whose
+# ID appears as an `in_reply_to_id` on a claude reply is considered handled and
+# is excluded from the feedback so the agent doesn't address it a second time.
+# Matches "claude", "claude[bot]", "claude-code-review[bot]", etc.
+CLAUDE_REPLIED_IDS=$(echo "$ALL_INLINE_RAW" \
+    | jq '[.[] | select((.user.login | ascii_downcase | startswith("claude")) and (.in_reply_to_id != null)) | .in_reply_to_id]')
+
+COMMENTS=$(echo "$ALL_INLINE_RAW" \
+    | jq --arg exclude "$EXCLUDE_LOGIN" --argjson replied "$CLAUDE_REPLIED_IDS" '[.[] | select(
+        .user.login != $exclude and
+        ((.id) as $id | ($replied | index($id)) == null)
     )] | sort_by(.created_at) | reverse | .[0:20]')
 
 COMMENT_COUNT=$(echo "$COMMENTS" | jq 'length')

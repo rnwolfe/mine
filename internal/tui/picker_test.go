@@ -274,6 +274,46 @@ func TestPicker_Description(t *testing.T) {
 	}
 }
 
+func TestRenderItem_WithDescriptionContainsNewline(t *testing.T) {
+	p := NewPicker([]Item{testItem{name: "my title", desc: "my description"}})
+	line := p.renderItem(p.filtered[0].item, false)
+	if !strings.Contains(line, "\n") {
+		t.Fatal("renderItem with a non-empty description should contain a newline")
+	}
+	if !strings.Contains(line, "my description") {
+		t.Fatal("renderItem should include the description text")
+	}
+}
+
+func TestRenderItem_WithoutDescriptionNoNewline(t *testing.T) {
+	p := NewPicker([]Item{testItem{name: "my title", desc: ""}})
+	line := p.renderItem(p.filtered[0].item, false)
+	if strings.Contains(line, "\n") {
+		t.Fatal("renderItem without description should not contain a newline")
+	}
+}
+
+func TestVisibleHeight_HalvedWithDescriptions(t *testing.T) {
+	itms := []Item{
+		testItem{name: "a", desc: "desc a"},
+		testItem{name: "b", desc: "desc b"},
+	}
+	p := NewPicker(itms, WithHeight(10))
+	// Default termHeight=24 so budget = min(10, 24-6) = 10; halved = 5.
+	vis := p.visibleHeight()
+	if vis != 5 {
+		t.Fatalf("visibleHeight with descriptions should be halved to 5, got %d", vis)
+	}
+}
+
+func TestVisibleHeight_NotHalvedWithoutDescriptions(t *testing.T) {
+	p := NewPicker(items("a", "b", "c"), WithHeight(10))
+	vis := p.visibleHeight()
+	if vis != 10 {
+		t.Fatalf("visibleHeight without descriptions should be 10, got %d", vis)
+	}
+}
+
 func TestSortScored(t *testing.T) {
 	items := []scored{
 		{item: testItem{name: "low"}, score: 1},

@@ -876,7 +876,7 @@ func runTodoRecurring(_ *cobra.Command, _ []string) error {
 
 	fmt.Println()
 	for _, t := range todos {
-		id := ui.Muted.Render(fmt.Sprintf("#%-3d", t.ID))
+		id := lipgloss.NewStyle().Width(todo.ColWidthID).Render(ui.Muted.Render(fmt.Sprintf("#%d", t.ID)))
 		prio := todo.FormatPriorityIcon(t.Priority)
 		freq := ui.Muted.Render("↻ " + todo.RecurrenceLabel(t.Recurrence))
 

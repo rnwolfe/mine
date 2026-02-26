@@ -220,7 +220,25 @@ func (p *Picker) visibleHeight() int {
 	if h < 3 {
 		h = 3
 	}
+	// When any visible item has a description, renderItem returns 2 terminal lines.
+	// Halve the item budget so the picker does not overflow the terminal.
+	if p.hasDescriptions() {
+		h = h / 2
+		if h < 2 {
+			h = 2
+		}
+	}
 	return h
+}
+
+// hasDescriptions returns true if any currently-filtered item has a non-empty description.
+func (p *Picker) hasDescriptions() bool {
+	for _, s := range p.filtered {
+		if s.item.Description() != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Picker) applyFilter() {

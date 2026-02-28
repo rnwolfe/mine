@@ -1,11 +1,11 @@
 {
-  "date": "2026-02-26",
-  "commit": "651fb5e9b69a9ae5caa39c69f9594226928a6480",
-  "total_pct": 51.7,
+  "date": "2026-02-28",
+  "commit": "41d8240b81307659af3ac8be5e75d869960616aa",
+  "total_pct": 54.6,
   "packages": {
     "cmd": 42.0,
     "internal/agents": 72.8,
-    "internal/ai": 38.8,
+    "internal/ai": 86.1,
     "internal/analytics": 94.7,
     "internal/config": 86.8,
     "internal/contrib": 67.6,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/rnwolfe/mine/internal/dig"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/store"
 	"github.com/rnwolfe/mine/internal/todo"
@@ -85,14 +86,9 @@ func gatherStatus() StatusData {
 		data.OverdueTodos = overdue
 	}
 
-	var current int
-	if err := db.Conn().QueryRow(`SELECT current FROM streaks WHERE name = 'dig'`).Scan(&current); err == nil {
-		data.DigStreak = current
-	}
-
-	var totalMins int
-	if err := db.Conn().QueryRow(`SELECT CAST(value AS INTEGER) FROM kv WHERE key = 'dig_total_mins'`).Scan(&totalMins); err == nil {
-		data.DigTotalMins = totalMins
+	if stats, err := dig.NewStore(db.Conn()).GetStats(); err == nil {
+		data.DigStreak = stats.CurrentStreak
+		data.DigTotalMins = stats.TotalMins
 	}
 
 	return data

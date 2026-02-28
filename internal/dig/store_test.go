@@ -10,6 +10,8 @@ import (
 )
 
 // openTestDB creates an in-memory SQLite database with the tables required by dig.Store.
+// The schema matches production: foreign keys are enabled and dig_sessions.todo_id
+// references todos(id) with ON DELETE SET NULL.
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite", ":memory:")
@@ -19,9 +21,13 @@ func openTestDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() { db.Close() })
 
 	migrations := []string{
+		`PRAGMA foreign_keys = ON`,
+		`CREATE TABLE IF NOT EXISTS todos (
+			id INTEGER PRIMARY KEY AUTOINCREMENT
+		)`,
 		`CREATE TABLE IF NOT EXISTS dig_sessions (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			todo_id INTEGER,
+			todo_id INTEGER REFERENCES todos(id) ON DELETE SET NULL,
 			duration_secs INTEGER NOT NULL,
 			completed INTEGER DEFAULT 0,
 			started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -59,7 +65,9 @@ func TestRecordSession_InsertsRow(t *testing.T) {
 	}
 
 	var count, durationSecs, completed int
-	db.QueryRow(`SELECT COUNT(*), duration_secs, completed FROM dig_sessions`).Scan(&count, &durationSecs, &completed)
+	if err := db.QueryRow(`SELECT COUNT(*), duration_secs, completed FROM dig_sessions`).Scan(&count, &durationSecs, &completed); err != nil {
+		t.Fatalf("scan row: %v", err)
+	}
 	if count != 1 {
 		t.Fatalf("expected 1 row, got %d", count)
 	}
@@ -80,7 +88,9 @@ func TestRecordSession_NotCompleted(t *testing.T) {
 	}
 
 	var completed int
-	db.QueryRow(`SELECT completed FROM dig_sessions`).Scan(&completed)
+	if err := db.QueryRow(`SELECT completed FROM dig_sessions`).Scan(&completed); err != nil {
+		t.Fatalf("scan completed: %v", err)
+	}
 	if completed != 0 {
 		t.Fatalf("expected completed=0, got %d", completed)
 	}
@@ -111,9 +121,10 @@ func TestRecordSession_WithTodoID(t *testing.T) {
 	db := openTestDB(t)
 	s := dig.NewStore(db)
 
-	// Create a dummy todos table so the FK-like value can be stored.
-	db.Exec(`CREATE TABLE IF NOT EXISTS todos (id INTEGER PRIMARY KEY)`)
-	db.Exec(`INSERT INTO todos (id) VALUES (42)`)
+	// Insert the todo row so the FK constraint is satisfied.
+	if _, err := db.Exec(`INSERT INTO todos (id) VALUES (42)`); err != nil {
+		t.Fatalf("insert todo: %v", err)
+	}
 
 	todoID := 42
 	if _, err := s.RecordSession(25*time.Minute, &todoID, true, time.Now().Add(-25*time.Minute)); err != nil {
@@ -140,7 +151,9 @@ func TestUpdateStreak_FirstSession(t *testing.T) {
 
 	var current, longest int
 	var lastDate string
-	db.QueryRow(`SELECT current, longest, last_date FROM streaks WHERE name = 'dig'`).Scan(&current, &longest, &lastDate)
+	if err := db.QueryRow(`SELECT current, longest, last_date FROM streaks WHERE name = 'dig'`).Scan(&current, &longest, &lastDate); err != nil {
+		t.Fatalf("scan streak: %v", err)
+	}
 	if current != 1 {
 		t.Errorf("current = %d, want 1", current)
 	}
@@ -164,7 +177,9 @@ func TestUpdateStreak_SameDayIdempotent(t *testing.T) {
 	}
 
 	var current int
-	db.QueryRow(`SELECT current FROM streaks WHERE name = 'dig'`).Scan(&current)
+	if err := db.QueryRow(`SELECT current FROM streaks WHERE name = 'dig'`).Scan(&current); err != nil {
+		t.Fatalf("scan current: %v", err)
+	}
 	if current != 3 {
 		t.Errorf("current = %d, want 3 (same-day should not increment)", current)
 	}
@@ -183,7 +198,9 @@ func TestUpdateStreak_ConsecutiveDay(t *testing.T) {
 	}
 
 	var current, longest int
-	db.QueryRow(`SELECT current, longest FROM streaks WHERE name = 'dig'`).Scan(&current, &longest)
+	if err := db.QueryRow(`SELECT current, longest FROM streaks WHERE name = 'dig'`).Scan(&current, &longest); err != nil {
+		t.Fatalf("scan streak: %v", err)
+	}
 	if current != 2 {
 		t.Errorf("current = %d, want 2", current)
 	}
@@ -205,7 +222,9 @@ func TestUpdateStreak_BrokenStreak(t *testing.T) {
 	}
 
 	var current, longest int
-	db.QueryRow(`SELECT current, longest FROM streaks WHERE name = 'dig'`).Scan(&current, &longest)
+	if err := db.QueryRow(`SELECT current, longest FROM streaks WHERE name = 'dig'`).Scan(&current, &longest); err != nil {
+		t.Fatalf("scan streak: %v", err)
+	}
 	if current != 1 {
 		t.Errorf("current = %d, want 1 (streak broken)", current)
 	}
@@ -259,6 +278,10 @@ func TestGetStats_LinkedTasks(t *testing.T) {
 	db := openTestDB(t)
 	s := dig.NewStore(db)
 	today := time.Now().Format("2006-01-02")
+
+	// Insert todos so the FK constraint on dig_sessions.todo_id is satisfied.
+	db.Exec(`INSERT INTO todos (id) VALUES (1)`)
+	db.Exec(`INSERT INTO todos (id) VALUES (2)`)
 
 	db.Exec(`INSERT INTO streaks (name, current, longest, last_date) VALUES ('dig', 1, 1, ?)`, today)
 	db.Exec(`INSERT INTO dig_sessions (todo_id, duration_secs, completed) VALUES (1, 1500, 1)`)

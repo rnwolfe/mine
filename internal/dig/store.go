@@ -27,7 +27,7 @@ func NewStore(db *sql.DB) *Store {
 }
 
 // RecordSession inserts a dig session, updates the streak, and increments total minutes.
-// Returns (totalMins, nil) on success. Streak and KV updates proceed even if the
+// Returns (totalMins, nil) on success. Streak updates proceed even if the
 // session insert fails (non-atomic by design, matching original behavior).
 func (s *Store) RecordSession(duration time.Duration, todoID *int, completed bool, startedAt time.Time) (int, error) {
 	mins := int(duration.Minutes())
@@ -52,9 +52,27 @@ func (s *Store) RecordSession(duration time.Duration, todoID *int, completed boo
 
 	// Update total minutes in KV.
 	var total int
-	s.db.QueryRow(`SELECT CAST(value AS INTEGER) FROM kv WHERE key = 'dig_total_mins'`).Scan(&total)
+	if err := s.db.QueryRow(`SELECT CAST(value AS INTEGER) FROM kv WHERE key = 'dig_total_mins'`).Scan(&total); err != nil {
+		if err != sql.ErrNoRows {
+			if sessionErr != nil {
+				return total, fmt.Errorf("recording session (non-fatal error: %v); reading total minutes: %w", sessionErr, err)
+			}
+			return total, fmt.Errorf("reading total minutes: %w", err)
+		}
+		// sql.ErrNoRows — no existing total, start from zero.
+		total = 0
+	}
+
 	total += mins
-	s.db.Exec(`INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES ('dig_total_mins', ?, CURRENT_TIMESTAMP)`, fmt.Sprintf("%d", total))
+	if _, err := s.db.Exec(
+		`INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES ('dig_total_mins', ?, CURRENT_TIMESTAMP)`,
+		fmt.Sprintf("%d", total),
+	); err != nil {
+		if sessionErr != nil {
+			return total, fmt.Errorf("recording session (non-fatal error: %v); updating total minutes: %w", sessionErr, err)
+		}
+		return total, fmt.Errorf("updating total minutes: %w", err)
+	}
 
 	return total, sessionErr
 }
@@ -68,16 +86,24 @@ func (s *Store) UpdateStreak(today string) error {
 	var current, longest int
 	err := s.db.QueryRow(`SELECT last_date, current, longest FROM streaks WHERE name = 'dig'`).Scan(&lastDate, &current, &longest)
 	if err != nil {
-		// First session ever.
-		_, err = s.db.Exec(`INSERT INTO streaks (name, current, longest, last_date) VALUES ('dig', 1, 1, ?)`, today)
-		return err
+		if err == sql.ErrNoRows {
+			// First session ever.
+			_, err = s.db.Exec(`INSERT INTO streaks (name, current, longest, last_date) VALUES ('dig', 1, 1, ?)`, today)
+			return err
+		}
+		return fmt.Errorf("select streak row: %w", err)
 	}
 
 	if lastDate == today {
 		return nil // Already logged today; don't increment streak.
 	}
 
-	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	todayTime, err := time.Parse("2006-01-02", today)
+	if err != nil {
+		return fmt.Errorf("invalid today date %q: %w", today, err)
+	}
+	yesterday := todayTime.AddDate(0, 0, -1).Format("2006-01-02")
+
 	if lastDate == yesterday {
 		current++
 		if current > longest {
@@ -102,10 +128,25 @@ func (s *Store) GetStats() (*Stats, error) {
 		return nil, err
 	}
 
-	s.db.QueryRow(`SELECT CAST(value AS INTEGER) FROM kv WHERE key = 'dig_total_mins'`).Scan(&stats.TotalMins)
-	s.db.QueryRow(`SELECT COUNT(*) FROM dig_sessions`).Scan(&stats.SessionCount)
+	err = s.db.QueryRow(`SELECT CAST(value AS INTEGER) FROM kv WHERE key = 'dig_total_mins'`).Scan(&stats.TotalMins)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			stats.TotalMins = 0
+		} else {
+			return nil, fmt.Errorf("query dig_total_mins: %w", err)
+		}
+	}
+
+	err = s.db.QueryRow(`SELECT COUNT(*) FROM dig_sessions`).Scan(&stats.SessionCount)
+	if err != nil {
+		return nil, fmt.Errorf("count dig_sessions: %w", err)
+	}
+
 	if stats.SessionCount > 0 {
-		s.db.QueryRow(`SELECT COUNT(DISTINCT todo_id) FROM dig_sessions WHERE todo_id IS NOT NULL`).Scan(&stats.LinkedTasks)
+		err = s.db.QueryRow(`SELECT COUNT(DISTINCT todo_id) FROM dig_sessions WHERE todo_id IS NOT NULL`).Scan(&stats.LinkedTasks)
+		if err != nil {
+			return nil, fmt.Errorf("count linked dig_sessions tasks: %w", err)
+		}
 	}
 
 	return stats, nil

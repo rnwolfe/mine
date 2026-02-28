@@ -32,7 +32,8 @@ AUTODEV_MAX_ITERATIONS=3
 
 # Trusted users who can trigger autodev via backlog/ready label
 # Only these users (repo owner/collaborators) can queue work for autonomous execution.
-AUTODEV_TRUSTED_USERS=("rnwolfe")
+# Bot actors are included so autodev-created follow-up issues can be auto-queued.
+AUTODEV_TRUSTED_USERS=("rnwolfe" "github-actions[bot]" "mine-autodev[bot]" "claude[bot]")
 
 # Provider (model-agnostic switch)
 AUTODEV_PROVIDER="${AUTODEV_PROVIDER:-claude}"

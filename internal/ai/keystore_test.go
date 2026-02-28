@@ -168,6 +168,138 @@ func TestKeystoreFilePermissions(t *testing.T) {
 	}
 }
 
+func TestKeystoreGetFromEnv_WithEnvVar(t *testing.T) {
+	tmpDir := t.TempDir()
+	ks := &Keystore{
+		path: tmpDir + "/keystore.enc", // no file created
+		key:  []byte("01234567890123456789012345678901"),
+	}
+
+	// Set env var for each known provider
+	tests := []struct {
+		provider string
+		envVar   string
+	}{
+		{"claude", "ANTHROPIC_API_KEY"},
+		{"openai", "OPENAI_API_KEY"},
+		{"gemini", "GEMINI_API_KEY"},
+		{"openrouter", "OPENROUTER_API_KEY"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.provider, func(t *testing.T) {
+			t.Setenv(tt.envVar, "env-key-for-"+tt.provider)
+
+			key, err := ks.Get(tt.provider)
+			if err != nil {
+				t.Fatalf("Get(%s) failed: %v", tt.provider, err)
+			}
+			if key != "env-key-for-"+tt.provider {
+				t.Errorf("expected env key, got '%s'", key)
+			}
+		})
+	}
+}
+
+func TestKeystoreGetFromEnv_OpenRouterEmptyAllowed(t *testing.T) {
+	tmpDir := t.TempDir()
+	ks := &Keystore{
+		path: tmpDir + "/keystore.enc", // no file
+		key:  []byte("01234567890123456789012345678901"),
+	}
+
+	// openrouter returns empty key (not an error) when env var is set to empty string
+	t.Setenv("OPENROUTER_API_KEY", "")
+
+	key, err := ks.Get("openrouter")
+	if err != nil {
+		t.Fatalf("expected no error for openrouter with empty env, got: %v", err)
+	}
+	if key != "" {
+		t.Errorf("expected empty key for openrouter, got '%s'", key)
+	}
+}
+
+func TestKeystoreGetFromEnv_UnknownProvider(t *testing.T) {
+	tmpDir := t.TempDir()
+	ks := &Keystore{
+		path: tmpDir + "/keystore.enc", // no file
+		key:  []byte("01234567890123456789012345678901"),
+	}
+
+	_, err := ks.Get("unknown-provider-xyz")
+	if err == nil {
+		t.Fatal("expected error for unknown provider")
+	}
+	if !contains([]byte(err.Error()), []byte("unknown-provider-xyz")) {
+		t.Errorf("expected error message to contain provider name, got: %v", err)
+	}
+}
+
+func TestKeystoreGetFromEnv_KnownProviderMissingEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	ks := &Keystore{
+		path: tmpDir + "/keystore.enc", // no file
+		key:  []byte("01234567890123456789012345678901"),
+	}
+
+	// Ensure the env var is not set
+	t.Setenv("ANTHROPIC_API_KEY", "")
+
+	_, err := ks.Get("claude")
+	if err == nil {
+		t.Fatal("expected error for missing API key")
+	}
+}
+
+func TestKeystoreNewKeystore(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmpDir)
+
+	ks, err := NewKeystore()
+	if err != nil {
+		t.Fatalf("NewKeystore failed: %v", err)
+	}
+	if ks == nil {
+		t.Fatal("expected non-nil keystore")
+	}
+	if ks.path == "" {
+		t.Error("expected non-empty keystore path")
+	}
+	if len(ks.key) != 32 {
+		t.Errorf("expected 32-byte key, got %d bytes", len(ks.key))
+	}
+}
+
+func TestKeystoreDeleteNonExistentFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	ks := &Keystore{
+		path: tmpDir + "/no-such-file.enc",
+		key:  []byte("01234567890123456789012345678901"),
+	}
+
+	// Delete when no keystore file exists should not error
+	if err := ks.Delete("any-provider"); err != nil {
+		t.Errorf("Delete on missing file should not error: %v", err)
+	}
+}
+
+func TestKeystoreListEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	ks := &Keystore{
+		path: tmpDir + "/no-such-file.enc",
+		key:  []byte("01234567890123456789012345678901"),
+	}
+
+	providers, err := ks.List()
+	if err != nil {
+		t.Fatalf("List on empty keystore failed: %v", err)
+	}
+	if len(providers) != 0 {
+		t.Errorf("expected empty list, got %d providers", len(providers))
+	}
+}
+
 // Helper function to check if a byte slice contains a subsequence
 func contains(data, substr []byte) bool {
 	for i := 0; i <= len(data)-len(substr); i++ {

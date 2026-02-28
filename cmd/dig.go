@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rnwolfe/mine/internal/dig"
 	"github.com/rnwolfe/mine/internal/hook"
 	"github.com/rnwolfe/mine/internal/proj"
 	"github.com/rnwolfe/mine/internal/store"
@@ -304,52 +305,12 @@ func recordDigSession(duration time.Duration, todoID *int, completed bool, start
 	defer db.Close()
 
 	mins := int(duration.Minutes())
-	secs := int(duration.Seconds())
-	today := time.Now().Format("2006-01-02")
-	comp := 0
-	if completed {
-		comp = 1
-	}
-
-	// Insert into dig_sessions table. Failure is non-fatal: streak/KV updates
-	// are independent and should proceed even if the row insert fails.
-	if _, err := db.Conn().Exec(
-		`INSERT INTO dig_sessions (todo_id, duration_secs, completed, started_at, ended_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-		todoID, secs, comp, startedAt.UTC().Format("2006-01-02 15:04:05"),
-	); err != nil {
-		fmt.Printf("  %s Warning: could not record session: %v\n", ui.IconMine, err)
-		// fall through — streak and KV updates are independent of session recording
-	}
-
-	// Update streak
-	var lastDate string
-	var current, longest int
-	err = db.Conn().QueryRow(`SELECT last_date, current, longest FROM streaks WHERE name = 'dig'`).Scan(&lastDate, &current, &longest)
-
+	ds := dig.NewStore(db.Conn())
+	totalMins, err := ds.RecordSession(duration, todoID, completed, startedAt)
 	if err != nil {
-		// First session ever
-		db.Conn().Exec(`INSERT INTO streaks (name, current, longest, last_date) VALUES ('dig', 1, 1, ?)`, today)
-	} else {
-		yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-		if lastDate == today {
-			// Already logged today, don't increment streak
-		} else if lastDate == yesterday {
-			current++
-			if current > longest {
-				longest = current
-			}
-			db.Conn().Exec(`UPDATE streaks SET current = ?, longest = ?, last_date = ? WHERE name = 'dig'`, current, longest, today)
-		} else {
-			// Streak broken
-			db.Conn().Exec(`UPDATE streaks SET current = 1, last_date = ? WHERE name = 'dig'`, today)
-		}
+		fmt.Printf("  %s Warning: could not record session: %v\n", ui.IconMine, err)
+		// fall through — streak/KV updates still ran; show partial stats
 	}
-
-	// Store total minutes in KV
-	var totalMins int
-	db.Conn().QueryRow(`SELECT CAST(value AS INTEGER) FROM kv WHERE key = 'dig_total_mins'`).Scan(&totalMins)
-	totalMins += mins
-	db.Conn().Exec(`INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES ('dig_total_mins', ?, CURRENT_TIMESTAMP)`, fmt.Sprintf("%d", totalMins))
 
 	ui.Ok(fmt.Sprintf("%dm logged. %dh %dm total deep work.", mins, totalMins/60, totalMins%60))
 }
@@ -365,36 +326,23 @@ func runDigStats(_ *cobra.Command, _ []string) error {
 	fmt.Println(ui.Title.Render("  Deep Work Stats"))
 	fmt.Println()
 
-	// Streak
-	var current, longest int
-	var lastDate string
-	err = db.Conn().QueryRow(`SELECT current, longest, last_date FROM streaks WHERE name = 'dig'`).Scan(&current, &longest, &lastDate)
+	ds := dig.NewStore(db.Conn())
+	stats, err := ds.GetStats()
 	if err != nil {
 		fmt.Println(ui.Muted.Render("  No sessions yet. Start with: mine dig"))
 		fmt.Println()
 		return nil
 	}
 
-	ui.Kv("Streak", fmt.Sprintf("%d days %s", current, ui.IconFire))
-	ui.Kv("Best", fmt.Sprintf("%d days", longest))
+	ui.Kv("Streak", fmt.Sprintf("%d days %s", stats.CurrentStreak, ui.IconFire))
+	ui.Kv("Best", fmt.Sprintf("%d days", stats.LongestStreak))
+	ui.Kv("Total", fmt.Sprintf("%dh %dm", stats.TotalMins/60, stats.TotalMins%60))
+	ui.Kv("Last", stats.LastDate)
 
-	// Total time from KV (legacy)
-	var totalMins int
-	db.Conn().QueryRow(`SELECT CAST(value AS INTEGER) FROM kv WHERE key = 'dig_total_mins'`).Scan(&totalMins)
-	ui.Kv("Total", fmt.Sprintf("%dh %dm", totalMins/60, totalMins%60))
-	ui.Kv("Last", lastDate)
-
-	// Session table stats
-	var sessionCount int
-	db.Conn().QueryRow(`SELECT COUNT(*) FROM dig_sessions`).Scan(&sessionCount)
-	if sessionCount > 0 {
-		ui.Kv("Sessions", fmt.Sprintf("%d", sessionCount))
-
-		// Tasks with linked sessions
-		var linkedTasks int
-		db.Conn().QueryRow(`SELECT COUNT(DISTINCT todo_id) FROM dig_sessions WHERE todo_id IS NOT NULL`).Scan(&linkedTasks)
-		if linkedTasks > 0 {
-			ui.Kv("Tasks focused", fmt.Sprintf("%d", linkedTasks))
+	if stats.SessionCount > 0 {
+		ui.Kv("Sessions", fmt.Sprintf("%d", stats.SessionCount))
+		if stats.LinkedTasks > 0 {
+			ui.Kv("Tasks focused", fmt.Sprintf("%d", stats.LinkedTasks))
 		}
 	}
 

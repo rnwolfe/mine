@@ -129,8 +129,13 @@ jobs:
               --jq '[.[] | select(.user.login != "github-actions[bot]")] | sort_by(.submitted_at) | last // empty')
 
             if [ -z "$LATEST_REVIEW" ] || [ "$LATEST_REVIEW" = "null" ]; then
-              echo "No reviews found on PR #$PR_NUMBER. Skipping."
-              echo "action=skip" >> "$GITHUB_OUTPUT"
+              if [ "$PHASE" = "copilot" ]; then
+                echo "No Copilot review found on PR #$PR_NUMBER — Copilot did not review within polling window. Transitioning to Claude phase."
+                echo "action=trigger-claude" >> "$GITHUB_OUTPUT"
+              else
+                echo "No reviews found on PR #$PR_NUMBER in phase '$PHASE'. Skipping."
+                echo "action=skip" >> "$GITHUB_OUTPUT"
+              fi
               exit 0
             fi
 

@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 )
@@ -12,7 +13,10 @@ type redirectTransport struct {
 }
 
 func (t *redirectTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	base, _ := url.Parse(t.serverURL)
+	base, err := url.Parse(t.serverURL)
+	if err != nil {
+		return nil, fmt.Errorf("redirectTransport: invalid server URL %q: %w", t.serverURL, err)
+	}
 	req = req.Clone(req.Context())
 	req.URL.Scheme = base.Scheme
 	req.URL.Host = base.Host

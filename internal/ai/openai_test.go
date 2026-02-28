@@ -352,20 +352,10 @@ func TestOpenAIProvider_Stream_DoneSignal(t *testing.T) {
 }
 
 func TestOpenAIProvider_Init_EmptyAPIKey(t *testing.T) {
-	t.Cleanup(resetRegistry)
-
-	Register("openai-init-test", func(apiKey string) (Provider, error) {
-		if apiKey == "" {
-			return nil, fmt.Errorf("API key required for OpenAI provider")
-		}
-		return &OpenAIProvider{
-			apiKey:       apiKey,
-			defaultModel: "gpt-4",
-			client:       &http.Client{},
-		}, nil
-	})
-
-	_, err := GetProvider("openai-init-test", "")
+	// Call the real constructor registered by openai.go init() to verify it
+	// rejects an empty key. This ensures the actual production path is covered,
+	// not just a synthetic test factory.
+	_, err := GetProvider("openai", "")
 	if err == nil {
 		t.Error("expected error for empty API key")
 	}

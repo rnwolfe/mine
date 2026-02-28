@@ -208,7 +208,7 @@ func TestKeystoreGetFromEnv_OpenRouterEmptyAllowed(t *testing.T) {
 		key:  []byte("01234567890123456789012345678901"),
 	}
 
-	// openrouter returns empty key (not an error) when env var is unset
+	// openrouter returns empty key (not an error) when env var is set to empty string
 	t.Setenv("OPENROUTER_API_KEY", "")
 
 	key, err := ks.Get("openrouter")

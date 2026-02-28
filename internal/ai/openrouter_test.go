@@ -354,20 +354,10 @@ func TestOpenRouterProvider_Stream_DoneSignal(t *testing.T) {
 }
 
 func TestOpenRouterProvider_Init_EmptyAPIKey(t *testing.T) {
-	t.Cleanup(resetRegistry)
-
-	Register("openrouter-init-test", func(apiKey string) (Provider, error) {
-		if apiKey == "" {
-			return nil, fmt.Errorf("API key required for OpenRouter")
-		}
-		return &OpenRouterProvider{
-			apiKey:       apiKey,
-			defaultModel: "openai/gpt-4",
-			client:       &http.Client{},
-		}, nil
-	})
-
-	_, err := GetProvider("openrouter-init-test", "")
+	// Call the real constructor registered by openrouter.go init() to verify it
+	// rejects an empty key. This ensures the actual production path is covered,
+	// not just a synthetic test factory.
+	_, err := GetProvider("openrouter", "")
 	if err == nil {
 		t.Error("expected error for empty API key")
 	}

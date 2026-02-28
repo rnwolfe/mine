@@ -359,20 +359,10 @@ func TestGeminiProvider_Stream_ValidationError(t *testing.T) {
 }
 
 func TestGeminiProvider_Init_EmptyAPIKey(t *testing.T) {
-	t.Cleanup(resetRegistry)
-
-	Register("gemini-init-test", func(apiKey string) (Provider, error) {
-		if apiKey == "" {
-			return nil, fmt.Errorf("API key required for Gemini provider")
-		}
-		return &GeminiProvider{
-			apiKey:       apiKey,
-			defaultModel: "gemini-pro",
-			client:       &http.Client{},
-		}, nil
-	})
-
-	_, err := GetProvider("gemini-init-test", "")
+	// Call the real constructor registered by gemini.go init() to verify it
+	// rejects an empty key. This ensures the actual production path is covered,
+	// not just a synthetic test factory.
+	_, err := GetProvider("gemini", "")
 	if err == nil {
 		t.Error("expected error for empty API key")
 	}

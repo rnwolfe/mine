@@ -350,20 +350,10 @@ func TestClaudeProvider_Stream_DoneSignal(t *testing.T) {
 }
 
 func TestClaudeProvider_Init_EmptyAPIKey(t *testing.T) {
-	t.Cleanup(resetRegistry)
-
-	Register("claude-init-test", func(apiKey string) (Provider, error) {
-		if apiKey == "" {
-			return nil, fmt.Errorf("API key required for Claude provider")
-		}
-		return &ClaudeProvider{
-			apiKey:       apiKey,
-			defaultModel: "claude-sonnet-4-5",
-			client:       &http.Client{},
-		}, nil
-	})
-
-	_, err := GetProvider("claude-init-test", "")
+	// Call the real constructor registered by claude.go init() to verify it
+	// rejects an empty key. This ensures the actual production path is covered,
+	// not just a synthetic test factory.
+	_, err := GetProvider("claude", "")
 	if err == nil {
 		t.Error("expected error for empty API key")
 	}

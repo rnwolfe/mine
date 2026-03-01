@@ -28,7 +28,7 @@ var aiConfigCmd = &cobra.Command{
 }
 
 func init() {
-	aiConfigCmd.Flags().StringVarP(&aiConfigProvider, "provider", "p", "", "Provider name (claude, openai, ollama)")
+	aiConfigCmd.Flags().StringVarP(&aiConfigProvider, "provider", "p", "", "Provider name (claude, openai, gemini, openrouter; see 'mine ai models')")
 	aiConfigCmd.Flags().StringVarP(&aiConfigKey, "key", "k", "", "API key")
 	aiConfigCmd.Flags().StringVar(&aiConfigModel, "default-model", "", "Default model")
 	aiConfigCmd.Flags().BoolVarP(&aiConfigList, "list", "l", false, "List configured providers")

@@ -130,8 +130,15 @@ jobs:
 
             if [ -z "$LATEST_REVIEW" ] || [ "$LATEST_REVIEW" = "null" ]; then
               if [ "$PHASE" = "copilot" ]; then
-                echo "No Copilot review found on PR #$PR_NUMBER — Copilot did not review within polling window. Transitioning to Claude phase."
-                echo "action=trigger-claude" >> "$GITHUB_OUTPUT"
+                # Copilot hasn't reviewed yet — re-request in case the initial request was missed,
+                # then wait. Never skip Copilot review entirely: Copilot always reviews first,
+                # even if they have no comments (LGTM). Transition to Claude only after Copilot
+                # has actually posted a review. The 4-hour scheduled poll will check again.
+                echo "No Copilot review found on PR #$PR_NUMBER. Re-requesting Copilot review and waiting..."
+                gh api -X POST \
+                  "repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers" \
+                  -f 'reviewers[]=copilot-pull-request-reviewer' 2>/dev/null || true
+                echo "action=skip" >> "$GITHUB_OUTPUT"
               else
                 echo "No reviews found on PR #$PR_NUMBER in phase '$PHASE'. Skipping."
                 echo "action=skip" >> "$GITHUB_OUTPUT"

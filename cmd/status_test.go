@@ -33,12 +33,12 @@ func TestGatherStatus_WithDigData(t *testing.T) {
 		if err != nil {
 			t.Fatalf("store.Open: %v", err)
 		}
+		defer db.Close()
+
 		ds := dig.NewStore(db.Conn())
 		if _, err := ds.RecordSession(30*time.Minute, nil, true, time.Now().Add(-30*time.Minute)); err != nil {
-			db.Close()
 			t.Fatalf("RecordSession: %v", err)
 		}
-		db.Close()
 	}
 
 	data := gatherStatus()
@@ -52,6 +52,13 @@ func TestGatherStatus_WithDigData(t *testing.T) {
 
 func TestRunStatus_HumanReadable(t *testing.T) {
 	configTestEnv(t)
+
+	prevStatusJSON := statusJSON
+	prevStatusPrompt := statusPrompt
+	t.Cleanup(func() {
+		statusJSON = prevStatusJSON
+		statusPrompt = prevStatusPrompt
+	})
 	statusJSON = false
 	statusPrompt = false
 

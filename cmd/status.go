@@ -86,10 +86,9 @@ func gatherStatus() StatusData {
 		data.OverdueTodos = overdue
 	}
 
-	if stats, err := dig.NewStore(db.Conn()).GetStats(); err == nil {
-		data.DigStreak = stats.CurrentStreak
-		data.DigTotalMins = stats.TotalMins
-	}
+	stats, _ := dig.NewStore(db.Conn()).GetStats()
+	data.DigStreak = stats.CurrentStreak
+	data.DigTotalMins = stats.TotalMins
 
 	return data
 }

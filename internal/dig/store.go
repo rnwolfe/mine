@@ -118,14 +118,18 @@ func (s *Store) UpdateStreak(today string) error {
 }
 
 // GetStats returns aggregate statistics for dig sessions.
-// Returns (nil, err) when no sessions have been recorded yet (streak row absent).
+// Always returns a non-nil *Stats. When no sessions exist, all fields are zero and err is nil.
+// On partial DB failures, returns whatever stats were computed along with the error.
 func (s *Store) GetStats() (*Stats, error) {
 	stats := &Stats{}
 	err := s.db.QueryRow(
 		`SELECT current, longest, last_date FROM streaks WHERE name = 'dig'`,
 	).Scan(&stats.CurrentStreak, &stats.LongestStreak, &stats.LastDate)
 	if err != nil {
-		return nil, err
+		if err == sql.ErrNoRows {
+			return stats, nil // no sessions recorded yet; zero values are correct
+		}
+		return stats, err // return partial (zero) stats with error
 	}
 
 	err = s.db.QueryRow(`SELECT CAST(value AS INTEGER) FROM kv WHERE key = 'dig_total_mins'`).Scan(&stats.TotalMins)
@@ -133,19 +137,19 @@ func (s *Store) GetStats() (*Stats, error) {
 		if err == sql.ErrNoRows {
 			stats.TotalMins = 0
 		} else {
-			return nil, fmt.Errorf("query dig_total_mins: %w", err)
+			return stats, fmt.Errorf("query dig_total_mins: %w", err)
 		}
 	}
 
 	err = s.db.QueryRow(`SELECT COUNT(*) FROM dig_sessions`).Scan(&stats.SessionCount)
 	if err != nil {
-		return nil, fmt.Errorf("count dig_sessions: %w", err)
+		return stats, fmt.Errorf("count dig_sessions: %w", err)
 	}
 
 	if stats.SessionCount > 0 {
 		err = s.db.QueryRow(`SELECT COUNT(DISTINCT todo_id) FROM dig_sessions WHERE todo_id IS NOT NULL`).Scan(&stats.LinkedTasks)
 		if err != nil {
-			return nil, fmt.Errorf("count linked dig_sessions tasks: %w", err)
+			return stats, fmt.Errorf("count linked dig_sessions tasks: %w", err)
 		}
 	}
 

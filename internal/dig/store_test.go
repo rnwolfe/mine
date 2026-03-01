@@ -237,9 +237,18 @@ func TestGetStats_NoSessions(t *testing.T) {
 	db := openTestDB(t)
 	s := dig.NewStore(db)
 
-	_, err := s.GetStats()
-	if err == nil {
-		t.Fatal("expected error when no streak row exists")
+	stats, err := s.GetStats()
+	if err != nil {
+		t.Fatalf("GetStats: %v", err)
+	}
+	if stats.CurrentStreak != 0 {
+		t.Errorf("CurrentStreak = %d, want 0 for empty db", stats.CurrentStreak)
+	}
+	if stats.TotalMins != 0 {
+		t.Errorf("TotalMins = %d, want 0 for empty db", stats.TotalMins)
+	}
+	if stats.SessionCount != 0 {
+		t.Errorf("SessionCount = %d, want 0 for empty db", stats.SessionCount)
 	}
 }
 

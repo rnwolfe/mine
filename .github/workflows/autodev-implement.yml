@@ -111,6 +111,16 @@ jobs:
               - site/src/content/docs/getting-started/quick-start.md (onboarding examples)
               - site/src/content/docs/index.mdx (top-level docs landing and high-level feature claims)
             - Write tests for new functionality
+            - ERROR HANDLING — The #1 recurring review feedback theme. Follow these rules:
+              - Never silently ignore errors from database queries or I/O operations
+              - Use `sql.ErrNoRows` for expected missing-data cases; wrap and return all other errors
+              - If a function can partially succeed, handle each error independently — don't let
+                one failure block unrelated data (e.g., streak query failing shouldn't prevent
+                total-minutes from being set)
+              - Never mask real database errors behind catch-all fallbacks (e.g., don't treat
+                any SELECT error as "no rows" — check `sql.ErrNoRows` specifically)
+              - In shell scripts, derive/assign variables before using them; never reference
+                a variable before the line that sets it
             - QUALITY GATE — Before committing, verify:
               - If the issue references a file pattern to follow, you have read it and matched it
               - Integration tests call the actual runXxx handler, not just helper functions

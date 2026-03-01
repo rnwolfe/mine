@@ -349,6 +349,10 @@ jobs:
             - Do NOT modify CLAUDE.md, any files in .github/workflows/, or scripts/autodev/
             - You CAN and SHOULD update docs/internal/lessons-learned.md (append new L-NNN entries)
               and docs/internal/key-files.md when your changes warrant it
+            - ERROR HANDLING — common review feedback theme. When fixing or writing code:
+              - Never silently ignore errors from database queries or I/O operations
+              - Use `sql.ErrNoRows` for expected missing-data cases; wrap and return all other errors
+              - Handle partial failures independently — one query failing shouldn't block unrelated data
             - Address ALL review comments below
             - If a comment is unclear, make your best judgment
 
@@ -533,6 +537,10 @@ jobs:
             - Do NOT modify CLAUDE.md, any files in .github/workflows/, or scripts/autodev/
             - You CAN and SHOULD update docs/internal/lessons-learned.md (append new L-NNN entries)
               and docs/internal/key-files.md when your changes warrant it
+            - ERROR HANDLING — common review feedback theme. When fixing or writing code:
+              - Never silently ignore errors from database queries or I/O operations
+              - Use `sql.ErrNoRows` for expected missing-data cases; wrap and return all other errors
+              - Handle partial failures independently — one query failing shouldn't block unrelated data
             - Address ALL review comments below
             - For anything that CANNOT be fully resolved in this PR, create a follow-up
               GitHub issue using `gh issue create` with:

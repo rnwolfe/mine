@@ -46,6 +46,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_bots: "mine-autodev,mine-autodev[bot]"
           prompt: |
             Review PR #${{ steps.pr.outputs.number }} in ${{ github.repository }}.
 

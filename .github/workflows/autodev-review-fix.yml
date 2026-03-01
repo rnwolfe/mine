@@ -331,7 +331,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          allowed_bots: "github-actions[bot],claude"
+          allowed_bots: "github-actions[bot],claude,mine-autodev,mine-autodev[bot]"
           prompt: |
             You are fixing Copilot review feedback on PR #${{ steps.route.outputs.pr_number }} for the mine CLI tool.
 
@@ -514,7 +514,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          allowed_bots: "github-actions[bot],claude"
+          allowed_bots: "github-actions[bot],claude,mine-autodev,mine-autodev[bot]"
           prompt: |
             You are doing a final review-fix pass on PR #${{ steps.route.outputs.pr_number }} for the mine CLI tool.
             This is the last automated fix cycle — make it count.

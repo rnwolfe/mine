@@ -327,8 +327,8 @@ func runDigStats(_ *cobra.Command, _ []string) error {
 	fmt.Println()
 
 	ds := dig.NewStore(db.Conn())
-	stats, err := ds.GetStats()
-	if err != nil {
+	stats, _ := ds.GetStats()
+	if stats.SessionCount == 0 {
 		fmt.Println(ui.Muted.Render("  No sessions yet. Start with: mine dig"))
 		fmt.Println()
 		return nil

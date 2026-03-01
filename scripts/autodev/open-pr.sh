@@ -77,13 +77,16 @@ autodev_info "Created PR: $PR_URL"
 
 # Explicitly request Copilot review — GitHub skips auto-review for bot-authored PRs,
 # so we must request it manually to keep the pipeline flowing.
+# Uses the REST API directly; `gh pr edit --add-reviewer` doesn't accept bot logins.
+# Copilot's reviewer login is "copilot-pull-request-reviewer" (no [bot] suffix).
 PR_NUMBER=$(echo "$PR_URL" | grep -oP '/pull/\K\d+')
-if gh pr edit "$PR_NUMBER" \
-    --repo "$AUTODEV_REPO" \
-    --add-reviewer "copilot-pull-request-reviewer[bot]" 2>/dev/null; then
+if gh api -X POST \
+    "repos/$AUTODEV_REPO/pulls/$PR_NUMBER/requested_reviewers" \
+    -f 'reviewers[]=copilot-pull-request-reviewer' 2>/tmp/copilot-review-err.txt; then
     autodev_info "Requested Copilot review on PR #$PR_NUMBER"
 else
-    autodev_warn "Could not request Copilot review on PR #$PR_NUMBER — pipeline will fall back to Claude phase via scheduled poll"
+    autodev_warn "Could not request Copilot review on PR #$PR_NUMBER: $(cat /tmp/copilot-review-err.txt)"
+    autodev_warn "Pipeline will fall back to Claude phase via scheduled poll"
 fi
 
 echo "$PR_URL"

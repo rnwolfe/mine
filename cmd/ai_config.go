@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/rnwolfe/mine/internal/ai"
 	"github.com/rnwolfe/mine/internal/config"
@@ -42,8 +43,17 @@ func runAIConfig(_ *cobra.Command, _ []string) error {
 			return err
 		}
 
+		// Resolve passphrase via full chain (env → keychain → prompt),
+		// but only if the vault file exists — avoid prompting when there's no vault.
+		var passphrase string
+		paths := config.GetPaths()
+		vaultPath := filepath.Join(paths.DataDir, "vault.age")
+		if _, statErr := os.Stat(vaultPath); statErr == nil {
+			passphrase, _ = readPassphrase(false)
+		}
+
 		// Collect providers that have vault keys.
-		providers, err := aiVaultProviders()
+		providers, err := aiVaultProviders(passphrase)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -141,7 +151,7 @@ func runAIModels(_ *cobra.Command, _ []string) error {
 	allProviders := ai.ListProviders()
 
 	// Get providers with vault-stored keys (best-effort, silent if vault unavailable).
-	vaultProviders, _ := aiVaultProviders()
+	vaultProviders, _ := aiVaultProviders(os.Getenv("MINE_VAULT_PASSPHRASE"))
 	vaultMap := make(map[string]bool)
 	for _, p := range vaultProviders {
 		vaultMap[p] = true

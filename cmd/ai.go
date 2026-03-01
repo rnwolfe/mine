@@ -293,8 +293,8 @@ func vaultFallback(provider string) (string, error) {
 }
 
 // aiVaultProviders returns AI provider names that have keys stored in vault.
-func aiVaultProviders() ([]string, error) {
-	passphrase := os.Getenv("MINE_VAULT_PASSPHRASE")
+// Pass an empty passphrase to skip vault lookup silently (best-effort callers).
+func aiVaultProviders(passphrase string) ([]string, error) {
 	if passphrase == "" {
 		return nil, nil // No passphrase available — return empty list silently.
 	}

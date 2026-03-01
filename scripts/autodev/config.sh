@@ -35,6 +35,11 @@ AUTODEV_MAX_ITERATIONS=3
 # Bot actors are included so autodev-created follow-up issues can be auto-queued.
 AUTODEV_TRUSTED_USERS=("rnwolfe" "github-actions[bot]" "mine-autodev[bot]" "claude[bot]")
 
+# Human reviewer to remove from autodev PRs (auto-added by CODEOWNERS).
+# Autodev PRs are reviewed by Copilot and Claude only; humans are looped in
+# exclusively via human/blocked or human/review-merge guardrails.
+AUTODEV_HUMAN_REVIEWER="rnwolfe"
+
 # Provider (model-agnostic switch)
 AUTODEV_PROVIDER="${AUTODEV_PROVIDER:-claude}"
 

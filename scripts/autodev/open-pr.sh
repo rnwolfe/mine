@@ -75,6 +75,17 @@ PR_URL=$(gh pr create \
 
 autodev_info "Created PR: $PR_URL"
 
+# Remove human reviewer auto-added by CODEOWNERS.
+# Autodev PRs are reviewed by Copilot and Claude only; the human is looped
+# in exclusively via human/blocked or human/review-merge guardrails.
+if gh api -X DELETE \
+    "repos/$AUTODEV_REPO/pulls/$PR_NUMBER/requested_reviewers" \
+    -f "reviewers[]=$AUTODEV_HUMAN_REVIEWER" 2>/tmp/remove-reviewer-err.txt; then
+    autodev_info "Removed human reviewer ($AUTODEV_HUMAN_REVIEWER) from PR #$PR_NUMBER"
+else
+    autodev_warn "Could not remove human reviewer from PR #$PR_NUMBER: $(cat /tmp/remove-reviewer-err.txt)"
+fi
+
 # Explicitly request Copilot review — GitHub skips auto-review for bot-authored PRs,
 # so we must request it manually to keep the pipeline flowing.
 # Uses the REST API directly; `gh pr edit --add-reviewer` doesn't accept bot logins.

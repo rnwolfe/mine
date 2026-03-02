@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"io"
+	"os"
 	"strings"
 	"testing"
 )
@@ -189,6 +190,42 @@ func TestRenderMarkdown_CodeBlock(t *testing.T) {
 	// Code content should appear in output (possibly styled).
 	if !strings.Contains(out, "fmt.Println") {
 		t.Errorf("rendered output should preserve code content; got: %q", out)
+	}
+}
+
+// --- NewMarkdownWriter constructor ---
+
+func TestNewMarkdownWriter_NonTTYFile(t *testing.T) {
+	// A regular file (not a terminal) should produce raw=false, isTTY=false.
+	f, err := os.CreateTemp(t.TempDir(), "mdw-test-*.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	mdw := NewMarkdownWriter(f, false)
+	if mdw.raw {
+		t.Error("expected raw=false")
+	}
+	if mdw.isTTY {
+		t.Error("expected isTTY=false for a regular file")
+	}
+}
+
+func TestNewMarkdownWriter_RawFlag(t *testing.T) {
+	var buf bytes.Buffer
+	mdw := NewMarkdownWriter(&buf, true)
+	if !mdw.raw {
+		t.Error("expected raw=true when raw flag is set")
+	}
+}
+
+func TestNewMarkdownWriter_NonFileWriter(t *testing.T) {
+	// A plain bytes.Buffer is not an *os.File — isTTY must be false.
+	var buf bytes.Buffer
+	mdw := NewMarkdownWriter(&buf, false)
+	if mdw.isTTY {
+		t.Error("expected isTTY=false for a non-file writer")
 	}
 }
 

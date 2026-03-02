@@ -519,6 +519,59 @@ func TestSyncRemoteURLEmpty(t *testing.T) {
 	}
 }
 
+func TestSyncPull_UnreadableStashFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root can read 0-permission files")
+	}
+
+	// Create a bare "remote" repo so git pull has a valid origin.
+	remoteDir := t.TempDir()
+	if _, err := gitCmd(remoteDir, "init", "--bare"); err != nil {
+		t.Fatalf("git init --bare: %v", err)
+	}
+
+	stashDir, homeDir := setupEnv(t)
+	source := createTestFile(t, homeDir, ".zshrc", "content")
+	setupManifest(t, stashDir, source, ".zshrc", "content")
+
+	// Commit initializes the git repo and sets user config.
+	if _, err := Commit("initial"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Point to the local bare remote and push so pull has a valid origin.
+	remoteURL := "file://" + remoteDir
+	if err := SyncSetRemote(remoteURL); err != nil {
+		t.Fatal(err)
+	}
+	if err := SyncPush(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Tell git to ignore changes to the stash file so that chmod 0o000 below
+	// does not create an unstaged change that would prevent git pull --rebase.
+	if _, err := gitCmd(stashDir, "update-index", "--assume-unchanged", ".zshrc"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make the stash file unreadable; git pull will be "already up to date"
+	// and won't touch the file, but the post-pull restore loop must surface
+	// the read error rather than silently continuing.
+	stashFile := filepath.Join(stashDir, ".zshrc")
+	if err := os.Chmod(stashFile, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(stashFile, 0o644) })
+
+	err := SyncPull()
+	if err == nil {
+		t.Error("SyncPull() should error when stash file is unreadable")
+	}
+	if err != nil && !strings.Contains(err.Error(), "reading stash file") {
+		t.Errorf("error = %q, want containing 'reading stash file'", err.Error())
+	}
+}
+
 func TestCommitRefreshesSources(t *testing.T) {
 	stashDir, homeDir := setupEnv(t)
 	source := createTestFile(t, homeDir, ".zshrc", "original")

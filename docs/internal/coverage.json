@@ -1,7 +1,7 @@
 {
-  "date": "2026-03-01",
-  "commit": "9a9868e25df5efc54796c1cee71e4575e30c6736",
-  "total_pct": 55.1,
+  "date": "2026-03-02",
+  "commit": "2fc1c923307f26cbabf5acf745c3d0d08f47698a",
+  "total_pct": 55.2,
   "packages": {
     "cmd": 42.9,
     "internal/agents": 72.8,
@@ -21,7 +21,7 @@
     "internal/proj": 56.1,
     "internal/shell": 100.0,
     "internal/ssh": 58.8,
-    "internal/stash": 80.5,
+    "internal/stash": 84.5,
     "internal/store": 84.4,
     "internal/tips": 100.0,
     "internal/tmux": 68.3,

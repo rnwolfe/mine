@@ -95,8 +95,11 @@ func SyncPull() error {
 		stashPath := filepath.Join(dir, e.SafeName)
 		data, err := os.ReadFile(stashPath)
 		if err != nil {
-			// If the stash file is missing or unreadable, skip this entry.
-			continue
+			// If the stash file is missing, skip this entry; other errors are fatal.
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("reading stash file %s: %w", e.SafeName, err)
 		}
 
 		// Preserve existing file mode if the source file already exists.

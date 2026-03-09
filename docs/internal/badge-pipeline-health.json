@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "label": "pipeline health",
-  "message": "95/100",
-  "color": "brightgreen"
+  "message": "65/100",
+  "color": "yellow"
 }
